@@ -1,0 +1,28 @@
+[package]
+name = "theoria-cli"
+description = "CLI for theoria — generate and serve a Leptos component gallery from a crate's stories"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+# Produces the `theoria` binary (the Storybook-style dev tool). Native-only
+# orchestration (no Leptos), so it's a fast workspace member. Travels with the
+# theoria family on spin-out.
+[[bin]]
+name = "theoria"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+serde = { workspace = true }
+# Align with the toml 1.x that Leptos pulls (via `config`) to avoid duplicate
+# toml / toml_datetime / winnow versions in the lockfile.
+toml = "1"
+
+[lints]
+workspace = true

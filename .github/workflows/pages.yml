@@ -1,0 +1,56 @@
+name: Deploy
+
+# Continuous deployment to GitHub Pages (production). Runs only after the Test
+# workflow succeeds on main — so the playwright-rust e2e dogfood gate must pass
+# before anything ships. main -> prod, no staging (the planner is a personal,
+# backend-free static bundle).
+on:
+  workflow_run:
+    workflows: ["Test"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & deploy to Pages
+    # Gate: only deploy when the triggering Test run passed (or on manual dispatch).
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: deploy
+      - name: Install Trunk
+        uses: taiki-e/install-action@v2
+        with:
+          tool: trunk
+      # Project page is served under https://padamson.github.io/slp/, so the
+      # bundle's asset URLs must be rooted at /slp/.
+      - name: Build app (release, project-page base path)
+        run: cd crates/slp-app && trunk build --release --public-url /slp/
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: crates/slp-app/dist
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

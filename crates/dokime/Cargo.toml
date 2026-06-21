@@ -1,0 +1,18 @@
+[package]
+name = "dokime"
+description = "Minimal component testing for Leptos — render a component to HTML and assert on it"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+# Incubated inside the slp workspace and dogfooded against slp-ui; designed to be
+# slp-agnostic so it can be spun out to its own repo once the API stabilizes.
+[dependencies]
+leptos = { version = "0.8", default-features = false, features = ["ssr"] }
+
+[lints]
+workspace = true

@@ -1,0 +1,16 @@
+[package]
+name = "slp-core"
+description = "Headless geometry + material take-off math for the Simple Landscape Planner"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+
+[lints]
+workspace = true

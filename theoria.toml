@@ -1,0 +1,8 @@
+# theoria gallery config — `theoria serve` reads this to generate & serve a
+# component explorer for the crate's stories (Storybook-style). The generated
+# harness lives under target/theoria/gallery (gitignored); nothing to commit.
+[gallery]
+crate = "slp-ui"                     # package exposing the stories
+path = "crates/slp-ui"               # path to it (relative to this file)
+aggregator = "slp_ui::all_stories"   # fn -> Vec<theoria::Story>
+features = ["stories"]               # extra features (csr added automatically)

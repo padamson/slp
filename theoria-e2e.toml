@@ -1,0 +1,8 @@
+# Gallery config for theoria's OWN e2e: builds a gallery from theoria's own
+# components-as-fixtures (no slp dependency), so theoria-e2e proves theoria works
+# in a real browser and travels with theoria on spin-out.
+[gallery]
+crate = "theoria"
+path = "crates/theoria"
+aggregator = "theoria::stories"
+features = ["stories"]

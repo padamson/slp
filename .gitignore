@@ -1,0 +1,29 @@
+# Build artifacts — root + per-crate target dirs (the excluded wasm/e2e crates
+# each build to their own crates/<crate>/target, not the workspace /target).
+/target
+**/target/
+**/dist
+
+# cargo-mutants output (current run + rotated previous run)
+/mutants.out/
+/mutants.out.old/
+
+# Ingested material binaries — provenance lives in materials/manifest.toml,
+# but the asset files themselves are NEVER committed (copyright/IP). See docs/PLAN.md.
+/materials/cache/
+
+# Environment variables (secrets, config)
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Throwaway prototypes — content captured in docs/PLAN.md; JSON samples preserved
+# as committed fixtures in crates/slp-core/tests/fixtures/legacy/.
+/spike/

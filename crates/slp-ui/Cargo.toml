@@ -1,0 +1,34 @@
+[package]
+name = "slp-ui"
+description = "Leptos UI components for the Simple Landscape Planner (runtime-agnostic)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# A library must NOT hard-enable a Leptos runtime (csr/ssr/hydrate); the final
+# consumer picks one. We expose passthrough features so slp-app can select csr
+# and dokime can render under ssr.
+leptos = { version = "0.8", default-features = false }
+slp-core = { path = "../slp-core" }
+# Only pulled in for the colocated `*.stories.rs` files (the `stories` feature),
+# never in the production app build.
+theoria = { path = "../theoria", optional = true }
+
+[dev-dependencies]
+dokime = { path = "../dokime" }
+
+[features]
+csr = ["leptos/csr"]
+ssr = ["leptos/ssr"]
+hydrate = ["leptos/hydrate"]
+# Compiles the colocated `*.stories.rs` files (slp-ui components as theoria
+# stories). Enabled by slp-gallery; off in the production slp-app build.
+stories = ["dep:theoria"]
+
+[lints]
+workspace = true

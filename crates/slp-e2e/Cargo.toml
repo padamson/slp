@@ -1,0 +1,19 @@
+# Standalone (excluded from the root workspace): a native crate that serves the
+# Trunk-built app and drives it with playwright-rs — the dogfood gate. Kept out
+# of the workspace so native test deps don't entangle the wasm app's graph.
+[package]
+name = "slp-e2e"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT"
+repository = "https://github.com/padamson/slp"
+authors = ["Paul Adamson"]
+publish = false
+
+[dev-dependencies]
+playwright-rs = "0.14"
+tokio = { version = "1", features = ["full"] }
+axum = "0.8"
+tower-http = { version = "0.6", features = ["fs"] }
+anyhow = "1"

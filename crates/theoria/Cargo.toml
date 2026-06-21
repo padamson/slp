@@ -1,0 +1,30 @@
+[package]
+name = "theoria"
+description = "A component explorer (gallery) for Leptos — preview components in isolation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+# Incubated inside the slp workspace and dogfooded by slp-app's gallery route;
+# slp-agnostic by design so it can be spun out once the API stabilizes.
+[dependencies]
+leptos = { version = "0.8", default-features = false }
+
+[features]
+csr = ["leptos/csr"]
+ssr = ["leptos/ssr"]
+hydrate = ["leptos/hydrate"]
+# Compiles the colocated `*.stories.rs` files (theoria's own components as
+# fixtures). Off in production-style builds, on for the demo/gallery.
+stories = []
+
+# theoria's own UI is component-driven and TDD'd with dokime (rendered under ssr).
+[dev-dependencies]
+dokime = { path = "../dokime" }
+
+[lints]
+workspace = true

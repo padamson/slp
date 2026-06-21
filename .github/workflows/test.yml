@@ -1,0 +1,109 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+permissions:
+  contents: read
+
+jobs:
+  msrv:
+    name: MSRV Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install MSRV toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.95"
+      - name: Check compilation on MSRV (workspace = slp-core)
+        run: cargo check --workspace
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: lint
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      # The wasm app and native e2e crate are excluded from the workspace, so
+      # lint each explicitly in addition to the workspace (slp-core).
+      - name: Clippy (workspace / slp-core)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Clippy (slp-app, wasm target)
+        run: cargo clippy --manifest-path crates/slp-app/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
+      - name: Clippy (slp-e2e)
+        run: cargo clippy --manifest-path crates/slp-e2e/Cargo.toml --all-targets -- -D warnings
+      - name: Clippy (theoria-e2e)
+        run: cargo clippy --manifest-path crates/theoria-e2e/Cargo.toml --all-targets -- -D warnings
+      - name: Doc-tests
+        run: cargo test --doc --workspace
+      - name: Generate documentation
+        run: cargo doc --no-deps --workspace
+
+  test:
+    name: Test slp-core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - name: Run tests
+        run: cargo nextest run --workspace
+
+  e2e:
+    name: E2E dogfood gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: e2e
+      - name: Install Trunk
+        uses: taiki-e/install-action@v2
+        with:
+          tool: trunk
+      # Build at the root path (public-url "/") so the e2e's ServeDir serves it
+      # correctly; the Pages deploy rebuilds with the project-page base path.
+      - name: Build app (root path)
+        run: cd crates/slp-app && trunk build
+      - name: Install Playwright browsers
+        run: npx playwright@1.60.0 install --with-deps chromium
+      - name: Run e2e (drives the real WASM app in chromium)
+        run: cargo test --manifest-path crates/slp-e2e/Cargo.toml
+      # theoria's own dogfood gate: generate+build its gallery (from theoria's
+      # own component fixtures) and drive it in a browser.
+      - name: Build theoria gallery
+        run: cargo run -p theoria-cli -- build --config theoria-e2e.toml
+      - name: Run theoria e2e (drives the gallery in chromium)
+        run: cargo test --manifest-path crates/theoria-e2e/Cargo.toml
