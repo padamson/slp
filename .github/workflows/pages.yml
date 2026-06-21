@@ -53,4 +53,4 @@ jobs:
           path: crates/slp-app/dist
       - name: Deploy to GitHub Pages
         id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
