@@ -1,0 +1,31 @@
+name: Dependabot auto-merge
+
+# Enable auto-merge (squash) on Dependabot PRs for minor + patch bumps. Combined
+# with branch protection requiring the CI checks, GitHub merges each PR only
+# after every required check is green; majors are left for manual review. With
+# "require branches up to date" (strict) set on main, multiple PRs merge in
+# sequence — each rebased by Dependabot and re-tested against the new main.
+on: pull_request_target
+
+# pull_request_target runs in the base-repo context, so GITHUB_TOKEN can merge
+# (a Dependabot PR's own token is read-only). We do not check out PR code.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+
+      - name: Enable auto-merge (squash) for minor + patch
+        if: >-
+          steps.meta.outputs.update-type == 'version-update:semver-minor' ||
+          steps.meta.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr merge --auto --squash "${{ github.event.pull_request.html_url }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
