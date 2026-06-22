@@ -19,6 +19,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result, ensure};
 use axum::Router;
+use playwright_rs::expect;
 use playwright_rs::protocol::{Page, Playwright};
 use tower_http::services::ServeDir;
 
@@ -101,6 +102,46 @@ async fn every_story_renders_and_selects() -> Result<()> {
         .context("navigate to gallery")?;
 
     assert_every_story_renders(&page).await?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+/// The selected story survives a full page reload (persisted to localStorage) —
+/// this is what keeps you on your story across Trunk's hot reload.
+#[tokio::test]
+async fn selection_persists_across_reload() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!("skipping theoria e2e: {} not built.", dist.display());
+        return Ok(());
+    }
+
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = browser.new_page().await.context("new page")?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to gallery")?;
+
+    // Select a non-default story...
+    page.get_by_text("StoryNav · single", false)
+        .await
+        .click(None)
+        .await
+        .context("select the second story")?;
+    expect(page.locator(".theoria > .theoria-nav button.active").await)
+        .to_have_text("StoryNav · single")
+        .await
+        .context("second story is active before reload")?;
+
+    // ...reload the page; the selection is restored from localStorage.
+    page.reload(None).await.context("reload the page")?;
+    expect(page.locator(".theoria > .theoria-nav button.active").await)
+        .to_have_text("StoryNav · single")
+        .await
+        .context("selected story persists across reload")?;
 
     browser.close().await.context("close browser")?;
     Ok(())

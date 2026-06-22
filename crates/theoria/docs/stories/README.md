@@ -7,13 +7,23 @@ when an slp slice needs that theoria capability), not before.
 
 ## Doc template
 
+Four sections only: heading, Story, Vertical slices, Notes/refs. Acceptance
+criteria live **inside each slice** as checkboxes; behavior is specified by the
+tests in code.
+
 ```
-# <ID> — <one-line story title>
-**Status:** … · **Pulled by:** <which slp/theoria need, or "not yet">
-## Story        (As a <persona>, I want <capability>, so that <value>.)
-## Acceptance criteria
-## Vertical slices    (ID.0, ID.1, … each shippable + how tested: dokime / e2e)
+# <ID> — <one-line title>
+*Pulled by: <which slp/theoria need>.*
+
+## Story
+As a <persona>, I want <capability>, so that <value>.
+
+## Vertical slices
+- **<ID>.0 — <slice name>**
+  - [ ] <acceptance criterion>
+
 ## Notes / refs
+- <refs, dependencies, decisions>
 ```
 
 Persona: a Leptos developer building a component who wants to see and poke it in
@@ -21,14 +31,29 @@ isolation while developing it.
 
 ## Index
 
-| # | Story | Doc | Status |
-|---|---|---|---|
-| T1 | Browse components in a sidebar; preview the selected one on a stage | [T1](T1-browse-and-preview.md) | ✅ done |
-| T2 | Clicking a name switches the preview; active item highlighted | (T1 slice 1b) | ✅ unit; browser e2e pending |
-| T3 | Styled two-pane layout, mountable in a host app | (T1 slice 1c) | ✅ done |
-| T4 | Browser e2e: drive the gallery, click a story, assert the stage swaps (fixtures = theoria's own components) | _pull when wiring the demo/e2e_ | backlog |
-| T9 | `theoria serve` CLI: discover stories + **generate and serve** the gallery (the real Storybook analog, so consumers don't hand-write a gallery bin) | [T9](T9-serve-cli.md) | ✅ done |
-| T5 | `#[story]` attribute macro + auto-registration (ergonomic authoring; needs a `theoria-macros` crate + wasm-safe registry) | _pull when manual aggregation hurts_ | backlog |
-| T6 | Per-story prop controls ("knobs") | _pull when needed_ | backlog |
-| T7 | Per-story stage options (background, viewport size) | _pull when needed_ | backlog |
-| T8 | Story groups / nesting in the sidebar | _pull when needed_ | backlog |
+Backlog priority tiers (and Rust/Leptos difficulty + rationale) come from the
+**Storybook parity roadmap** in [`../PLAN.md`](../PLAN.md). Items are still
+**pulled on demand** — the tier is "value if/when pulled," not a schedule.
+
+**Done**
+
+| # | Story | Doc |
+|---|---|---|
+| T1 | Browse + preview (sidebar/stage, click-to-switch, styling, selection persists across reload) | [T1](T1-browse-and-preview.md) |
+| T9 | `theoria serve`: discover stories + generate & serve the gallery, with source-crate hot reload | [T9](T9-serve-cli.md) |
+| T4 | Browser e2e: every story renders + selection persists (`theoria-e2e`) | (T1 slices) |
+
+**Backlog** (pull when an slp slice needs it)
+
+| # | Story | Tier |
+|---|---|---|
+| T6 | **Args + Controls ("knobs")** — live-edit a component's props in the gallery | 1 |
+| T10 | **Actions** — log a component's callbacks + args to a panel | 1 |
+| T5 | `#[story]` macro + `Meta` / auto-registration (CSF parity) | 1–2 |
+| T14 | Deep-linking — per-story URL (share/bookmark; drive e2e by URL) | 2 |
+| T11 | a11y — run axe-core against each story in the e2e | 2 |
+| T12 | Globals/toolbar — theme switch all stories read | 2 |
+| T13 | Autodocs — per-component page (description + args table + controls) | 2–3 |
+| T7 | Viewport + backgrounds (stage size / bg presets) | 3 |
+| T8 | Story groups / nesting in the sidebar | 3 |
+| T15 | Visual regression (screenshot-diff) — promote when material textures (epic M) / 3D (R2) land | 4 (defer) |

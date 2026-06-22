@@ -1,37 +1,29 @@
 # T1 — Browse components in a sidebar; preview the selected one on a stage
 
-**Status:** ✅ done · **Pulled by:** slp needing to eyeball `slp-ui` components
-in isolation while developing them.
+*Pulled by: slp needing to eyeball `slp-ui` components in isolation.*
 
 ## Story
 
 As a Leptos developer, I want to list my components in a sidebar and preview the
-selected one on a stage, so that I can develop and eyeball a component without
-the surrounding app.
-
-## Acceptance criteria
-
-- A `Story` is a `(name, view-producing closure)`.
-- `Gallery` renders one nav entry per story and shows the selected story's view.
-- The first story is shown by default; clicking another selects it; the active
-  entry is visually marked.
+selected one on a stage, so that I can develop a component without the
+surrounding app.
 
 ## Vertical slices
 
-- **1a — list + first preview** ✅ — `Story::new` + `Gallery` renders the names
-  via `StoryNav` and shows the first story. *Tested:* dokime
-  (`gallery.tests.rs`, `story_nav.tests.rs`).
-- **1b — switch on click + active mark** ✅ — `on:click` selects; `class:active`
-  highlights. *Tested:* dokime asserts exactly one `active` entry.
-- **1c — two-pane styling, mountable in a host** ✅ — `.theoria` / `.theoria-nav`
-  / `.theoria-stage` layout; mounts in a host app.
-- **1d — browser e2e** — drive the gallery in a real browser, click a story,
-  assert the stage swaps. *Deferred* to when `theoria-demo` + `theoria-e2e` are
-  wired (story T4).
+- **T1.0 — list + first preview**
+  - [x] a `Story` is `(name, view closure)`
+  - [x] `Gallery` lists one nav entry per story and shows the first by default
+- **T1.1 — switch on click**
+  - [x] clicking a name selects it; the active entry is marked
+- **T1.2 — two-pane styling, mountable in a host**
+  - [x] sidebar | stage layout; mounts in a host app
+- **T1.3 — browser e2e**
+  - [x] a playwright test drives the gallery and asserts switching (`theoria-e2e`)
+- **T1.4 — selection persists across reload**
+  - [x] the selected story is restored after a full page reload (localStorage),
+    so Trunk's hot reload keeps you on the story you were viewing
 
 ## Notes / refs
 
-- `StoryNav` is a leaf component (no children) so it is easy to unit-test and to
-  use as an e2e fixture later (T4) — never a `Gallery` inside a `Gallery`.
-- Components live in `src/components/` (`gallery.rs`, `story_nav.rs` +
-  `.stories.rs` / `.tests.rs`).
+- `StoryNav` is a leaf component — easy to unit-test and to reuse as an e2e
+  fixture. Never a `Gallery` inside a `Gallery` (infinite mirror).

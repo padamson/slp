@@ -7,13 +7,23 @@ theoria component test needs it), not before.
 
 ## Doc template
 
+Four sections only: heading, Story, Vertical slices, Notes/refs. Acceptance
+criteria live **inside each slice** as checkboxes; behavior is specified by the
+tests in code.
+
 ```
-# <ID> — <one-line story title>
-**Status:** … · **Pulled by:** <which slp/theoria need, or "not yet">
-## Story        (As a <persona>, I want <capability>, so that <value>.)
-## Acceptance criteria
-## Vertical slices    (ID.0, ID.1, … each shippable)
+# <ID> — <one-line title>
+*Pulled by: <which slp/theoria need>.*
+
+## Story
+As a <persona>, I want <capability>, so that <value>.
+
+## Vertical slices
+- **<ID>.0 — <slice name>**
+  - [ ] <acceptance criterion>
+
 ## Notes / refs
+- <refs, dependencies, decisions>
 ```
 
 Persona: a Rust/Leptos developer doing component-driven TDD who wants a fast

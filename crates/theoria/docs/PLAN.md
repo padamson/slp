@@ -21,12 +21,78 @@ items move to "in progress" when slp pulls them.
   `<name>.stories.rs` (behind the `stories` feature) + `<name>.tests.rs`
   (dokime).
 - **TDD / component-driven:** each component is spec'd with dokime; real browser
-  behavior is covered by a playwright e2e via `theoria-demo` (fixtures are
-  theoria's *own* components — never a `Gallery` inside a `Gallery`).
-- **Spin-out unit:** `theoria` + `theoria-demo` + `theoria-e2e` travel together.
+  behavior is covered by a playwright e2e (`theoria-e2e`) driving a gallery built
+  from theoria's *own* components as fixtures — never a `Gallery` inside a
+  `Gallery`.
+- **Spin-out unit:** `theoria` + `theoria-cli` + `theoria-e2e` travel together.
 
 ## Backlog
 
 The story catalog and one sliced doc per story are the **single source of
 truth** in [`docs/stories/`](stories/README.md) — this overview does not repeat
 them. Stories are pulled on demand (see the rule above); the index marks status.
+
+## Storybook parity roadmap
+
+Where theoria should head to approach Storybook's value, prioritized for a
+**solo dev iterating on a handful of Leptos components** (the slp use case).
+From a 2026 deep-research pass over Storybook's primary docs (storybook.js.org);
+priorities/difficulty are engineering judgment for a Rust/Leptos/WASM port.
+
+**The load-bearing insight:** Storybook's power comes from *automatic*
+reflection — it infers `argTypes` from prop types (react-docgen), auto-generates
+controls, and auto-discovers stories from ES-module exports. Rust has **no
+runtime reflection over `#[component]` props**, so every "auto" in Storybook
+becomes **explicit** in theoria (typed arg structs, hand-written argTypes, or a
+proc-macro). Prioritize the *value*, accept explicit authoring.
+
+### Tier 1 — converts the passive gallery into an interactive iteration loop
+- **Args + Controls ("knobs")** — live-edit a component's props in the browser
+  instead of edit-recompile. *The single highest-leverage feature.* Rust path:
+  a small `ArgValue` enum (bool→checkbox, f64→number/slider, string→text,
+  enum→select, color→picker) fed through Leptos signals; no auto-inference.
+  Open question: typed per-component arg struct (type-safe, needs a derive) vs.
+  dynamic `Vec<(name, ArgValue)>` (easy to render, loses type safety).
+- **Actions** — log a component's callbacks + their args to a panel ("did my
+  `on:click`/`Callback` fire with the right payload?"). Pairs with args (a
+  callback is just an arg value); needs `T: Debug`. Build alongside Controls.
+- **Meta / CSF parity** — a per-component `Meta` (title, default args, params)
+  that controls/docs read from. theoria has named stories but no meta layer;
+  optionally a `#[story]` proc-macro for auto-registration when the explicit
+  `stories()` Vec gets tedious.
+
+### Tier 2 — cheap, high-value wins
+- **Deep-linking** — encode the selected story in the URL (query/hash), not just
+  `localStorage`; enables share/bookmark and lets `theoria-e2e` target a story
+  by URL. Small extension of the existing persistence.
+- **a11y checks** — run axe-core (JS) against each rendered story in the
+  playwright e2e; catches a useful subset (~half) of WCAG issues for ~free.
+- **Globals / theme toolbar** — a reactive theme signal all stories read + a
+  toolbar toggle; genuinely useful for a styled UI.
+- **Autodocs (minimal)** — a per-component page = description + args/argTypes
+  table + the controls panel; mostly falls out of the args work. (MDX-style rich
+  docs: out of scope.)
+
+### Tier 3 — polish / already-covered elsewhere
+- **Viewport + backgrounds** — preview size presets + background swatch (a
+  width wrapper + a CSS var on the stage).
+- **Story groups / nesting** — hierarchical sidebar from title paths.
+- **Interaction tests (play functions)** — largely covered by dokime (Rust
+  component tests) + playwright (e2e); don't duplicate.
+
+### Tier 4 — defer, but promote when rendered fidelity grows
+- **Visual regression** (screenshot-diff stories against a baseline). Skip *now*:
+  the current visuals are simple geometry you already eyeball in the review
+  gallery, and pixel-diffing is flaky across dev (macOS) vs CI (Linux) — fonts,
+  antialiasing — so it mostly produces false diffs + baseline churn for little
+  signal at ~5 components. **But slp is visualization-first**, so VR's value rises
+  with fidelity — *promote it when there's a complex rendered visual worth
+  locking*: realistic material textures (epic M) and the 3D view (R2). Pragmatic
+  form when pulled: a few *targeted* `to_have_screenshot` checks on specific
+  stories, with baselines generated in CI (Linux), not snapshot-everything.
+  (Screenshots-as-artifacts — publishing gallery images without a diff gate — are
+  cheap today and a separate, lower-commitment option.)
+
+### Already shipped (parity achieved)
+Isolation (one component per stage), hot reload (incl. source-crate watch),
+selection persistence, and a "every story renders" smoke test.
