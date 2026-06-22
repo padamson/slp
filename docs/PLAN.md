@@ -156,18 +156,35 @@ Architectural note: every milestone before the **3D view** does nothing 3D but
 stays **3D-ready** (every shape carries height + material-ref; `slp-core` is
 renderer-agnostic), so the 3D view is an additive renderer, not a rewrite.
 
-| # | Milestone | Stories |
+The order follows the **way a yard is actually built up** — the fixed structures
+first (house, then deck), then the things you place into it, roughly in the
+user's purchase-decision order: furniture, fire pit, trees, mulch, bushes,
+pavers, grills, hot tubs. Two cross-cutting **enablers** are folded in (not part
+of that list, but required by it): once you've drawn the house & deck you need to
+**edit/save** them (F1, G1), and the first *costed catalog object* (furniture)
+forces the **materials/catalog + cost engine** (M1–M3) to land with it.
+
+| # | Milestone (what you can do) | Stories |
 |---|---|---|
 | 0 | Walking skeleton (scaffold, CI/CD, yard renders, first e2e) ✅ | — |
-| 1 | Draw a paver area & see cost | A1, B1, B2 |
-| 2 | Edit & keep | F1, G1 |
-| 3 | Structures: draw the house (+ doors/windows) & deck | H1, H2 |
-| 4 | Materials, ingestion & comparison | M1–M5, B4 |
-| 5 | Vertical hardscape | C1 |
-| 6 | Objects | D1 |
-| 7 | 3D view | R2 |
-| 8 | Deck layer (furniture) | E1, E2 |
-| 9 | 3D designer + polish | R3, B5, G2 |
+| 1 | Set the yard + **draw the house** (walls, doors, windows) | A1, H1 |
+| 2 | **Draw the deck** (footprint, stairs, railing) | H2 |
+| 3 | *Enabler:* edit what you drew + save/load the plan file | F1, G1 |
+| 4 | *Enabler + first object:* catalog & cost engine, **place furniture** | M1–M3, E1 |
+| 5 | **Fire pit** | D2 |
+| 6 | **Trees** | D1 |
+| 7 | **Mulch beds** (volume & cost) | B4 |
+| 8 | **Bushes / shrubs** | D3 |
+| 9 | **Paver areas** (ft² & cost) | B1, B2 |
+| 10 | **Grills** | D4 |
+| 11 | **Hot tubs** | D5 |
+| later | 3D view, material ingestion & swap-&-compare, vertical hardscape, soldier-course border, deck presets, print | R2–R3, M4–M5, C1, B5, E2, G2 |
+
+All of items 4–11 (furniture, fire pit, trees, bushes, grills, hot tubs, and
+paver/mulch areas) share one capability — **place/draw an item from the catalog
+and see its look + cost** — so each later milestone is mostly a new catalog
+category + any item-specific geometry (point, footprint, or area), not new
+machinery.
 
 ## 7. E2E approach (playwright-rust)
 

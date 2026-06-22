@@ -36,22 +36,32 @@ As a <persona>, I want <capability>, so that <value>.
 
 ## Index
 
+Listed in **delivery order** (see `docs/PLAN.md` §6). Items marked *enabler* are
+cross-cutting machinery folded into that point in the sequence.
+
 | # | Story | Doc | Status |
 |---|---|---|---|
 | — | Walking skeleton (yard renders, WASM boots, e2e + CD) | (Milestone 0) | ✅ done |
-| A1 | Yard at the dimensions I set | [A1](A1-yard-to-scale.md) | in progress |
-| B1 | Draw a paver area by clicking corners | [B1](B1-draw-paver-area.md) | planned (Milestone 1) |
-| B2 | See an area's ft² + material cost | [B2](B2-area-cost.md) | planned (Milestone 1) |
+| A1 | Yard at the dimensions I set | [A1](A1-yard-to-scale.md) | ✅ done |
+| **H1** | **Draw the house outline + place doors & windows (saved in the plan)** | [H1](H1-draw-house.md) | **in progress** |
+| H2 | Draw the deck (footprint, stairs, railing); flag existing | _doc pending_ | next |
+| F1 | *Enabler:* select / move / reshape / delete | _doc pending_ | backlog |
+| G1 | *Enabler:* save/load `.slp.json` | _doc pending_ | backlog |
+| M1–M3 | *Enabler:* materials/catalog + cost engine | _doc pending_ | backlog |
+| E1 | Place deck furniture (look + cost) | _doc pending_ | backlog |
+| D2 | Fire pit | _doc pending_ | backlog |
+| D1 | Trees | _doc pending_ | backlog |
 | B4 | Draw mulch beds; mulch volume/cost | _doc pending_ | backlog |
-| B5 | Soldier-course border | _doc pending_ | backlog |
-| H1 | Draw the house outline + place doors & windows (saved in the plan) | _doc pending_ | backlog |
-| H2 | Draw the deck (footprint, stairs, railing); flag existing | _doc pending_ | backlog |
-| M1–M5 | Materials catalog, ingestion, swap-&-compare | _doc pending_ | backlog |
+| D3 | Bushes / shrubs | _doc pending_ | backlog |
+| B1 | Draw a paver area by clicking corners | [B1](B1-draw-paver-area.md) | backlog |
+| B2 | See an area's ft² + material cost | [B2](B2-area-cost.md) | backlog |
+| D4 | Grill | _doc pending_ | backlog |
+| D5 | Hot tub | _doc pending_ | backlog |
+| M4–M5 | Material ingestion, swap-&-compare | _doc pending_ | backlog |
 | C1 | Walls / edging / steps | _doc pending_ | backlog |
-| D1 | Trees + equipment | _doc pending_ | backlog |
-| E1–E2 | Deck layer: furniture, seating, presets | _doc pending_ | backlog |
-| F1 | Select / move / reshape / delete | _doc pending_ | backlog |
-| G1–G2 | Save/load `.slp.json`; print | _doc pending_ | backlog |
+| B5 | Soldier-course border | _doc pending_ | backlog |
+| E2 | Deck seating / presets | _doc pending_ | backlog |
+| G2 | Print | _doc pending_ | backlog |
 | R1–R3 | 2D / 3D view / 3D designer | _doc pending_ | backlog |
 
 (Everything the user places — yard, **house**, **deck**, pavers, beds, walls,
