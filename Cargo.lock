@@ -1538,8 +1538,10 @@ version = "0.1.0"
 dependencies = [
  "dokime",
  "leptos",
+ "serde_json",
  "slp-core",
  "theoria",
+ "web-sys",
 ]
 
 [[package]]

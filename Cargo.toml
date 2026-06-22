@@ -27,6 +27,7 @@ authors = ["Paul Adamson"]
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 # Project-wide lint policy (matches the t2t / rust-project-template convention).
 [workspace.lints.rust]

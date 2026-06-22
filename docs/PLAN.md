@@ -1,19 +1,18 @@
 # SLP — Simple Landscape Planner: Rust Rebuild Plan
 
-A ground-up rebuild of the two interactive spikes in `spike/` (Deck Planner +
-Paver Planner), **unified into one Leptos client-side WASM app**, delivered as
-**vertical slices** (thin end-to-end features), using the toolchain and
-conventions established across the sibling repos (`t2t`, `playwright-rust`,
-`rust-project-template`, `panschema`).
+A Leptos client-side WASM app to plan a backyard landscape — a single unified
+planner (a deck layer + a yard layer), delivered as **vertical slices** (thin
+end-to-end features), using the toolchain and conventions established across the
+sibling repos (`t2t`, `playwright-rust`, `rust-project-template`, `panschema`).
 
 ## 1. Decisions (locked)
 
 | Decision | Choice | Why |
 |---|---|---|
 | Backend scope | **CSR/WASM only** | The planner is client-side: drawing, drag/rotate, BOM math, JSON save/load, print. No server/DB for MVP. Mirrors `playwright-rust/crates/site`. |
-| App shape | **Unified planner** | Both spikes share the feet coordinate system, deck/house geometry, catalogs, and interaction primitives. One canvas with a *deck layer* + a *yard layer*. |
+| App shape | **Unified planner** | The deck and yard share a feet coordinate system, geometry, catalogs, and interaction primitives. One canvas with a *deck layer* + a *yard layer*. |
 | Plan-file format | **LinkML + panschema** | Versioned, validated `.slp.json`; generated `serde` types; dogfoods the toolchain (t2t convention). |
-| Rendering surface | **2D SVG via Leptos RSX**, authoritative | Direct port of the spikes; vector + print-friendly; reactive nodes. |
+| Rendering surface | **2D SVG via Leptos RSX**, authoritative | Vector + print-friendly; reactive nodes. |
 | 3D | **Deferred view, designed-in now** | Landscape is 2.5D (footprint + height). 3D is an *extruded* second renderer over `slp-core`, not a parallel model. Schema carries height/elevation + material-ref from slice 1. 3D **view** lands ~slice 6; 3D **designer** is optional/later. |
 | 3D engine | **Deferred** | `three-d` (viewer-friendly) default; `bevy` if the 3D designer becomes central; `wgpu` if we need low-level control. All WASM + Rust-only. Decide before slice 6. |
 | Materials | **Manifest-driven catalog** | A material = {image(s), real dimensions, unit price, provenance}. Shapes reference a material by id (not inline color/price). Feeds both 2D tiling and 3D albedo. |
@@ -24,15 +23,18 @@ conventions established across the sibling repos (`t2t`, `playwright-rust`,
 
 ## 2. Persona & primary goal
 
-- **DIY homeowner couple** (the only real persona) — Paul + wife laying out
-  their own backyard. The point of the tool is **deciding what to buy**:
-  comparing products by *both* look and cost, on an accurate to-scale layout.
-- **Estimate and visualization are co-primary.** Neither subordinate to the
-  other — the purchase decision needs both an honest budget and a believable
-  picture.
+- **DIY homeowner** (the target user; Paul + wife are the first users and the
+  impetus) — laying out *their own* backyard to **decide what to buy**, comparing
+  products by *both* look and cost on an accurate to-scale layout.
+- **General-purpose — nothing is hardcoded to one property.** The user *draws and
+  saves* their own yard, house (walls + doors + windows), deck(s), and everything
+  else. No fixed measurements or specific house/yard/deck baked into the app; it
+  works for any property.
+- **Estimate and visualization are co-primary.** The purchase decision needs both
+  an honest budget and a believable picture.
 - **No handoff persona.** No contractor/dealer to satisfy, so **print/export
   (G2) is nice-to-have**, demoted to polish. Accurate take-off still matters —
-  but for *our* budget, not a quote.
+  for the homeowner's budget, not a quote.
 
 ## 3. Crate layout
 
@@ -60,8 +62,8 @@ slp/
 
 `slp-core` is **renderer-agnostic** (SVG and the future 3D view are both
 consumers) and **headless** so geometry + take-off math get fast native
-unit/mutation tests, independent of the UI. Biggest correctness win over the
-spikes, where math and DOM are entangled.
+unit/mutation tests, independent of the UI — keeping the math decoupled from the
+DOM.
 
 **dokime** and **theoria** are incubated **as crates in this workspace** and
 dogfooded against `slp-ui` — the most efficient way to start (one build graph;
@@ -78,7 +80,7 @@ theoria requires it), never speculatively.
 ### 3.1 Frontend: component-driven from the start
 
 The UI is a tree of small, single-purpose Leptos `#[component]`s, each
-developable and testable in isolation — never the spikes' one giant script.
+developable and testable in isolation — never one monolith.
 
 - **Canvas tree (today):** `App → Yard → { Grid, ScaleBar }`, with a `Transform`
   (feet→px) passed as a prop. Grows with `Ground`, `Shape`, `DeckLayer`,
@@ -103,10 +105,26 @@ app. See `CLAUDE.md` for all commands.
 
 ## 4. Domain model (LinkML → panschema)
 
-- **Plan** — `name`, `yard {w,d}`, `deck_x`, `settings`, `shapes[]`,
-  `furniture[]`, material-price overrides. **Clean-sheet format** designed
-  around this schema and the 2.5D model — *no coupling to the spike JSON*
-  (the two sample files are trivial to recreate, so no importer).
+- **Plan** — `name`, `yard {w,d}`, `structures` (house + deck(s)), `shapes[]`,
+  `objects[]`, materials/price overrides, `settings`. **Clean-sheet format**;
+  **everything is user-drawn — nothing is property-specific.** (Started minimal —
+  `name` + yard size — and grows per slice.)
+- **Structures (drawn and saved, like everything else)** —
+  - **House** — an outline drawn as wall segments, with **doors** and **windows**
+    placed along the walls (position + width). Context for planning around
+    entries and sightlines; not costed.
+  - **Deck(s)** — a footprint polygon (optionally multi-level, with stairs and
+    railing), drawn by the user.
+  These are normal plan entities (drawn, saved, edited) — *not* hardcoded
+  geometry — and typically carry the **existing** flag (below).
+- **Item status** — every shape/structure/object can be flagged **existing** or **virtual**,
+  both *excluded from cost*:
+  - **existing** — a real, fixed-location item shown on the plan but not a
+    purchase (e.g. the deck or a mature tree already in the yard).
+  - **virtual** — a duplicate of an item placed to show an *alternate* position
+    (a what-if ghost), not a second real item.
+  Take-off counts only **planned** items (neither existing nor virtual). Nothing
+  is hardcoded as always-existing — it's a per-item flag.
 - **Shape** (tagged union by `kind`), **every shape carries `elevation` +
   `height` (default flat) and a `material_ref`** so 2D→3D is additive:
   - `Polygon` — paver area / mulch bed: `pts[]`, `material_ref`, `border`, …
@@ -134,21 +152,22 @@ This only **orders the stories** — which ship together, in what sequence. Each
 story's acceptance criteria and **vertical-slice breakdown live in its
 `docs/stories/<ID>.md`**; this section deliberately does not repeat them.
 
-Architectural note: milestones 1–5 do **nothing 3D** but stay **3D-ready**
-(every shape carries height + material-ref; `slp-core` is renderer-agnostic), so
-milestone 6 is an additive renderer, not a rewrite.
+Architectural note: every milestone before the **3D view** does nothing 3D but
+stays **3D-ready** (every shape carries height + material-ref; `slp-core` is
+renderer-agnostic), so the 3D view is an additive renderer, not a rewrite.
 
 | # | Milestone | Stories |
 |---|---|---|
 | 0 | Walking skeleton (scaffold, CI/CD, yard renders, first e2e) ✅ | — |
 | 1 | Draw a paver area & see cost | A1, B1, B2 |
 | 2 | Edit & keep | F1, G1 |
-| 3 | Materials, ingestion & comparison | M1–M5, B4 |
-| 4 | Vertical hardscape | C1 |
-| 5 | Objects | D1 |
-| 6 | 3D view | R2 |
-| 7 | Deck layer | E1, E2 |
-| 8 | 3D designer + polish | R3, B5, G2 |
+| 3 | Structures: draw the house (+ doors/windows) & deck | H1, H2 |
+| 4 | Materials, ingestion & comparison | M1–M5, B4 |
+| 5 | Vertical hardscape | C1 |
+| 6 | Objects | D1 |
+| 7 | 3D view | R2 |
+| 8 | Deck layer (furniture) | E1, E2 |
+| 9 | 3D designer + polish | R3, B5, G2 |
 
 ## 7. E2E approach (playwright-rust)
 
@@ -159,14 +178,14 @@ prove the bundle boots and widgets react. Step screenshots + `trace.zip` are
 byproducts; assertions are the gate. Skips gracefully when `dist/` is absent.
 CI adds `npx playwright@<ver> install chromium --with-deps`.
 
-## 8. What carries over vs. rebuilt
+## 8. Key design choices
 
-**Carried over (as data/spec only):** feet coordinate system, deck/house
-geometry constants, catalogs/prices (→ manifest), take-off formulas (yd³ =
-sqft·in/324, face-area pricing, soldier course). **Not** the spike JSON format —
-the new `.slp.json` is clean-sheet and owes it nothing.
-
-**Rebuilt better:** tested headless core; reactive SVG vs string `innerHTML`;
-one unified layered app vs two copy-pasted files; manifest-driven materials with
-provenance vs inline JS dicts; typed/validated/versioned plan files; 2.5D data
-model that extrudes to 3D.
+- **Feet coordinate system** throughout; SVG is a pure view transform over it.
+- **Take-off math in `slp-core`** (headless, unit/mutation-tested): yd³ =
+  ft²·in/324, face-area pricing, soldier-course borders.
+- **Manifest-driven materials** with provenance (`materials/manifest.toml`);
+  binaries never committed.
+- **Reactive SVG** (Leptos nodes), not string templating.
+- **Typed, validated, versioned plan files** via the LinkML schema + panschema.
+- **2.5D data model** (footprint + height + material-ref) so the 2D plan
+  extrudes to a 3D view without a rewrite.

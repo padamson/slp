@@ -1,12 +1,11 @@
-//! Plane geometry in the planner's coordinate system (units = feet).
-//!
-//! Ports of the spike helpers `area` (shoelace), `pin` (point-in-polygon ray
-//! cast), and `plen` (polyline length), but typed and unit-tested.
+//! Plane geometry in the planner's coordinate system (units = feet):
+//! polygon area (shoelace), point-in-polygon (ray cast), and polyline length —
+//! typed and unit-tested.
 
 use serde::{Deserialize, Serialize};
 
 /// A 2D point in feet. The yard's south-west corner is the origin; `+x` runs
-/// east, `+y` runs north (matching the spikes' convention).
+/// east, `+y` runs north.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Point {
     pub x: f64,
@@ -57,9 +56,8 @@ impl Point {
     }
 }
 
-/// Whether `p` lies inside the polygon `pts`, by the even-odd ray-cast rule
-/// (port of the spike's `pin`). Behavior exactly on an edge or vertex is
-/// unspecified, as with the original.
+/// Whether `p` lies inside the polygon `pts`, by the even-odd ray-cast rule.
+/// Behavior exactly on an edge or vertex is unspecified.
 #[must_use]
 pub fn point_in_polygon(p: Point, pts: &[Point]) -> bool {
     let n = pts.len();

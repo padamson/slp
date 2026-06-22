@@ -1,0 +1,42 @@
+id: https://slp.seekingeta.ai/schema/slp
+name: slp
+description: |-
+  The clean-sheet plan-file schema for the Simple Landscape Planner. LinkML is
+  the single source of truth; panschema generates the Rust types into
+  crates/slp-core/src/generated/. Starts minimal (yard size) and grows with
+  shapes, materials, and settings as later slices need them.
+license: MIT
+version: 0.1.0
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  slp: https://slp.seekingeta.ai/schema/slp/
+
+default_prefix: slp
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  Plan:
+    description: A complete landscape plan.
+    slots:
+      - name
+      - yard_width
+      - yard_depth
+    slot_usage:
+      yard_width:
+        required: true
+      yard_depth:
+        required: true
+
+slots:
+  name:
+    description: Human-readable name for this plan.
+  yard_width:
+    range: double
+    description: Yard width (east-west), in feet.
+  yard_depth:
+    range: double
+    description: Yard depth (north-south), in feet.

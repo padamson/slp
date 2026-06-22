@@ -24,6 +24,5 @@ Thumbs.db
 *.swo
 *~
 
-# Throwaway prototypes — content captured in docs/PLAN.md; JSON samples preserved
-# as committed fixtures in crates/slp-core/tests/fixtures/legacy/.
+# Local-only working directory; never committed.
 /spike/

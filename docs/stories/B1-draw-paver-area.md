@@ -21,6 +21,6 @@ yard and closing the shape, so that I can lay out exactly where pavers go.
 
 ## Notes / refs
 
-- Pointer→feet is the inverse of `slp-ui::Transform` (spike `ftpt`).
+- Pointer→feet is the inverse of `slp-ui::Transform`.
 - Depends on A1.1 (reactive state) — extend it to a plan/shape list.
 - Editing finished shapes (move/reshape/delete) is **story F1**, not here.

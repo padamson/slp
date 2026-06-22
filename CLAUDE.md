@@ -1,11 +1,11 @@
 # SLP — Simple Landscape Planner
 
-A Leptos client-side (CSR/WASM) app to plan a backyard landscape (pavers, beds,
-walls, steps, trees, equipment, deck furniture), visualize it to scale, and
-budget it — built to help a DIYer **decide what to buy**. Ground-up Rust
-rebuild of the prototypes in `spike/` (gitignored; content captured in
-`docs/PLAN.md`). **Read `docs/PLAN.md` for the full plan, decisions, backlog,
-and vertical-slice order.**
+A Leptos client-side (CSR/WASM) app to plan a backyard landscape — draw your
+yard, house (walls + doors/windows), and deck, then add pavers, beds, walls,
+steps, trees, equipment, and deck furniture; visualize it to scale and budget it.
+A **general-purpose tool for any property** (nothing is hardcoded to a specific
+house/yard/deck), built to help a DIYer **decide what to buy**. **Read
+`docs/PLAN.md` for the full plan, decisions, backlog, and vertical-slice order.**
 
 ## Repo structure
 
@@ -103,7 +103,8 @@ preview theoria inside theoria).
 - **Ingested material assets are never committed** — only metadata + provenance
   in `materials/manifest.toml`. Binaries live in gitignored `materials/cache/`.
   Respect each source's robots.txt/ToS; never redistribute scraped images.
-- **Clean-sheet `.slp.json`** — no coupling to the spike formats.
+- **Clean-sheet `.slp.json`** — the plan-file format is defined by the LinkML
+  schema (`schema/slp.yaml`), generated to Rust by panschema.
 - Edition 2024, MSRV 1.95, `unsafe_code = "forbid"`, clippy `pedantic`.
 
 ## Delivery

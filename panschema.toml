@@ -1,0 +1,9 @@
+# Codegen manifest: panschema reads the schema declared by ./panschema-publish.toml
+# (LinkML in schema/, the single source of truth) and generates the Rust module
+# into slp-core. `panschema generate` rewrites it; `panschema verify` (CI) guards
+# against drift. The generated file is committed.
+[schemas]
+slp = { path = "." }
+
+[generate.slp]
+rust = "crates/slp-core/src/generated/slp.rs"

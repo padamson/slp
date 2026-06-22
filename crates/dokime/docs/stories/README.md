@@ -32,10 +32,27 @@ real browser interaction.
 
 ## Index
 
-| # | Story | Doc | Status |
-|---|---|---|---|
-| D1 | Render a component and assert on its markup natively | [D1](D1-render-and-assert.md) | ✅ done |
-| D3 | Ergonomic assertions (`assert_contains`/`assert_count`) with readable failures | _pull when needed_ | backlog |
-| D4 | Query the output by CSS selector (`Dom`: count/text/attr) | _pull when substring matching gets brittle_ | backlog |
-| D5 | Drive a signal/event, re-render, assert (native reactivity) | _pull when a component test needs interaction_ | backlog |
-| D6 | Snapshot testing (golden HTML, update flag) | _pull when needed_ | backlog |
+Tiers + the native-vs-browser boundary come from the **Testing-Library parity
+roadmap** in [`../PLAN.md`](../PLAN.md). All items are pulled on demand.
+
+**Done**
+
+| # | Story | Doc |
+|---|---|---|
+| D1 | Render a component and assert on its markup natively | [D1](D1-render-and-assert.md) |
+
+**Backlog** (native — dokime's lane; pull when a test needs it)
+
+| # | Story | Tier |
+|---|---|---|
+| D4 | Query the SSR output by CSS selector (`Dom`: count/exists/text/attr) | 1 |
+| D3 | jest-dom-style assertions (`in_document`/`has_attribute`/`has_class`/`has_text`) with readable failures | 1 |
+| D7 | Role-based queries (`by_role(role, name)`) from implicit ARIA roles | 2 |
+| D6 | Snapshot testing (golden HTML, update flag) | 3 |
+| D5 | Set a signal + re-render + assert (native reactivity, no DOM events) | 3 |
+
+**Out of scope** (browser layer — `slp-e2e` / `theoria-e2e`, not dokime)
+
+Visibility/layout (`toBeVisible`/`toHaveStyle`), user-event interaction,
+`findBy` async retries, and post-(DOM)-event reactivity — these need a real
+browser, which is the playwright-rs e2e's job.

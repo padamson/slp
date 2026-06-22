@@ -1,0 +1,7 @@
+[schema]
+name = "slp"
+version = "0.1.0"
+linkml = "1.8.0"
+
+[files]
+main = "schema/slp.yaml"
