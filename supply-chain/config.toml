@@ -64,6 +64,10 @@ criteria = "safe-to-deploy"
 version = "0.22.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.bitflags]]
+version = "2.13.0"
+criteria = "safe-to-run"
+
 [[exemptions.block-buffer]]
 version = "0.10.4"
 criteria = "safe-to-deploy"
@@ -192,6 +196,10 @@ criteria = "safe-to-deploy"
 version = "0.1.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.errno]]
+version = "0.3.14"
+criteria = "safe-to-run"
+
 [[exemptions.event-listener]]
 version = "5.4.1"
 criteria = "safe-to-deploy"
@@ -199,6 +207,10 @@ criteria = "safe-to-deploy"
 [[exemptions.event-listener-strategy]]
 version = "0.5.4"
 criteria = "safe-to-deploy"
+
+[[exemptions.fastrand]]
+version = "2.4.1"
+criteria = "safe-to-run"
 
 [[exemptions.form_urlencoded]]
 version = "1.2.2"
@@ -380,6 +392,10 @@ criteria = "safe-to-deploy"
 version = "0.2.186"
 criteria = "safe-to-deploy"
 
+[[exemptions.linux-raw-sys]]
+version = "0.12.1"
+criteria = "safe-to-run"
+
 [[exemptions.litemap]]
 version = "0.8.2"
 criteria = "safe-to-deploy"
@@ -524,6 +540,10 @@ criteria = "safe-to-deploy"
 version = "0.4.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.rustix]]
+version = "1.1.4"
+criteria = "safe-to-run"
+
 [[exemptions.rustversion]]
 version = "1.0.22"
 criteria = "safe-to-deploy"
@@ -615,6 +635,10 @@ criteria = "safe-to-deploy"
 [[exemptions.tachys]]
 version = "0.2.15"
 criteria = "safe-to-deploy"
+
+[[exemptions.tempfile]]
+version = "3.27.0"
+criteria = "safe-to-run"
 
 [[exemptions.thiserror]]
 version = "1.0.69"

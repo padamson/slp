@@ -1,0 +1,18 @@
+# cargo-mutants configuration.
+#
+# Scope mutation testing to the crates whose correctness-critical logic is
+# covered by NATIVE unit tests — `cargo mutants` runs the workspace test suite
+# (`nextest`), so it can only catch mutants that a native test exercises.
+#
+# The Leptos *view* crates (slp-ui, theoria components, slp-app) and the e2e
+# crates are deliberately excluded: their behavior is verified at the browser
+# layer (slp-e2e, theoria-e2e via playwright), which mutation testing cannot run,
+# so mutating them yields surviving-mutant NOISE rather than signal. Pure logic
+# lives in slp-core (geometry/take-off), dokime (render/count helpers), and
+# theoria-cli (gallery generation) — mutate those.
+test_tool = "nextest"
+examine_globs = [
+    "crates/slp-core/src/**/*.rs",
+    "crates/dokime/src/**/*.rs",
+    "crates/theoria-cli/src/**/*.rs",
+]

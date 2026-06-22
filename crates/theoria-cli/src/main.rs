@@ -219,3 +219,95 @@ const GALLERY_INDEX_HTML: &str = r#"<!DOCTYPE html>
   <body></body>
 </html>
 "#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Write a minimal fake crate (just a `Cargo.toml`) at `root/rel`.
+    fn fake_crate(root: &Path, rel: &str, name: &str) {
+        let dir = root.join(rel);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            format!("[package]\nname = \"{name}\"\n"),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn generate_writes_a_harness_for_a_normal_crate() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        fake_crate(root, "crates/foo", "foo");
+        fake_crate(root, "crates/theoria", "theoria");
+        let cfg = GalleryConfig {
+            krate: "foo".into(),
+            path: "crates/foo".into(),
+            aggregator: "foo::all_stories".into(),
+            features: vec!["stories".into()],
+            theoria_path: "crates/theoria".into(),
+        };
+        let dir = root.join("out");
+
+        generate(root, &dir, &cfg).unwrap();
+
+        let cargo = std::fs::read_to_string(dir.join("Cargo.toml")).unwrap();
+        assert!(
+            cargo.contains("foo = { path"),
+            "depends on the target crate"
+        );
+        assert!(cargo.contains("theoria = { path"), "depends on theoria");
+        assert!(cargo.contains("\"csr\""), "csr is added automatically");
+        assert!(
+            cargo.contains("\"stories\""),
+            "configured feature is enabled"
+        );
+        assert!(cargo.contains("[workspace]"), "own workspace, not absorbed");
+
+        let main = std::fs::read_to_string(dir.join("src/main.rs")).unwrap();
+        assert!(main.contains("foo::all_stories()"), "mounts the aggregator");
+
+        let trunk = std::fs::read_to_string(dir.join("Trunk.toml")).unwrap();
+        assert!(trunk.contains("crates/foo/src"), "watches the source crate");
+
+        assert!(dir.join("index.html").exists());
+    }
+
+    #[test]
+    fn generate_emits_a_single_theoria_dep_when_the_crate_is_theoria() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        fake_crate(root, "crates/theoria", "theoria");
+        let cfg = GalleryConfig {
+            krate: "theoria".into(),
+            path: "crates/theoria".into(),
+            aggregator: "theoria::stories".into(),
+            features: vec!["stories".into()],
+            theoria_path: "crates/theoria".into(),
+        };
+        let dir = root.join("out");
+
+        generate(root, &dir, &cfg).unwrap();
+
+        let cargo = std::fs::read_to_string(dir.join("Cargo.toml")).unwrap();
+        // Exactly one `theoria = { path ... }` key — no duplicate-dependency error.
+        assert_eq!(cargo.matches("theoria = { path").count(), 1);
+        assert!(cargo.contains("\"csr\"") && cargo.contains("\"stories\""));
+    }
+
+    #[test]
+    fn generate_fails_when_the_target_crate_is_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        fake_crate(root, "crates/theoria", "theoria");
+        let cfg = GalleryConfig {
+            krate: "ghost".into(),
+            path: "crates/ghost".into(),
+            aggregator: "ghost::all_stories".into(),
+            features: vec![],
+            theoria_path: "crates/theoria".into(),
+        };
+        assert!(generate(root, &root.join("out"), &cfg).is_err());
+    }
+}
