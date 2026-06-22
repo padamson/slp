@@ -1,7 +1,8 @@
 //! Slice 0 dogfood gate: serve the Trunk-built `slp-app` and drive it with
-//! playwright-rs, asserting the WASM bundle boots and the yard SVG mounts.
+//! playwright-rs, asserting the WASM bundle boots and the yard renders to scale.
 //! Because the app is a Leptos CSR/WASM app, this proves the bundle actually
-//! runs — a static-HTML check could not.
+//! runs — a static-HTML check could not. Feature behavior lives in sibling test
+//! files (e.g. `yard_dimensions.rs`).
 //!
 //! Run after building the app:
 //!   (cd crates/slp-app && trunk build)
@@ -10,30 +11,12 @@
 //! Skips gracefully when `crates/slp-app/dist` is absent. Requires browsers:
 //!   npx playwright@1.60.0 install chromium
 
-use std::net::SocketAddr;
-use std::path::PathBuf;
+mod common;
 
 use anyhow::{Context, Result, ensure};
-use axum::Router;
+use common::{dist_dir, serve};
 use playwright_rs::expect;
 use playwright_rs::protocol::Playwright;
-use tower_http::services::ServeDir;
-
-fn dist_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../slp-app/dist")
-}
-
-async fn serve(dist: &PathBuf) -> Result<(SocketAddr, tokio::task::JoinHandle<()>)> {
-    let app = Router::new().fallback_service(ServeDir::new(dist));
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .context("bind app server")?;
-    let addr = listener.local_addr().context("local addr")?;
-    let handle = tokio::spawn(async move {
-        axum::serve(listener, app).await.expect("serve app");
-    });
-    Ok((addr, handle))
-}
 
 #[tokio::test]
 async fn walking_skeleton_boots_and_renders_yard() -> Result<()> {

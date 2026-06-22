@@ -3,12 +3,16 @@
 //! (`cfg(test)`). Dotted file names use `#[path]` (not valid module idents).
 
 mod grid;
+mod planner;
 mod scale_bar;
 mod yard;
+mod yard_controls;
 
 pub use grid::Grid;
+pub use planner::Planner;
 pub use scale_bar::ScaleBar;
 pub use yard::Yard;
+pub use yard_controls::YardControls;
 
 /// World→screen transform: feet to SVG pixels. The yard's south-west corner is
 /// the world origin; `+x` runs east, `+y` runs north (drawn upward, so screen-y
@@ -41,8 +45,14 @@ impl Transform {
 #[path = "grid.stories.rs"]
 mod grid_stories;
 #[cfg(feature = "stories")]
+#[path = "planner.stories.rs"]
+mod planner_stories;
+#[cfg(feature = "stories")]
 #[path = "scale_bar.stories.rs"]
 mod scale_bar_stories;
+#[cfg(feature = "stories")]
+#[path = "yard_controls.stories.rs"]
+mod yard_controls_stories;
 #[cfg(feature = "stories")]
 #[path = "yard.stories.rs"]
 mod yard_stories;
@@ -51,9 +61,11 @@ mod yard_stories;
 #[cfg(feature = "stories")]
 pub fn stories() -> Vec<theoria::Story> {
     let mut s = Vec::new();
+    s.extend(planner_stories::stories());
     s.extend(yard_stories::stories());
     s.extend(grid_stories::stories());
     s.extend(scale_bar_stories::stories());
+    s.extend(yard_controls_stories::stories());
     s
 }
 
@@ -61,8 +73,14 @@ pub fn stories() -> Vec<theoria::Story> {
 #[path = "grid.tests.rs"]
 mod grid_tests;
 #[cfg(test)]
+#[path = "planner.tests.rs"]
+mod planner_tests;
+#[cfg(test)]
 #[path = "scale_bar.tests.rs"]
 mod scale_bar_tests;
+#[cfg(test)]
+#[path = "yard_controls.tests.rs"]
+mod yard_controls_tests;
 #[cfg(test)]
 #[path = "yard.tests.rs"]
 mod yard_tests;

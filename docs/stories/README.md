@@ -12,17 +12,27 @@ that story is decomposed.
 
 ## Doc template
 
-```
-# <ID> — <one-line story title>
-**Epic:** … · **Layer:** yard / deck / cross-cutting · **Status:** …
-## Story        (As a <persona>, I want <capability>, so that <value>.)
-## Acceptance criteria   (bulleted, testable)
-## Vertical slices        (ID.0, ID.1, … each independently shippable + how tested)
-## Notes / refs           (spike constants, dependencies, open questions)
-```
+Four sections only: heading, Story, Vertical slices, Notes/refs. Acceptance
+criteria live **inside each slice** as checkboxes, ticked as they land. Behavior
+is specified by the tests in code — don't restate it here.
 
-Tests per slice: `slp-core` unit tests for math, **dokime** component tests for
-new `slp-ui` components, **playwright-rust** e2e for user-visible behavior.
+```
+# <ID> — <one-line title>
+*<epic / layer> — one-line context.*
+
+## Story
+As a <persona>, I want <capability>, so that <value>.
+
+## Vertical slices
+- **<ID>.0 — <slice name>**
+  - [ ] <acceptance criterion>
+  - [ ] <acceptance criterion>
+- **<ID>.1 — <slice name>**
+  - [ ] <acceptance criterion>
+
+## Notes / refs
+- <refs, dependencies, decisions>
+```
 
 ## Index
 

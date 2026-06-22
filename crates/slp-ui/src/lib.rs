@@ -20,7 +20,7 @@
 
 mod components;
 
-pub use components::{Grid, ScaleBar, Transform, Yard};
+pub use components::{Grid, Planner, ScaleBar, Transform, Yard, YardControls};
 
 /// All slp-ui components as theoria stories (aggregated for the gallery build).
 #[cfg(feature = "stories")]
