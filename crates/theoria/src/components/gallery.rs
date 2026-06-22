@@ -8,7 +8,8 @@ use leptos::prelude::*;
 use super::StoryNav;
 use crate::Story;
 
-/// `localStorage` key for the selected story name.
+/// `localStorage` key for the selected story name (only used in the browser build).
+#[cfg(feature = "csr")]
 const STORAGE_KEY: &str = "theoria:selected-story";
 
 #[component]

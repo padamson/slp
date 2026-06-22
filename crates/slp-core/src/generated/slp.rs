@@ -5,9 +5,38 @@
 
 #![allow(non_camel_case_types, non_snake_case, dead_code)]
 
+/// A point in the plan, in feet. The yard's south-west corner is the origin;
+/// +x runs east, +y runs north.
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+pub struct Coord {
+    /// East-west position, in feet.
+    pub x: f64,
+    /// North-south position, in feet.
+    pub y: f64,
+}
+
+impl Coord {
+    pub fn new(x: f64, y: f64) -> Self {
+        Self { x, y }
+    }
+}
+
+/// The house, drawn by the user as a closed outline of corner points (never
+/// hardcoded). Each wall is the edge between consecutive corners; doors and
+/// windows are placed along walls in a later slice.
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+pub struct House {
+    /// Ordered corner points of the house outline (a closed ring).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub corners: Vec<Coord>,
+}
+
 /// A complete landscape plan.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Plan {
+    /// The house outline, if the user has drawn one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub house: Option<Box<House>>,
     /// Human-readable name for this plan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -20,6 +49,7 @@ pub struct Plan {
 impl Plan {
     pub fn new(yard_depth: f64, yard_width: f64) -> Self {
         Self {
+            house: None,
             name: None,
             yard_depth,
             yard_width,

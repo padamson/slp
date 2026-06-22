@@ -3,11 +3,20 @@
 //! slices as additional children of this stage.
 
 use leptos::prelude::*;
+use slp_core::Coord;
 
-use super::{Grid, ScaleBar, Transform};
+use super::{Grid, House, ScaleBar, Transform};
 
 #[component]
-pub fn Yard(yard_w: f64, yard_d: f64, px_ft: f64, pad: f64) -> impl IntoView {
+pub fn Yard(
+    yard_w: f64,
+    yard_d: f64,
+    px_ft: f64,
+    pad: f64,
+    /// The house outline corners, if the user has drawn one (empty = no house).
+    #[prop(optional)]
+    house: Vec<Coord>,
+) -> impl IntoView {
     let t = Transform { px_ft, pad, yard_d };
     let w_px = t.sx(yard_w) + pad;
     let h_px = t.sy(0.0) + pad;
@@ -36,6 +45,7 @@ pub fn Yard(yard_w: f64, yard_d: f64, px_ft: f64, pad: f64) -> impl IntoView {
                 stroke="#cfd3c0"
             />
             <Grid t=t yard_w=yard_w yard_d=yard_d />
+            <House t=t corners=house />
             <ScaleBar t=t baseline_y=baseline_y />
         </svg>
     }

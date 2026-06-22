@@ -6,7 +6,7 @@
 //! side panel, etc.
 
 use leptos::prelude::*;
-use slp_core::Plan;
+use slp_core::{Coord, House, Plan};
 
 use super::{Yard, YardControls};
 
@@ -17,7 +17,8 @@ const PAD: f64 = 40.0;
 /// Default yard size in feet (first run, before anything is saved).
 const DEFAULT_W: f64 = 70.0;
 const DEFAULT_D: f64 = 30.0;
-/// `localStorage` key for the persisted plan.
+/// `localStorage` key for the persisted plan (only used in the browser build).
+#[cfg(feature = "csr")]
 const STORAGE_KEY: &str = "slp:plan";
 
 #[component]
@@ -29,12 +30,21 @@ pub fn Planner() -> impl IntoView {
     });
     let (width, set_width) = signal(plan.yard_width);
     let (depth, set_depth) = signal(plan.yard_depth);
+    // The house outline (drawn in a later slice); empty until then. Preserved
+    // across saves so changing the yard size never wipes a drawn house.
+    let house: Vec<Coord> = plan.house.map(|h| h.corners).unwrap_or_default();
 
     // Persist the plan whenever a dimension changes (no-op under ssr / in tests).
+    let house_for_save = house.clone();
     Effect::new(move |_| {
         save_plan(&Plan {
             yard_width: width.get(),
             yard_depth: depth.get(),
+            house: (!house_for_save.is_empty()).then(|| {
+                Box::new(House {
+                    corners: house_for_save.clone(),
+                })
+            }),
             ..Default::default()
         });
     });
@@ -46,7 +56,11 @@ pub fn Planner() -> impl IntoView {
         </header>
         <YardControls width=width set_width=set_width depth=depth set_depth=set_depth />
         // Re-render the canvas whenever the dimensions change.
-        {move || view! { <Yard yard_w=width.get() yard_d=depth.get() px_ft=PX_FT pad=PAD /> }}
+        {move || {
+            view! {
+                <Yard yard_w=width.get() yard_d=depth.get() px_ft=PX_FT pad=PAD house=house.clone() />
+            }
+        }}
     }
 }
 

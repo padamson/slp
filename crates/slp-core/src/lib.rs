@@ -8,5 +8,5 @@
 pub mod generated;
 pub mod geom;
 
-pub use generated::slp::Plan;
+pub use generated::slp::{Coord, House, Plan};
 pub use geom::{Point, area, point_in_polygon, polyline_length};

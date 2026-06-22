@@ -3,12 +3,14 @@
 //! (`cfg(test)`). Dotted file names use `#[path]` (not valid module idents).
 
 mod grid;
+mod house;
 mod planner;
 mod scale_bar;
 mod yard;
 mod yard_controls;
 
 pub use grid::Grid;
+pub use house::House;
 pub use planner::Planner;
 pub use scale_bar::ScaleBar;
 pub use yard::Yard;
@@ -45,6 +47,9 @@ impl Transform {
 #[path = "grid.stories.rs"]
 mod grid_stories;
 #[cfg(feature = "stories")]
+#[path = "house.stories.rs"]
+mod house_stories;
+#[cfg(feature = "stories")]
 #[path = "planner.stories.rs"]
 mod planner_stories;
 #[cfg(feature = "stories")]
@@ -63,6 +68,7 @@ pub fn stories() -> Vec<theoria::Story> {
     let mut s = Vec::new();
     s.extend(planner_stories::stories());
     s.extend(yard_stories::stories());
+    s.extend(house_stories::stories());
     s.extend(grid_stories::stories());
     s.extend(scale_bar_stories::stories());
     s.extend(yard_controls_stories::stories());
@@ -72,6 +78,9 @@ pub fn stories() -> Vec<theoria::Story> {
 #[cfg(test)]
 #[path = "grid.tests.rs"]
 mod grid_tests;
+#[cfg(test)]
+#[path = "house.tests.rs"]
+mod house_tests;
 #[cfg(test)]
 #[path = "planner.tests.rs"]
 mod planner_tests;

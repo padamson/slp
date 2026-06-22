@@ -25,10 +25,32 @@ classes:
       - name
       - yard_width
       - yard_depth
+      - house
     slot_usage:
       yard_width:
         required: true
       yard_depth:
+        required: true
+
+  House:
+    description: |-
+      The house, drawn by the user as a closed outline of corner points (never
+      hardcoded). Each wall is the edge between consecutive corners; doors and
+      windows are placed along walls in a later slice.
+    slots:
+      - corners
+
+  Coord:
+    description: |-
+      A point in the plan, in feet. The yard's south-west corner is the origin;
+      +x runs east, +y runs north.
+    slots:
+      - x
+      - y
+    slot_usage:
+      x:
+        required: true
+      y:
         required: true
 
 slots:
@@ -40,3 +62,18 @@ slots:
   yard_depth:
     range: double
     description: Yard depth (north-south), in feet.
+  house:
+    range: House
+    inlined: true
+    description: The house outline, if the user has drawn one.
+  corners:
+    range: Coord
+    multivalued: true
+    inlined_as_list: true
+    description: Ordered corner points of the house outline (a closed ring).
+  x:
+    range: double
+    description: East-west position, in feet.
+  y:
+    range: double
+    description: North-south position, in feet.
