@@ -6,7 +6,7 @@
 //! with the side panel, etc.
 
 use leptos::prelude::*;
-use slp_core::{Coord, House, Plan};
+use slp_core::{Coord, House, Plan, snap_ortho, snap_to_grid};
 
 use super::{Yard, YardControls};
 
@@ -19,6 +19,8 @@ const DEFAULT_W: f64 = 70.0;
 const DEFAULT_D: f64 = 30.0;
 /// Snap radius (ft): clicking within this of the first corner closes the outline.
 const SNAP_FT: f64 = 2.0;
+/// Grid step (ft) that corners snap to when grid-snap is on (matches the minor grid).
+const GRID_STEP: f64 = 1.0;
 /// `localStorage` key for the persisted plan (only used in the browser build).
 #[cfg(feature = "csr")]
 const STORAGE_KEY: &str = "slp:plan";
@@ -34,6 +36,7 @@ pub(crate) enum Pick {
 
 /// Decide whether a click adds a corner or closes the outline. The ring closes
 /// only with at least three corners and a click within `snap_ft` of the first.
+/// Closing is decided on the *raw* click so snapping never blocks it.
 pub(crate) fn classify_pick(corners: &[Coord], at: Coord, snap_ft: f64) -> Pick {
     let near_start = corners
         .first()
@@ -43,6 +46,19 @@ pub(crate) fn classify_pick(corners: &[Coord], at: Coord, snap_ft: f64) -> Pick 
     } else {
         Pick::Add(at)
     }
+}
+
+/// Apply the active snaps to a corner being added: grid first, then ortho
+/// (axis-align the edge from the previous corner). Either can be off.
+pub(crate) fn apply_snaps(corners: &[Coord], at: Coord, grid: bool, ortho: bool) -> Coord {
+    let mut p = at;
+    if grid {
+        p = snap_to_grid(&p, GRID_STEP);
+    }
+    if ortho && let Some(prev) = corners.last() {
+        p = snap_ortho(prev, &p);
+    }
+    p
 }
 
 #[component]
@@ -57,6 +73,11 @@ pub fn Planner() -> impl IntoView {
     // The house outline (corners, in feet) and whether we're drawing it.
     let corners = RwSignal::new(plan.house.map(|h| h.corners).unwrap_or_default());
     let drawing = RwSignal::new(false);
+    // Snapping (on by default): most walls are on the grid and axis-aligned.
+    let grid_snap = RwSignal::new(true);
+    let ortho = RwSignal::new(true);
+    // The node being positioned while the mouse is held (snapped), drawn as a ghost.
+    let pending = RwSignal::new(None::<Coord>);
 
     // Persist whenever the yard size or the house changes (no-op under ssr /
     // tests). The house is kept, so resizing the yard never wipes a drawn house.
@@ -70,15 +91,31 @@ pub fn Planner() -> impl IntoView {
         });
     });
 
-    // A click on the canvas (in feet) adds a corner, or closes the ring.
+    // Releasing the mouse (in feet) adds a (snapped) corner, or closes the ring.
     let on_pick = Callback::new(move |at: Coord| {
         if !drawing.get_untracked() {
             return;
         }
-        match classify_pick(&corners.get_untracked(), at, SNAP_FT) {
-            Pick::Add(c) => corners.update(|v| v.push(c)),
+        let cs = corners.get_untracked();
+        match classify_pick(&cs, at, SNAP_FT) {
             Pick::Close => drawing.set(false),
+            Pick::Add(raw) => {
+                let p = apply_snaps(&cs, raw, grid_snap.get_untracked(), ortho.get_untracked());
+                corners.update(|v| v.push(p));
+            }
         }
+    });
+
+    // While the mouse is held, show the snapped position the node will drop at.
+    let on_preview = Callback::new(move |at: Option<Coord>| {
+        if !drawing.get_untracked() {
+            pending.set(None);
+            return;
+        }
+        let cs = corners.get_untracked();
+        pending.set(
+            at.map(|raw| apply_snaps(&cs, raw, grid_snap.get_untracked(), ortho.get_untracked())),
+        );
     });
 
     // The Draw button starts a fresh outline; while drawing it cancels.
@@ -103,8 +140,28 @@ pub fn Planner() -> impl IntoView {
                     if drawing.get() { "Click near the start to finish" } else { "Draw house" }
                 }}
             </button>
+            <label>
+                <input
+                    type="checkbox"
+                    data-testid="snap-grid"
+                    prop:checked=move || grid_snap.get()
+                    on:change=move |ev| grid_snap.set(event_target_checked(&ev))
+                />
+                " Snap to grid"
+            </label>
+            <label>
+                <input
+                    type="checkbox"
+                    data-testid="snap-ortho"
+                    prop:checked=move || ortho.get()
+                    on:change=move |ev| ortho.set(event_target_checked(&ev))
+                />
+                " Straight walls"
+            </label>
         </div>
-        // Re-render the canvas whenever the dimensions or the outline change.
+        // Recreate the stage only when the yard size changes; the outline and
+        // preview are read reactively inside Yard, so the <svg> persists during
+        // a mouse gesture (needed for press-to-aim / release-to-drop).
         {move || {
             view! {
                 <Yard
@@ -112,8 +169,10 @@ pub fn Planner() -> impl IntoView {
                     yard_d=depth.get()
                     px_ft=PX_FT
                     pad=PAD
-                    house=corners.get()
+                    house=corners
+                    preview=pending
                     on_pick=on_pick
+                    on_preview=on_preview
                 />
             }
         }}

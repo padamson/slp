@@ -15,8 +15,14 @@ sightlines) — for **any** house, since it's drawn and saved, not baked in.
   - [x] a `House` component draws the outline inside `Yard`, to scale
   - [x] a plan with no house renders nothing extra (no empty outline)
 - **H1.1 — draw the outline** ✅
-  - [x] click in the yard to drop corners; close the loop to finish the outline
+  - [x] drop corners in the yard; close the loop to finish the outline
         (toggle "Draw house"; snap-to-close by clicking near the first corner)
+  - [x] **press-to-aim / release-to-drop**: hold the mouse to position a node
+        (live ghost + rubber-band preview), release to place it
+  - [x] **snapping** (canvas-wide, on by default, with toggles): grid-snap
+        (1 ft) + "straight walls" (ortho/axis-aligned). Pure helpers in
+        `slp-core` (`snap_to_grid`, `snap_ortho`) — will move into the shared
+        area-draw tool when it's extracted at H2/B1.
   - [x] the drawn house is saved to the `Plan` and survives a reload
   - [ ] the house is flagged **existing** by default (not costed) — deferred to
         the cost milestone (no cost engine yet; YAGNI)
