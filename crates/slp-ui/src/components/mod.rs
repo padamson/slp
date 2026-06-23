@@ -41,6 +41,22 @@ impl Transform {
     pub fn sy(self, y: f64) -> f64 {
         self.pad + (self.yard_d - y) * self.px_ft
     }
+
+    /// Screen-x (px, in SVG user space) → world-x (feet). Inverse of [`sx`].
+    ///
+    /// [`sx`]: Transform::sx
+    #[must_use]
+    pub fn wx(self, sx: f64) -> f64 {
+        (sx - self.pad) / self.px_ft
+    }
+
+    /// Screen-y (px, in SVG user space) → world-y (feet). Inverse of [`sy`].
+    ///
+    /// [`sy`]: Transform::sy
+    #[must_use]
+    pub fn wy(self, sy: f64) -> f64 {
+        self.yard_d - (sy - self.pad) / self.px_ft
+    }
 }
 
 #[cfg(feature = "stories")]
@@ -87,6 +103,9 @@ mod planner_tests;
 #[cfg(test)]
 #[path = "scale_bar.tests.rs"]
 mod scale_bar_tests;
+#[cfg(test)]
+#[path = "transform.tests.rs"]
+mod transform_tests;
 #[cfg(test)]
 #[path = "yard_controls.tests.rs"]
 mod yard_controls_tests;

@@ -40,10 +40,21 @@ fn renders_the_outline_as_a_scaled_polygon() {
 }
 
 #[test]
-fn no_corners_renders_no_polygon() {
+fn no_corners_renders_nothing() {
     let html = dokime::render(move || view! { <House t=t() corners=Vec::new() /> });
     assert!(
-        !html.contains("<polygon"),
+        !html.contains("<polygon") && !html.contains(r#"class="house""#),
         "an empty house draws nothing (no stray outline)"
+    );
+}
+
+#[test]
+fn one_corner_shows_a_marker_but_no_outline() {
+    let corners = vec![Coord::new(1.0, 1.0)];
+    let html = dokime::render(move || view! { <House t=t() corners=corners /> });
+    assert!(html.contains("<circle"), "the first corner shows a marker");
+    assert!(
+        !html.contains("<polygon"),
+        "a single point is not yet an outline"
     );
 }

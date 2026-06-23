@@ -1541,6 +1541,7 @@ dependencies = [
  "serde_json",
  "slp-core",
  "theoria",
+ "wasm-bindgen",
  "web-sys",
 ]
 

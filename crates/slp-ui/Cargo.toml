@@ -19,15 +19,24 @@ serde_json = { workspace = true }
 # Only pulled in for the colocated `*.stories.rs` files (the `stories` feature),
 # never in the production app build.
 theoria = { path = "../theoria", optional = true }
-# localStorage autosave of the Plan; pulled in by csr, so ssr/dokime builds
-# don't see it.
-web-sys = { version = "0.3", optional = true, features = ["Window", "Storage"] }
+# localStorage autosave of the Plan + translating canvas clicks (DomRect) to
+# feet; pulled in by csr, so ssr/dokime builds don't see it.
+web-sys = { version = "0.3", optional = true, features = [
+    "Window",
+    "Storage",
+    "Element",
+    "DomRect",
+    "MouseEvent",
+    "EventTarget",
+] }
+# Cast a click's currentTarget to an Element (csr only).
+wasm-bindgen = { version = "0.2", optional = true }
 
 [dev-dependencies]
 dokime = { path = "../dokime" }
 
 [features]
-csr = ["leptos/csr", "dep:web-sys"]
+csr = ["leptos/csr", "dep:web-sys", "dep:wasm-bindgen"]
 ssr = ["leptos/ssr"]
 hydrate = ["leptos/hydrate"]
 # Compiles the colocated `*.stories.rs` files (slp-ui components as theoria
