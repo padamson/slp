@@ -36,9 +36,30 @@ classes:
     description: |-
       The house, drawn by the user as a closed outline of corner points (never
       hardcoded). Each wall is the edge between consecutive corners; doors and
-      windows are placed along walls in a later slice.
+      windows are placed along those walls.
     slots:
       - corners
+      - openings
+
+  Opening:
+    description: |-
+      A door or window placed along a wall (the edge from corner `wall` to the
+      next corner). Positioned by its `offset` in feet from the wall's start,
+      spanning `width` feet.
+    slots:
+      - kind
+      - wall
+      - offset
+      - width
+    slot_usage:
+      kind:
+        required: true
+      wall:
+        required: true
+      offset:
+        required: true
+      width:
+        required: true
 
   Coord:
     description: |-
@@ -71,9 +92,35 @@ slots:
     multivalued: true
     inlined_as_list: true
     description: Ordered corner points of the house outline (a closed ring).
+  openings:
+    range: Opening
+    multivalued: true
+    inlined_as_list: true
+    description: Doors and windows placed along the house's walls.
+  kind:
+    range: OpeningKind
+    description: Whether this opening is a door or a window.
+  wall:
+    range: integer
+    description: Index of the wall (edge) this opening sits on.
+  offset:
+    range: double
+    description: Distance in feet from the wall's start corner to the opening.
+  width:
+    range: double
+    description: Width of the opening, in feet.
   x:
     range: double
     description: East-west position, in feet.
   y:
     range: double
     description: North-south position, in feet.
+
+enums:
+  OpeningKind:
+    description: The kind of wall opening.
+    permissible_values:
+      door:
+        description: A doorway.
+      window:
+        description: A window.

@@ -1,7 +1,7 @@
-//! dokime component tests for `House` (H1.0 — render the outline to scale).
+//! dokime component tests for `House` (render the outline + composed openings).
 
 use leptos::prelude::*;
-use slp_core::Coord;
+use slp_core::{Coord, Opening, OpeningKind};
 
 use super::{House, Transform};
 
@@ -45,6 +45,30 @@ fn no_corners_renders_nothing() {
     assert!(
         !html.contains("<polygon") && !html.contains(r#"class="house""#),
         "an empty house draws nothing (no stray outline)"
+    );
+}
+
+#[test]
+fn composes_openings_onto_the_walls() {
+    // A square house with a door on wall 0 and a window on wall 1.
+    let corners = vec![
+        Coord::new(0.0, 0.0),
+        Coord::new(10.0, 0.0),
+        Coord::new(10.0, 10.0),
+        Coord::new(0.0, 10.0),
+    ];
+    let openings = vec![
+        Opening::new(OpeningKind::door, 3.0, 0, 3.0),
+        Opening::new(OpeningKind::window, 3.0, 1, 3.0),
+    ];
+    let html = dokime::render(move || view! { <House t=t() corners=corners openings=openings /> });
+    assert!(
+        html.contains(r#"class="door""#),
+        "the door renders on its wall"
+    );
+    assert!(
+        html.contains(r#"class="window""#),
+        "the window renders on its wall"
     );
 }
 

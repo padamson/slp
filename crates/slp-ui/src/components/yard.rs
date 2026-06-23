@@ -6,7 +6,7 @@
 //! Shapes, the deck layer, and more interaction land in later slices.
 
 use leptos::prelude::*;
-use slp_core::Coord;
+use slp_core::{Coord, Opening};
 
 use super::{Grid, House, ScaleBar, Transform};
 
@@ -20,6 +20,9 @@ pub fn Yard(
     /// Read reactively so the stage persists while only the overlay updates.
     #[prop(optional, into)]
     house: Signal<Vec<Coord>>,
+    /// Doors/windows on the house walls (keyed to a wall by index).
+    #[prop(optional, into)]
+    openings: Signal<Vec<Opening>>,
     /// The node being positioned while the mouse is held (drawn as a ghost).
     #[prop(optional, into)]
     preview: Signal<Option<Coord>>,
@@ -108,8 +111,12 @@ pub fn Yard(
             />
             <Grid t=t yard_w=yard_w yard_d=yard_d />
             // Reactive overlay: only the house subtree updates as the outline /
-            // preview change, so the <svg> stays put during a mouse gesture.
-            {move || view! { <House t=t corners=house.get() preview=preview.get() /> }}
+            // openings / preview change, so the <svg> stays put during a gesture.
+            {move || {
+                view! {
+                    <House t=t corners=house.get() openings=openings.get() preview=preview.get() />
+                }
+            }}
             <ScaleBar t=t baseline_y=baseline_y />
         </svg>
     }

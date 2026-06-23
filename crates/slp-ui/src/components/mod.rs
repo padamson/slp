@@ -2,17 +2,23 @@
 //! `<name>.rs` + `<name>.stories.rs` (`stories` feature) + `<name>.tests.rs`
 //! (`cfg(test)`). Dotted file names use `#[path]` (not valid module idents).
 
+mod door;
 mod grid;
 mod house;
 mod planner;
 mod scale_bar;
+mod wall;
+mod window;
 mod yard;
 mod yard_controls;
 
+pub use door::Door;
 pub use grid::Grid;
 pub use house::House;
 pub use planner::Planner;
 pub use scale_bar::ScaleBar;
+pub use wall::Wall;
+pub use window::Window;
 pub use yard::Yard;
 pub use yard_controls::YardControls;
 
@@ -60,6 +66,9 @@ impl Transform {
 }
 
 #[cfg(feature = "stories")]
+#[path = "door.stories.rs"]
+mod door_stories;
+#[cfg(feature = "stories")]
 #[path = "grid.stories.rs"]
 mod grid_stories;
 #[cfg(feature = "stories")]
@@ -71,6 +80,12 @@ mod planner_stories;
 #[cfg(feature = "stories")]
 #[path = "scale_bar.stories.rs"]
 mod scale_bar_stories;
+#[cfg(feature = "stories")]
+#[path = "wall.stories.rs"]
+mod wall_stories;
+#[cfg(feature = "stories")]
+#[path = "window.stories.rs"]
+mod window_stories;
 #[cfg(feature = "stories")]
 #[path = "yard_controls.stories.rs"]
 mod yard_controls_stories;
@@ -85,12 +100,19 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(planner_stories::stories());
     s.extend(yard_stories::stories());
     s.extend(house_stories::stories());
+    // The composition ladder, smallest first: Door/Window → Wall → House.
+    s.extend(door_stories::stories());
+    s.extend(window_stories::stories());
+    s.extend(wall_stories::stories());
     s.extend(grid_stories::stories());
     s.extend(scale_bar_stories::stories());
     s.extend(yard_controls_stories::stories());
     s
 }
 
+#[cfg(test)]
+#[path = "door.tests.rs"]
+mod door_tests;
 #[cfg(test)]
 #[path = "grid.tests.rs"]
 mod grid_tests;
@@ -106,6 +128,12 @@ mod scale_bar_tests;
 #[cfg(test)]
 #[path = "transform.tests.rs"]
 mod transform_tests;
+#[cfg(test)]
+#[path = "wall.tests.rs"]
+mod wall_tests;
+#[cfg(test)]
+#[path = "window.tests.rs"]
+mod window_tests;
 #[cfg(test)]
 #[path = "yard_controls.tests.rs"]
 mod yard_controls_tests;

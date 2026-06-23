@@ -63,6 +63,13 @@ pub(crate) fn apply_snaps(corners: &[Coord], at: Coord, grid: bool, ortho: bool)
 
 #[component]
 pub fn Planner() -> impl IntoView {
+    planner_body()
+}
+
+// Body in a plain fn so the composition-root line count (expanded `view!`
+// macros) can be allowed; signals/effects still run in the component's owner.
+#[allow(clippy::too_many_lines)]
+fn planner_body() -> impl IntoView {
     let plan = load_plan().unwrap_or(Plan {
         yard_width: DEFAULT_W,
         yard_depth: DEFAULT_D,
@@ -70,8 +77,18 @@ pub fn Planner() -> impl IntoView {
     });
     let (width, set_width) = signal(plan.yard_width);
     let (depth, set_depth) = signal(plan.yard_depth);
-    // The house outline (corners, in feet) and whether we're drawing it.
-    let corners = RwSignal::new(plan.house.map(|h| h.corners).unwrap_or_default());
+    // The house outline (corners, in feet), its openings, and the draw mode.
+    let (init_corners, init_openings) = plan
+        .house
+        .map(|h| {
+            let House {
+                corners, openings, ..
+            } = *h;
+            (corners, openings)
+        })
+        .unwrap_or_default();
+    let corners = RwSignal::new(init_corners);
+    let openings = RwSignal::new(init_openings);
     let drawing = RwSignal::new(false);
     // Snapping (on by default): most walls are on the grid and axis-aligned.
     let grid_snap = RwSignal::new(true);
@@ -82,11 +99,18 @@ pub fn Planner() -> impl IntoView {
     // Persist whenever the yard size or the house changes (no-op under ssr /
     // tests). The house is kept, so resizing the yard never wipes a drawn house.
     Effect::new(move |_| {
-        let house = corners.get();
+        let cs = corners.get();
+        let os = openings.get();
+        let house = (!cs.is_empty() || !os.is_empty()).then(|| {
+            Box::new(House {
+                corners: cs,
+                openings: os,
+            })
+        });
         save_plan(&Plan {
             yard_width: width.get(),
             yard_depth: depth.get(),
-            house: (!house.is_empty()).then(|| Box::new(House { corners: house })),
+            house,
             ..Default::default()
         });
     });
@@ -170,6 +194,7 @@ pub fn Planner() -> impl IntoView {
                     px_ft=PX_FT
                     pad=PAD
                     house=corners
+                    openings=openings
                     preview=pending
                     on_pick=on_pick
                     on_preview=on_preview

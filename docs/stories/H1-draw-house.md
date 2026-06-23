@@ -27,10 +27,11 @@ sightlines) — for **any** house, since it's drawn and saved, not baked in.
   - [ ] the house is flagged **existing** by default (not costed) — deferred to
         the cost milestone (no cost engine yet; YAGNI)
 - **H1.2 — place doors & windows** *(composable components)*
-  - [ ] refactor `House` to compose one `Wall` component per edge; each `Wall`
+  - [x] refactor `House` to compose one `Wall` component per edge; each `Wall`
         hosts its `Door`/`Window` openings (own `.stories.rs` + `.tests.rs`)
+  - [x] doors/windows render as marks/gaps on their wall, to scale
+        (`Opening{kind,wall,offset,width}` in the schema; `OpeningKind` enum)
   - [ ] pick a wall and place a door or window on it (offset along wall + width)
-  - [ ] doors/windows render as marks/gaps on their wall, to scale
   - [ ] they are saved in the `Plan` and survive a reload
 
 ## Notes / refs

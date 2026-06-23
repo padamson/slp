@@ -8,7 +8,9 @@
 pub mod generated;
 pub mod geom;
 pub mod snap;
+pub mod wall;
 
-pub use generated::slp::{Coord, House, Plan};
+pub use generated::slp::{Coord, House, Opening, OpeningKind, Plan};
 pub use geom::{Point, area, point_in_polygon, polyline_length};
 pub use snap::{snap_ortho, snap_to_grid};
+pub use wall::{opening_segment, point_along};

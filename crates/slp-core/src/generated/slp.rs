@@ -5,6 +5,16 @@
 
 #![allow(non_camel_case_types, non_snake_case, dead_code)]
 
+/// The kind of wall opening.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub enum OpeningKind {
+    /// A doorway.
+    door,
+    /// A window.
+    window,
+}
+
 /// A point in the plan, in feet. The yard's south-west corner is the origin;
 /// +x runs east, +y runs north.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
@@ -23,12 +33,41 @@ impl Coord {
 
 /// The house, drawn by the user as a closed outline of corner points (never
 /// hardcoded). Each wall is the edge between consecutive corners; doors and
-/// windows are placed along walls in a later slice.
+/// windows are placed along those walls.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct House {
     /// Ordered corner points of the house outline (a closed ring).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub corners: Vec<Coord>,
+    /// Doors and windows placed along the house's walls.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub openings: Vec<Opening>,
+}
+
+/// A door or window placed along a wall (the edge from corner `wall` to the
+/// next corner). Positioned by its `offset` in feet from the wall's start,
+/// spanning `width` feet.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Opening {
+    /// Whether this opening is a door or a window.
+    pub kind: OpeningKind,
+    /// Distance in feet from the wall's start corner to the opening.
+    pub offset: f64,
+    /// Index of the wall (edge) this opening sits on.
+    pub wall: i64,
+    /// Width of the opening, in feet.
+    pub width: f64,
+}
+
+impl Opening {
+    pub fn new(kind: OpeningKind, offset: f64, wall: i64, width: f64) -> Self {
+        Self {
+            kind,
+            offset,
+            wall,
+            width,
+        }
+    }
 }
 
 /// A complete landscape plan.
