@@ -42,6 +42,7 @@ Backlog priority tiers (and Rust/Leptos difficulty + rationale) come from the
 | T1 | Browse + preview (sidebar/stage, click-to-switch, styling, selection persists across reload) | [T1](T1-browse-and-preview.md) |
 | T9 | `theoria serve`: discover stories + generate & serve the gallery, with source-crate hot reload | [T9](T9-serve-cli.md) |
 | T4 | Browser e2e: every story renders + selection persists (`theoria-e2e`) | (T1 slices) |
+| T8 | Story groups / nesting in the sidebar (hierarchical from `/`-delimited names) | [T8](T8-story-groups.md) |
 
 **Backlog** (pull when an slp slice needs it)
 
@@ -55,5 +56,4 @@ Backlog priority tiers (and Rust/Leptos difficulty + rationale) come from the
 | T12 | Globals/toolbar — theme switch all stories read | 2 |
 | T13 | Autodocs — per-component page (description + args table + controls) | 2–3 |
 | T7 | Viewport + backgrounds (stage size / bg presets) | 3 |
-| T8 | Story groups / nesting in the sidebar | 3 |
 | T15 | Visual regression (screenshot-diff) — promote when material textures (epic M) / 3D (R2) land | 4 (defer) |

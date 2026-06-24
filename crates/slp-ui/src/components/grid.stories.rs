@@ -11,7 +11,7 @@ pub fn stories() -> Vec<Story> {
         pad: 40.0,
         yard_d: 12.0,
     };
-    vec![Story::new("Grid", move || {
+    vec![Story::new("Canvas/Grid", move || {
         view! {
             <svg viewBox="0 0 320 220" width="340">
                 <Grid t=t yard_w=20.0 yard_d=12.0 />

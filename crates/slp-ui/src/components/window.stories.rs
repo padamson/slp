@@ -1,17 +1,23 @@
-//! theoria story for `Window`. Compiled only under the `stories` feature. Shown
-//! on a wall segment so the gap + glass read in context.
+//! theoria story for `Window`. Compiled only under the `stories` feature. Shows a
+//! window composed onto a real `Wall` (Window → Wall) — no hand-drawn scaffolding.
 
 use leptos::prelude::*;
+use slp_core::{Coord, Opening, OpeningKind};
 
-use super::Window;
+use super::{Transform, Wall};
 use theoria::Story;
 
 pub fn stories() -> Vec<Story> {
-    vec![Story::new("Window", || {
+    vec![Story::new("Structures/Window", || {
+        let t = Transform {
+            px_ft: 12.0,
+            pad: 20.0,
+            yard_d: 10.0,
+        };
+        let openings = vec![Opening::new(OpeningKind::window, 4.0, 0, 5.0)];
         view! {
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160">
-                <line x1=20.0 y1=70.0 x2=140.0 y2=70.0 stroke="#8a7f6a" stroke-width="2" />
-                <Window x1=55.0 y1=70.0 x2=105.0 y2=70.0 />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 120" width="220">
+                <Wall t=t start=Coord::new(1.0, 5.0) end=Coord::new(16.0, 5.0) openings=openings />
             </svg>
         }
     })]

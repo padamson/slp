@@ -42,28 +42,23 @@ fn render_house(
             })
             .collect::<Vec<_>>();
 
-        // A closed outline needs at least an edge; one point is just a marker.
+        // The footprint fill (the walls themselves are drawn by the Wall
+        // children, so this is fill-only — no stroke — to avoid double edges).
         let outline = (corners.len() >= 2).then(|| {
             let points = corners
                 .iter()
                 .map(|c| format!("{},{}", t.sx(c.x), t.sy(c.y)))
                 .collect::<Vec<_>>()
                 .join(" ");
-            view! {
-                <polygon
-                    points=points
-                    fill="#d8d2c4"
-                    fill-opacity="0.6"
-                    stroke="#8a7f6a"
-                    stroke-width="2"
-                />
-            }
+            view! { <polygon points=points fill="#d8d2c4" fill-opacity="0.6" stroke="none" /> }
         });
 
-        // One Wall per edge of the closed ring, each carrying its openings.
-        let walls = (corners.len() >= 3).then(|| {
+        // One Wall per edge. While drawing it's an open chain; once there are
+        // three corners it's a closed ring (the last edge wraps to corner 0).
+        let walls = (corners.len() >= 2).then(|| {
             let n = corners.len();
-            (0..n)
+            let count = if n >= 3 { n } else { n - 1 };
+            (0..count)
                 .map(|i| {
                     let start = corners[i].clone();
                     let end = corners[(i + 1) % n].clone();

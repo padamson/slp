@@ -209,10 +209,17 @@ const GALLERY_INDEX_HTML: &str = r#"<!DOCTYPE html>
     <style>
       body { margin: 0; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: #faf7f1; color: #2c2a25; }
       .theoria { display: flex; gap: 16px; padding: 16px 22px; align-items: flex-start; }
-      .theoria-nav { flex: 0 0 160px; }
+      .theoria-nav { flex: 0 0 210px; }
       .theoria-nav ul { list-style: none; margin: 0; padding: 0; }
-      .theoria-nav button { display: block; width: 100%; text-align: left; padding: 6px 10px; margin: 2px 0; border: 1px solid #e3dccb; border-radius: 8px; background: #fff; cursor: pointer; font: inherit; font-size: 13px; }
-      .theoria-nav button.active { background: #5c6b4f; color: #fff; border-color: #5c6b4f; }
+      .theoria-nav ul.collapsed { display: none; }
+      /* Leaf rows: flat, full-width, subtle hover; the selected one is accented. */
+      .theoria-nav button { display: block; width: 100%; text-align: left; padding: 4px 8px; margin: 1px 0; border: none; border-radius: 6px; background: none; color: inherit; cursor: pointer; font: inherit; font-size: 13px; }
+      .theoria-nav button:hover { background: #efe9dc; }
+      .theoria-nav button.active { background: #5c6b4f; color: #fff; }
+      /* Group headers: muted, uppercase, click to collapse. */
+      .theoria-group-label { padding: 8px 8px 2px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #8a8275; cursor: pointer; user-select: none; }
+      .theoria-group-label:hover { color: #5c6b4f; }
+      .theoria-group-label .caret { font-size: 9px; color: #b3ab9a; }
       .theoria-stage { flex: 1 1 auto; background: #fff; border: 1px solid #e3dccb; border-radius: 12px; padding: 16px; min-height: 200px; }
     </style>
   </head>

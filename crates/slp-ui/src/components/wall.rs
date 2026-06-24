@@ -1,7 +1,7 @@
 //! A wall — the edge from one house corner to the next — and the doors/windows
-//! that sit on it. `House` renders one `Wall` per edge; the wall's *edge line* is
-//! the house outline polygon, so `Wall` is responsible for composing the
-//! openings on that edge (placing each `Door`/`Window` along it, in feet→px).
+//! that sit on it. Self-contained: it draws its own edge line and composes a
+//! `Door`/`Window` for each opening (placed along the edge, feet→px). `House`
+//! renders one `Wall` per edge.
 
 use leptos::prelude::*;
 use slp_core::{Coord, Opening, OpeningKind, opening_segment};
@@ -10,6 +10,7 @@ use super::{Door, Transform, Window};
 
 #[component]
 pub fn Wall(t: Transform, start: Coord, end: Coord, openings: Vec<Opening>) -> impl IntoView {
+    let (ex1, ey1, ex2, ey2) = (t.sx(start.x), t.sy(start.y), t.sx(end.x), t.sy(end.y));
     let marks = openings
         .into_iter()
         .map(move |o| {
@@ -22,5 +23,10 @@ pub fn Wall(t: Transform, start: Coord, end: Coord, openings: Vec<Opening>) -> i
             }
         })
         .collect::<Vec<_>>();
-    view! { <g class="wall">{marks}</g> }
+    view! {
+        <g class="wall">
+            <line class="wall-edge" x1=ex1 y1=ey1 x2=ex2 y2=ey2 stroke="#8a7f6a" stroke-width="2" />
+            {marks}
+        </g>
+    }
 }

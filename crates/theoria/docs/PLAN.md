@@ -76,7 +76,9 @@ proc-macro). Prioritize the *value*, accept explicit authoring.
 ### Tier 3 — polish / already-covered elsewhere
 - **Viewport + backgrounds** — preview size presets + background swatch (a
   width wrapper + a CSS var on the stage).
-- **Story groups / nesting** — hierarchical sidebar from title paths.
+- **Story groups / nesting** — hierarchical sidebar from title paths. ✅ **Done**
+  (T8; pulled forward when slp-ui's story list grew). See
+  [`docs/stories/T8-story-groups.md`](stories/T8-story-groups.md).
 - **Interaction tests (play functions)** — largely covered by dokime (Rust
   component tests) + playwright (e2e); don't duplicate.
 

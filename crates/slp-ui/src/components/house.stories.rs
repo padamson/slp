@@ -18,7 +18,7 @@ fn t() -> Transform {
 
 pub fn stories() -> Vec<Story> {
     vec![
-        Story::new("House", || {
+        Story::new("Structures/House/Outline", || {
             // An L-shaped footprint, drawn to scale inside an SVG stage.
             let corners = vec![
                 Coord::new(10.0, 6.0),
@@ -34,7 +34,7 @@ pub fn stories() -> Vec<Story> {
                 </svg>
             }
         }),
-        Story::new("House · doors & windows", || {
+        Story::new("Structures/House/Doors & windows", || {
             // A rectangular house whose walls compose openings.
             // Opening::new(kind, offset, wall, width); walls are edges 0..4.
             let corners = vec![

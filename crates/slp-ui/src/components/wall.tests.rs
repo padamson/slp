@@ -31,13 +31,13 @@ fn composes_a_door_and_a_window() {
 }
 
 #[test]
-fn no_openings_renders_an_empty_wall() {
+fn draws_its_edge_even_without_openings() {
     let html = dokime::render(move || {
         view! { <Wall t=t() start=Coord::new(0.0, 0.0) end=Coord::new(5.0, 0.0) openings=Vec::new() /> }
     });
     assert!(
-        html.contains(r#"class="wall""#),
-        "the wall group is present"
+        html.contains(r#"class="wall-edge""#),
+        "a wall draws its own edge line (self-contained)"
     );
     assert!(
         !html.contains(r#"class="door""#) && !html.contains(r#"class="window""#),
