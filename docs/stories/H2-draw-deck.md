@@ -17,9 +17,20 @@ the yard around it — for **any** deck, since it's drawn and saved, not baked i
   - [x] a `Draw deck` tool draws a closed outline via the shared engine
         (`Tool::Deck` — same grid/ortho snap + close-on-first-corner as the house)
   - [x] the drawn deck is saved to the `Plan` and survives a reload
-- **H2.2 — stairs, railing, multi-level** — _deferred (future slice)_
+- **H2.2a — multiple levels** ✅
+  - [x] `Deck` is a list of `DeckLevel { corners, elevation }`; "Draw deck" adds
+        a level at the current **Elev (ft)** input (decks are additive)
+  - [x] levels render stacked (lowest first) with an elevation label; persist
+- **H2.2b — stairs** *(next)*
+  - [ ] click two points on a deck edge → a stair run extends outward
+  - [ ] **steps + run computed from the level's elevation** (standard rise/tread)
+        and rendered as treads; persist
+- **H2.3 — railing** — _deferred (future slice)_
 - existing flag (not costed) — _deferred to the cost milestone (YAGNI; no cost
   engine yet), same as the house outline_
+
+Needed now because **furniture placement** depends on the deck's surfaces
+(levels at their elevations) and where stairs consume usable space.
 
 ## Notes / refs
 

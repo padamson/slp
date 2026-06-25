@@ -31,13 +31,36 @@ impl Coord {
     }
 }
 
-/// A deck or patio footprint, drawn by the user as a closed outline of corner
-/// points (never hardcoded). Stairs, railing, and multiple levels come later.
+/// A deck or patio: one or more levels (footprints at an elevation) plus
+/// stairs. Drawn by the user (never hardcoded).
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Deck {
-    /// Ordered corner points of the house outline (a closed ring).
+    /// The deck's platforms, each a footprint at an elevation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub levels: Vec<DeckLevel>,
+    /// Stair runs on the deck's edges.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stairs: Vec<Stair>,
+}
+
+/// One deck platform — a footprint (closed outline of corners) at a given
+/// elevation in feet above grade.
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+pub struct DeckLevel {
+    /// Ordered corner points of a closed outline (house wall or deck level).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub corners: Vec<Coord>,
+    /// Height in feet above grade.
+    pub elevation: f64,
+}
+
+impl DeckLevel {
+    pub fn new(elevation: f64) -> Self {
+        Self {
+            corners: Vec::new(),
+            elevation,
+        }
+    }
 }
 
 /// The house, drawn by the user as a closed outline of corner points (never
@@ -45,7 +68,7 @@ pub struct Deck {
 /// windows are placed along those walls.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct House {
-    /// Ordered corner points of the house outline (a closed ring).
+    /// Ordered corner points of a closed outline (house wall or deck level).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub corners: Vec<Coord>,
     /// Doors and windows placed along the house's walls.
@@ -105,6 +128,35 @@ impl Plan {
             name: None,
             yard_depth,
             yard_width,
+        }
+    }
+}
+
+/// A stair run on a deck edge: its top edge (a→b) extends outward (down to
+/// grade). The number of steps and the run depth are computed from the level's
+/// `elevation` (standard rise/tread), so only the edge + drop are stored.
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+pub struct Stair {
+    /// Stair top-edge start x, in feet.
+    pub ax: f64,
+    /// Stair top-edge start y, in feet.
+    pub ay: f64,
+    /// Stair top-edge end x, in feet.
+    pub bx: f64,
+    /// Stair top-edge end y, in feet.
+    pub by: f64,
+    /// Height in feet above grade.
+    pub elevation: f64,
+}
+
+impl Stair {
+    pub fn new(ax: f64, ay: f64, bx: f64, by: f64, elevation: f64) -> Self {
+        Self {
+            ax,
+            ay,
+            bx,
+            by,
+            elevation,
         }
     }
 }

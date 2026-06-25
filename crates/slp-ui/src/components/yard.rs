@@ -6,7 +6,7 @@
 //! from screen pixels to world feet.
 
 use leptos::prelude::*;
-use slp_core::{Coord, Opening};
+use slp_core::{Coord, DeckLevel, Opening};
 
 use super::{Deck, Grid, House, Placement, ScaleBar, Transform};
 
@@ -19,9 +19,9 @@ pub fn Yard(
     /// The committed house outline corners (empty = no house).
     #[prop(optional, into)]
     house: Signal<Vec<Coord>>,
-    /// The committed deck footprint corners (empty = no deck).
+    /// The committed deck levels (empty = no deck).
     #[prop(optional, into)]
-    deck: Signal<Vec<Coord>>,
+    deck: Signal<Vec<DeckLevel>>,
     /// Committed doors/windows on the house walls.
     #[prop(optional, into)]
     openings: Signal<Vec<Opening>>,
@@ -90,7 +90,7 @@ pub fn Yard(
             <Grid t=t yard_w=yard_w yard_d=yard_d />
             // Reactive overlays: only these subtrees update as the plan / gesture
             // change, so the <svg> stays put during a pointer gesture.
-            {move || view! { <Deck t=t corners=deck.get() /> }}
+            {move || view! { <Deck t=t levels=deck.get() /> }}
             {move || view! { <House t=t corners=house.get() openings=openings.get() /> }}
             {move || view! { <Placement t=t placed=placed.get() preview=preview.get() /> }}
             <ScaleBar t=t baseline_y=baseline_y />

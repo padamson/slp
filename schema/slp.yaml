@@ -35,10 +35,40 @@ classes:
 
   Deck:
     description: |-
-      A deck or patio footprint, drawn by the user as a closed outline of corner
-      points (never hardcoded). Stairs, railing, and multiple levels come later.
+      A deck or patio: one or more levels (footprints at an elevation) plus
+      stairs. Drawn by the user (never hardcoded).
+    slots:
+      - levels
+      - stairs
+
+  DeckLevel:
+    description: |-
+      One deck platform — a footprint (closed outline of corners) at a given
+      elevation in feet above grade.
     slots:
       - corners
+      - elevation
+    slot_usage:
+      elevation:
+        required: true
+
+  Stair:
+    description: |-
+      A stair run on a deck edge: its top edge (a→b) extends outward (down to
+      grade). The number of steps and the run depth are computed from the level's
+      `elevation` (standard rise/tread), so only the edge + drop are stored.
+    slots:
+      - ax
+      - ay
+      - bx
+      - by
+      - elevation
+    slot_usage:
+      ax: { required: true }
+      ay: { required: true }
+      bx: { required: true }
+      by: { required: true }
+      elevation: { required: true }
 
   House:
     description: |-
@@ -103,7 +133,32 @@ slots:
     range: Coord
     multivalued: true
     inlined_as_list: true
-    description: Ordered corner points of the house outline (a closed ring).
+    description: Ordered corner points of a closed outline (house wall or deck level).
+  levels:
+    range: DeckLevel
+    multivalued: true
+    inlined_as_list: true
+    description: The deck's platforms, each a footprint at an elevation.
+  stairs:
+    range: Stair
+    multivalued: true
+    inlined_as_list: true
+    description: Stair runs on the deck's edges.
+  elevation:
+    range: double
+    description: Height in feet above grade.
+  ax:
+    range: double
+    description: Stair top-edge start x, in feet.
+  ay:
+    range: double
+    description: Stair top-edge start y, in feet.
+  bx:
+    range: double
+    description: Stair top-edge end x, in feet.
+  by:
+    range: double
+    description: Stair top-edge end y, in feet.
   openings:
     range: Opening
     multivalued: true

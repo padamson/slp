@@ -9,7 +9,7 @@
 
 use leptos::prelude::*;
 use slp_core::{
-    Commit, Coord, Deck, House, Plan, Tool, commit_kind, opening_from_nodes, snap_node,
+    Commit, Coord, Deck, DeckLevel, House, Plan, Tool, commit_kind, opening_from_nodes, snap_node,
 };
 
 use super::{Yard, YardControls};
@@ -55,7 +55,9 @@ fn planner_body() -> impl IntoView {
         .unwrap_or_default();
     let corners = RwSignal::new(init_corners);
     let openings = RwSignal::new(init_openings);
-    let deck = RwSignal::new(plan.deck.map(|d| d.corners).unwrap_or_default());
+    let deck = RwSignal::new(plan.deck.map(|d| d.levels).unwrap_or_default());
+    // The elevation (ft) the next deck level is drawn at.
+    let elevation = RwSignal::new(1.0_f64);
     // Placement engine state: the active tool, the nodes placed this gesture,
     // and the previewed next node under the cursor.
     let tool = RwSignal::new(None::<Tool>);
@@ -76,7 +78,12 @@ fn planner_body() -> impl IntoView {
             })
         });
         let dk = deck.get();
-        let deck = (!dk.is_empty()).then(|| Box::new(Deck { corners: dk }));
+        let deck = (!dk.is_empty()).then(|| {
+            Box::new(Deck {
+                levels: dk,
+                ..Default::default()
+            })
+        });
         save_plan(&Plan {
             yard_width: width.get(),
             yard_depth: depth.get(),
@@ -116,9 +123,14 @@ fn planner_body() -> impl IntoView {
         match commit_kind(tl, &pl, &next) {
             Commit::Add => placed.update(|v| v.push(next)),
             Commit::Finish => {
-                // The placed nodes become the committed outline (house or deck).
+                // The placed nodes become a committed outline: a new deck level
+                // (decks are multi-level — additive) or the house outline.
                 if tl == Tool::Deck {
-                    deck.set(pl);
+                    let level = DeckLevel {
+                        corners: pl,
+                        elevation: elevation.get_untracked(),
+                    };
+                    deck.update(|v| v.push(level));
                 } else {
                     corners.set(pl);
                 }
@@ -145,12 +157,10 @@ fn planner_body() -> impl IntoView {
             reset(tool, placed, preview);
             return;
         }
+        // Redrawing the house replaces it; decks are additive (multi-level).
         if t == Tool::House {
             corners.set(Vec::new());
             openings.set(Vec::new());
-        }
-        if t == Tool::Deck {
-            deck.set(Vec::new());
         }
         placed.set(Vec::new());
         preview.set(None);
@@ -180,6 +190,20 @@ fn planner_body() -> impl IntoView {
             >
                 "Draw deck"
             </button>
+            <label>
+                "Elev (ft) "
+                <input
+                    type="number"
+                    data-testid="deck-elevation"
+                    step="0.5"
+                    prop:value=move || elevation.get()
+                    on:input=move |ev| {
+                        if let Ok(v) = event_target_value(&ev).parse::<f64>() {
+                            elevation.set(v);
+                        }
+                    }
+                />
+            </label>
             <button
                 data-testid="add-door"
                 class:active=move || tool_active(Tool::Door)

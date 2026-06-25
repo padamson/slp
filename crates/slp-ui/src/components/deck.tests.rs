@@ -1,7 +1,7 @@
-//! dokime component tests for `Deck`.
+//! dokime component tests for `Deck` (multi-level footprints).
 
 use leptos::prelude::*;
-use slp_core::Coord;
+use slp_core::{Coord, DeckLevel};
 
 use super::{Deck, Transform};
 
@@ -9,19 +9,25 @@ fn t() -> Transform {
     Transform {
         px_ft: 10.0,
         pad: 0.0,
-        yard_d: 10.0,
+        yard_d: 20.0,
+    }
+}
+
+fn square(elevation: f64) -> DeckLevel {
+    DeckLevel {
+        corners: vec![
+            Coord::new(0.0, 0.0),
+            Coord::new(4.0, 0.0),
+            Coord::new(4.0, 3.0),
+            Coord::new(0.0, 3.0),
+        ],
+        elevation,
     }
 }
 
 #[test]
-fn renders_the_footprint_polygon() {
-    let corners = vec![
-        Coord::new(0.0, 0.0),
-        Coord::new(4.0, 0.0),
-        Coord::new(4.0, 3.0),
-        Coord::new(0.0, 3.0),
-    ];
-    let html = dokime::render(move || view! { <Deck t=t() corners=corners /> });
+fn renders_a_level_with_markers_and_elevation_label() {
+    let html = dokime::render(move || view! { <Deck t=t() levels=vec![square(1.5)] /> });
     assert!(html.contains(r#"class="deck""#), "tagged for queries");
     assert!(html.contains("<polygon"), "the footprint is a polygon");
     assert_eq!(
@@ -29,10 +35,22 @@ fn renders_the_footprint_polygon() {
         4,
         "a marker per corner"
     );
+    assert!(html.contains("+1.5 ft"), "the elevation label");
 }
 
 #[test]
-fn no_corners_renders_nothing() {
-    let html = dokime::render(move || view! { <Deck t=t() corners=Vec::new() /> });
+fn renders_one_polygon_per_level() {
+    let html =
+        dokime::render(move || view! { <Deck t=t() levels=vec![square(0.5), square(2.0)] /> });
+    assert_eq!(dokime::count(&html, "<polygon"), 2, "one polygon per level");
+    assert!(
+        html.contains("+0.5 ft") && html.contains("+2.0 ft"),
+        "both labels"
+    );
+}
+
+#[test]
+fn no_levels_renders_nothing() {
+    let html = dokime::render(move || view! { <Deck t=t() levels=Vec::new() /> });
     assert!(!html.contains(r#"class="deck""#));
 }

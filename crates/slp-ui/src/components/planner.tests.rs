@@ -14,8 +14,8 @@ fn renders_header_controls_tools_and_yard() {
     );
     assert_eq!(
         dokime::count(&html, "<input"),
-        4,
-        "two yard-size inputs + two snap toggles"
+        5,
+        "two yard-size inputs + deck elevation + two snap toggles"
     );
     assert!(
         html.contains(r#"data-testid="draw-house""#)
