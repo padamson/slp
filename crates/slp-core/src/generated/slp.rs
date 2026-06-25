@@ -31,6 +31,15 @@ impl Coord {
     }
 }
 
+/// A deck or patio footprint, drawn by the user as a closed outline of corner
+/// points (never hardcoded). Stairs, railing, and multiple levels come later.
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+pub struct Deck {
+    /// Ordered corner points of the house outline (a closed ring).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub corners: Vec<Coord>,
+}
+
 /// The house, drawn by the user as a closed outline of corner points (never
 /// hardcoded). Each wall is the edge between consecutive corners; doors and
 /// windows are placed along those walls.
@@ -73,6 +82,9 @@ impl Opening {
 /// A complete landscape plan.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Plan {
+    /// The deck outline, if the user has drawn one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deck: Option<Box<Deck>>,
     /// The house outline, if the user has drawn one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub house: Option<Box<House>>,
@@ -88,6 +100,7 @@ pub struct Plan {
 impl Plan {
     pub fn new(yard_depth: f64, yard_width: f64) -> Self {
         Self {
+            deck: None,
             house: None,
             name: None,
             yard_depth,

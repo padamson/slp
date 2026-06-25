@@ -26,11 +26,19 @@ classes:
       - yard_width
       - yard_depth
       - house
+      - deck
     slot_usage:
       yard_width:
         required: true
       yard_depth:
         required: true
+
+  Deck:
+    description: |-
+      A deck or patio footprint, drawn by the user as a closed outline of corner
+      points (never hardcoded). Stairs, railing, and multiple levels come later.
+    slots:
+      - corners
 
   House:
     description: |-
@@ -87,6 +95,10 @@ slots:
     range: House
     inlined: true
     description: The house outline, if the user has drawn one.
+  deck:
+    range: Deck
+    inlined: true
+    description: The deck outline, if the user has drawn one.
   corners:
     range: Coord
     multivalued: true

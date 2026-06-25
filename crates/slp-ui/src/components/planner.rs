@@ -8,7 +8,9 @@
 //! release, until the object completes.
 
 use leptos::prelude::*;
-use slp_core::{Commit, Coord, House, Plan, Tool, commit_kind, opening_from_nodes, snap_node};
+use slp_core::{
+    Commit, Coord, Deck, House, Plan, Tool, commit_kind, opening_from_nodes, snap_node,
+};
 
 use super::{Yard, YardControls};
 
@@ -53,6 +55,7 @@ fn planner_body() -> impl IntoView {
         .unwrap_or_default();
     let corners = RwSignal::new(init_corners);
     let openings = RwSignal::new(init_openings);
+    let deck = RwSignal::new(plan.deck.map(|d| d.corners).unwrap_or_default());
     // Placement engine state: the active tool, the nodes placed this gesture,
     // and the previewed next node under the cursor.
     let tool = RwSignal::new(None::<Tool>);
@@ -62,7 +65,7 @@ fn planner_body() -> impl IntoView {
     let grid_snap = RwSignal::new(true);
     let ortho = RwSignal::new(true);
 
-    // Persist whenever the yard size or the committed house changes.
+    // Persist whenever the yard size or the committed plan changes.
     Effect::new(move |_| {
         let cs = corners.get();
         let os = openings.get();
@@ -72,10 +75,13 @@ fn planner_body() -> impl IntoView {
                 openings: os,
             })
         });
+        let dk = deck.get();
+        let deck = (!dk.is_empty()).then(|| Box::new(Deck { corners: dk }));
         save_plan(&Plan {
             yard_width: width.get(),
             yard_depth: depth.get(),
             house,
+            deck,
             ..Default::default()
         });
     });
@@ -110,7 +116,12 @@ fn planner_body() -> impl IntoView {
         match commit_kind(tl, &pl, &next) {
             Commit::Add => placed.update(|v| v.push(next)),
             Commit::Finish => {
-                corners.set(pl); // the placed nodes become the outline
+                // The placed nodes become the committed outline (house or deck).
+                if tl == Tool::Deck {
+                    deck.set(pl);
+                } else {
+                    corners.set(pl);
+                }
                 reset(tool, placed, preview);
             }
             Commit::FinishWith => {
@@ -138,6 +149,9 @@ fn planner_body() -> impl IntoView {
             corners.set(Vec::new());
             openings.set(Vec::new());
         }
+        if t == Tool::Deck {
+            deck.set(Vec::new());
+        }
         placed.set(Vec::new());
         preview.set(None);
         tool.set(Some(t));
@@ -158,6 +172,13 @@ fn planner_body() -> impl IntoView {
                 on:click=move |_| pick_tool(Tool::House)
             >
                 "Draw house"
+            </button>
+            <button
+                data-testid="draw-deck"
+                class:active=move || tool_active(Tool::Deck)
+                on:click=move |_| pick_tool(Tool::Deck)
+            >
+                "Draw deck"
             </button>
             <button
                 data-testid="add-door"
@@ -204,6 +225,7 @@ fn planner_body() -> impl IntoView {
                     px_ft=PX_FT
                     pad=PAD
                     house=corners
+                    deck=deck
                     openings=openings
                     placed=placed
                     preview=preview
@@ -232,6 +254,7 @@ fn hint(tool: Option<Tool>) -> &'static str {
     match tool {
         None => "Pick a tool to draw.",
         Some(Tool::House) => "Click corners; click the first corner to close the outline.",
+        Some(Tool::Deck) => "Click corners; click the first corner to close the deck.",
         Some(Tool::Door) => "Click two points on a wall to place the door.",
         Some(Tool::Window) => "Click two points on a wall to place the window.",
     }

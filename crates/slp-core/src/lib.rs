@@ -11,7 +11,7 @@ pub mod place;
 pub mod snap;
 pub mod wall;
 
-pub use generated::slp::{Coord, House, Opening, OpeningKind, Plan};
+pub use generated::slp::{Coord, Deck, House, Opening, OpeningKind, Plan};
 pub use geom::{Point, area, point_in_polygon, polyline_length};
 pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node};
 pub use snap::{snap_ortho, snap_to_grid};

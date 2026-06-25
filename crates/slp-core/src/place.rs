@@ -22,6 +22,8 @@ pub const CLOSE_FT: f64 = 2.0;
 pub enum Tool {
     /// The house outline: an open chain of corners, closed by clicking the first.
     House,
+    /// The deck footprint: a closed outline of corners, drawn like the house.
+    Deck,
     /// A door: a two-node span on a wall.
     Door,
     /// A window: a two-node span on a wall.
@@ -35,8 +37,14 @@ impl Tool {
         match self {
             Tool::Door => Some(OpeningKind::door),
             Tool::Window => Some(OpeningKind::window),
-            Tool::House => None,
+            Tool::House | Tool::Deck => None,
         }
+    }
+
+    /// Whether this tool draws a closed outline (house / deck footprint).
+    #[must_use]
+    pub fn is_outline(self) -> bool {
+        matches!(self, Tool::House | Tool::Deck)
     }
 }
 
@@ -66,7 +74,7 @@ pub fn snap_node(
     grid_step: f64,
 ) -> Coord {
     match tool {
-        Tool::House => {
+        Tool::House | Tool::Deck => {
             let mut p = if grid {
                 snap_to_grid(raw, grid_step)
             } else {
@@ -101,7 +109,7 @@ fn snap_to_wall(corners: &[Coord], placed: &[Coord], raw: &Coord) -> Coord {
 #[must_use]
 pub fn commit_kind(tool: Tool, placed: &[Coord], next: &Coord) -> Commit {
     match tool {
-        Tool::House => {
+        Tool::House | Tool::Deck => {
             let near_start = placed
                 .first()
                 .is_some_and(|c| (c.x - next.x).hypot(c.y - next.y) <= CLOSE_FT);
@@ -275,6 +283,35 @@ mod tests {
         )
         .unwrap();
         assert!((o2.offset - 3.0).abs() < 1e-9 && (o2.width - 4.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn deck_draws_like_the_house_outline() {
+        // Same grid/ortho snap and close-on-first-corner behaviour as the house.
+        let prev = [Coord::new(2.0, 2.0)];
+        assert_eq!(
+            snap_node(
+                Tool::Deck,
+                &[],
+                &prev,
+                &Coord::new(10.4, 2.6),
+                true,
+                true,
+                1.0
+            ),
+            Coord::new(10.0, 2.0)
+        );
+        let three = [
+            Coord::new(0.0, 0.0),
+            Coord::new(8.0, 0.0),
+            Coord::new(8.0, 6.0),
+        ];
+        assert_eq!(
+            commit_kind(Tool::Deck, &three, &Coord::new(0.3, 0.3)),
+            Commit::Finish
+        );
+        assert_eq!(Tool::Deck.opening_kind(), None);
+        assert!(Tool::Deck.is_outline());
     }
 
     #[test]

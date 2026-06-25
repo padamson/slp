@@ -2,6 +2,7 @@
 //! `<name>.rs` + `<name>.stories.rs` (`stories` feature) + `<name>.tests.rs`
 //! (`cfg(test)`). Dotted file names use `#[path]` (not valid module idents).
 
+mod deck;
 mod door;
 mod grid;
 mod house;
@@ -13,6 +14,7 @@ mod window;
 mod yard;
 mod yard_controls;
 
+pub use deck::Deck;
 pub use door::Door;
 pub use grid::Grid;
 pub use house::House;
@@ -68,6 +70,9 @@ impl Transform {
 }
 
 #[cfg(feature = "stories")]
+#[path = "deck.stories.rs"]
+mod deck_stories;
+#[cfg(feature = "stories")]
 #[path = "door.stories.rs"]
 mod door_stories;
 #[cfg(feature = "stories")]
@@ -106,6 +111,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(yard_stories::stories());
     s.extend(placement_stories::stories());
     s.extend(house_stories::stories());
+    s.extend(deck_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
     s.extend(window_stories::stories());
@@ -116,6 +122,9 @@ pub fn stories() -> Vec<theoria::Story> {
     s
 }
 
+#[cfg(test)]
+#[path = "deck.tests.rs"]
+mod deck_tests;
 #[cfg(test)]
 #[path = "door.tests.rs"]
 mod door_tests;
