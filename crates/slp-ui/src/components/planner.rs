@@ -1,12 +1,14 @@
-//! The whole planner UI: header + yard controls + the to-scale yard canvas,
-//! wired to a `slp_core::Plan` (the schema-generated model). `slp-app` just
-//! mounts this — keeping the root UI here (not in the binary) makes the entire
-//! app previewable in theoria and testable with dokime. The plan is persisted to
-//! `localStorage` so the yard size *and* the drawn house survive a reload. Grows
-//! with the side panel, etc.
+//! The whole planner UI: header + yard controls + drawing tools + the to-scale
+//! yard canvas, wired to a `slp_core::Plan`. `slp-app` just mounts this — keeping
+//! the root UI here (not in the binary) makes the entire app previewable in
+//! theoria and testable with dokime. The plan is persisted to `localStorage`.
+//!
+//! Drawing uses one node-placement engine (`slp_core::place`): a tool (house,
+//! door, window) previews the next node as the mouse moves and commits it on
+//! release, until the object completes.
 
 use leptos::prelude::*;
-use slp_core::{Coord, House, Plan, snap_ortho, snap_to_grid};
+use slp_core::{Commit, Coord, House, Plan, Tool, commit_kind, opening_from_nodes, snap_node};
 
 use super::{Yard, YardControls};
 
@@ -17,49 +19,11 @@ const PAD: f64 = 40.0;
 /// Default yard size in feet (first run, before anything is saved).
 const DEFAULT_W: f64 = 70.0;
 const DEFAULT_D: f64 = 30.0;
-/// Snap radius (ft): clicking within this of the first corner closes the outline.
-const SNAP_FT: f64 = 2.0;
-/// Grid step (ft) that corners snap to when grid-snap is on (matches the minor grid).
+/// Grid step (ft) that nodes snap to when grid-snap is on (matches the minor grid).
 const GRID_STEP: f64 = 1.0;
 /// `localStorage` key for the persisted plan (only used in the browser build).
 #[cfg(feature = "csr")]
 const STORAGE_KEY: &str = "slp:plan";
-
-/// What a canvas click does while drawing the house outline.
-#[derive(Debug, PartialEq)]
-pub(crate) enum Pick {
-    /// Add this corner to the outline.
-    Add(Coord),
-    /// Close the ring (the click snapped back to the first corner).
-    Close,
-}
-
-/// Decide whether a click adds a corner or closes the outline. The ring closes
-/// only with at least three corners and a click within `snap_ft` of the first.
-/// Closing is decided on the *raw* click so snapping never blocks it.
-pub(crate) fn classify_pick(corners: &[Coord], at: Coord, snap_ft: f64) -> Pick {
-    let near_start = corners
-        .first()
-        .is_some_and(|c| (c.x - at.x).hypot(c.y - at.y) <= snap_ft);
-    if corners.len() >= 3 && near_start {
-        Pick::Close
-    } else {
-        Pick::Add(at)
-    }
-}
-
-/// Apply the active snaps to a corner being added: grid first, then ortho
-/// (axis-align the edge from the previous corner). Either can be off.
-pub(crate) fn apply_snaps(corners: &[Coord], at: Coord, grid: bool, ortho: bool) -> Coord {
-    let mut p = at;
-    if grid {
-        p = snap_to_grid(&p, GRID_STEP);
-    }
-    if ortho && let Some(prev) = corners.last() {
-        p = snap_ortho(prev, &p);
-    }
-    p
-}
 
 #[component]
 pub fn Planner() -> impl IntoView {
@@ -77,7 +41,7 @@ fn planner_body() -> impl IntoView {
     });
     let (width, set_width) = signal(plan.yard_width);
     let (depth, set_depth) = signal(plan.yard_depth);
-    // The house outline (corners, in feet), its openings, and the draw mode.
+    // The committed house: outline corners + openings.
     let (init_corners, init_openings) = plan
         .house
         .map(|h| {
@@ -89,15 +53,16 @@ fn planner_body() -> impl IntoView {
         .unwrap_or_default();
     let corners = RwSignal::new(init_corners);
     let openings = RwSignal::new(init_openings);
-    let drawing = RwSignal::new(false);
+    // Placement engine state: the active tool, the nodes placed this gesture,
+    // and the previewed next node under the cursor.
+    let tool = RwSignal::new(None::<Tool>);
+    let placed = RwSignal::new(Vec::<Coord>::new());
+    let preview = RwSignal::new(None::<Coord>);
     // Snapping (on by default): most walls are on the grid and axis-aligned.
     let grid_snap = RwSignal::new(true);
     let ortho = RwSignal::new(true);
-    // The node being positioned while the mouse is held (snapped), drawn as a ghost.
-    let pending = RwSignal::new(None::<Coord>);
 
-    // Persist whenever the yard size or the house changes (no-op under ssr /
-    // tests). The house is kept, so resizing the yard never wipes a drawn house.
+    // Persist whenever the yard size or the committed house changes.
     Effect::new(move |_| {
         let cs = corners.get();
         let os = openings.get();
@@ -115,42 +80,70 @@ fn planner_body() -> impl IntoView {
         });
     });
 
-    // Releasing the mouse (in feet) adds a (snapped) corner, or closes the ring.
-    let on_pick = Callback::new(move |at: Coord| {
-        if !drawing.get_untracked() {
-            return;
+    // Snap the cursor to where the next node would land, for the active tool.
+    let snap = move |tl: Tool, raw: &Coord| {
+        snap_node(
+            tl,
+            &corners.get_untracked(),
+            &placed.get_untracked(),
+            raw,
+            grid_snap.get_untracked(),
+            ortho.get_untracked(),
+            GRID_STEP,
+        )
+    };
+
+    // Pointer move → preview the next node.
+    let on_hover = Callback::new(move |raw: Coord| {
+        if let Some(tl) = tool.get_untracked() {
+            preview.set(Some(snap(tl, &raw)));
         }
-        let cs = corners.get_untracked();
-        match classify_pick(&cs, at, SNAP_FT) {
-            Pick::Close => drawing.set(false),
-            Pick::Add(raw) => {
-                let p = apply_snaps(&cs, raw, grid_snap.get_untracked(), ortho.get_untracked());
-                corners.update(|v| v.push(p));
+    });
+
+    // Pointer release → commit a node (or close / finish the object).
+    let on_commit = Callback::new(move |raw: Coord| {
+        let Some(tl) = tool.get_untracked() else {
+            return;
+        };
+        let next = snap(tl, &raw);
+        let pl = placed.get_untracked();
+        match commit_kind(tl, &pl, &next) {
+            Commit::Add => placed.update(|v| v.push(next)),
+            Commit::Finish => {
+                corners.set(pl); // the placed nodes become the outline
+                reset(tool, placed, preview);
+            }
+            Commit::FinishWith => {
+                if let (Some(kind), Some(start)) = (tl.opening_kind(), pl.first())
+                    && let Some(o) =
+                        opening_from_nodes(&corners.get_untracked(), kind, start, &next)
+                {
+                    openings.update(|v| v.push(o));
+                }
+                reset(tool, placed, preview);
             }
         }
     });
 
-    // While the mouse is held, show the snapped position the node will drop at.
-    let on_preview = Callback::new(move |at: Option<Coord>| {
-        if !drawing.get_untracked() {
-            pending.set(None);
+    let on_leave = Callback::new(move |()| preview.set(None));
+
+    // Arm a tool (or toggle it off). Starting the house clears the old one;
+    // starting an opening keeps the house.
+    let pick_tool = move |t: Tool| {
+        if tool.get_untracked() == Some(t) {
+            reset(tool, placed, preview);
             return;
         }
-        let cs = corners.get_untracked();
-        pending.set(
-            at.map(|raw| apply_snaps(&cs, raw, grid_snap.get_untracked(), ortho.get_untracked())),
-        );
-    });
-
-    // The Draw button starts a fresh outline; while drawing it cancels.
-    let toggle_draw = move |_| {
-        if drawing.get_untracked() {
-            drawing.set(false);
-        } else {
+        if t == Tool::House {
             corners.set(Vec::new());
-            drawing.set(true);
+            openings.set(Vec::new());
         }
+        placed.set(Vec::new());
+        preview.set(None);
+        tool.set(Some(t));
     };
+
+    let tool_active = move |t: Tool| tool.get() == Some(t);
 
     view! {
         <header>
@@ -159,10 +152,26 @@ fn planner_body() -> impl IntoView {
         </header>
         <YardControls width=width set_width=set_width depth=depth set_depth=set_depth />
         <div class="tools">
-            <button data-testid="draw-house" class:active=move || drawing.get() on:click=toggle_draw>
-                {move || {
-                    if drawing.get() { "Click near the start to finish" } else { "Draw house" }
-                }}
+            <button
+                data-testid="draw-house"
+                class:active=move || tool_active(Tool::House)
+                on:click=move |_| pick_tool(Tool::House)
+            >
+                "Draw house"
+            </button>
+            <button
+                data-testid="add-door"
+                class:active=move || tool_active(Tool::Door)
+                on:click=move |_| pick_tool(Tool::Door)
+            >
+                "Add door"
+            </button>
+            <button
+                data-testid="add-window"
+                class:active=move || tool_active(Tool::Window)
+                on:click=move |_| pick_tool(Tool::Window)
+            >
+                "Add window"
             </button>
             <label>
                 <input
@@ -183,9 +192,10 @@ fn planner_body() -> impl IntoView {
                 " Straight walls"
             </label>
         </div>
-        // Recreate the stage only when the yard size changes; the outline and
-        // preview are read reactively inside Yard, so the <svg> persists during
-        // a mouse gesture (needed for press-to-aim / release-to-drop).
+        <p class="hint" data-testid="hint">{move || hint(tool.get())}</p>
+        // Recreate the stage only when the yard size changes; the plan, the
+        // placement, and the preview are read reactively inside Yard, so the
+        // <svg> persists during a pointer gesture.
         {move || {
             view! {
                 <Yard
@@ -195,12 +205,35 @@ fn planner_body() -> impl IntoView {
                     pad=PAD
                     house=corners
                     openings=openings
-                    preview=pending
-                    on_pick=on_pick
-                    on_preview=on_preview
+                    placed=placed
+                    preview=preview
+                    on_hover=on_hover
+                    on_commit=on_commit
+                    on_leave=on_leave
                 />
             }
         }}
+    }
+}
+
+/// Clear the active tool and any in-progress placement.
+fn reset(
+    tool: RwSignal<Option<Tool>>,
+    placed: RwSignal<Vec<Coord>>,
+    preview: RwSignal<Option<Coord>>,
+) {
+    placed.set(Vec::new());
+    preview.set(None);
+    tool.set(None);
+}
+
+/// The status hint for the active tool.
+fn hint(tool: Option<Tool>) -> &'static str {
+    match tool {
+        None => "Pick a tool to draw.",
+        Some(Tool::House) => "Click corners; click the first corner to close the outline.",
+        Some(Tool::Door) => "Click two points on a wall to place the door.",
+        Some(Tool::Window) => "Click two points on a wall to place the window.",
     }
 }
 

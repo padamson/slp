@@ -43,7 +43,7 @@ cross-cutting machinery folded into that point in the sequence.
 |---|---|---|---|
 | — | Walking skeleton (yard renders, WASM boots, e2e + CD) | (Milestone 0) | ✅ done |
 | A1 | Yard at the dimensions I set | [A1](A1-yard-to-scale.md) | ✅ done |
-| **H1** | **Draw the house outline + place doors & windows (saved in the plan)** | [H1](H1-draw-house.md) | **in progress** |
+| H1 | Draw the house outline + place doors & windows (saved in the plan) | [H1](H1-draw-house.md) | ✅ done |
 | H2 | Draw the deck (footprint, stairs, railing); flag existing | _doc pending_ | next |
 | F1 | *Enabler:* select / move / reshape / delete | _doc pending_ | backlog |
 | G1 | *Enabler:* save/load `.slp.json` | _doc pending_ | backlog |

@@ -1,14 +1,14 @@
 //! The yard canvas: the `<svg>` stage that composes the ground, the foot grid,
-//! the house outline, and the scale bar. Pointer interaction is press-to-aim /
-//! release-to-place: pressing starts positioning a node, moving the held mouse
-//! adjusts it (reported via `on_preview`), and releasing drops it (reported via
-//! `on_pick`). All positions are translated from screen pixels to world feet.
-//! Shapes, the deck layer, and more interaction land in later slices.
+//! the committed house, the in-progress placement overlay, and the scale bar.
+//! Pointer interaction follows the polyline-tool pattern: moving the mouse
+//! previews the next node (`on_hover`), a release commits it (`on_commit`), and
+//! leaving the stage clears the preview (`on_leave`). Positions are translated
+//! from screen pixels to world feet.
 
 use leptos::prelude::*;
 use slp_core::{Coord, Opening};
 
-use super::{Grid, House, ScaleBar, Transform};
+use super::{Grid, House, Placement, ScaleBar, Transform};
 
 #[component]
 pub fn Yard(
@@ -16,23 +16,27 @@ pub fn Yard(
     yard_d: f64,
     px_ft: f64,
     pad: f64,
-    /// The house outline corners, if the user has drawn one (empty = no house).
-    /// Read reactively so the stage persists while only the overlay updates.
+    /// The committed house outline corners (empty = no house).
     #[prop(optional, into)]
     house: Signal<Vec<Coord>>,
-    /// Doors/windows on the house walls (keyed to a wall by index).
+    /// Committed doors/windows on the house walls.
     #[prop(optional, into)]
     openings: Signal<Vec<Opening>>,
-    /// The node being positioned while the mouse is held (drawn as a ghost).
+    /// Nodes placed so far in the current placement gesture.
+    #[prop(optional, into)]
+    placed: Signal<Vec<Coord>>,
+    /// The previewed next node under the cursor (snapped).
     #[prop(optional, into)]
     preview: Signal<Option<Coord>>,
-    /// Called with the drop position in feet when the mouse is released.
+    /// Mouse moved over the stage — preview the next node at this point (feet).
     #[prop(optional)]
-    on_pick: Option<Callback<Coord>>,
-    /// Called with the live position in feet while the mouse is held (`None`
-    /// when positioning ends without a drop).
+    on_hover: Option<Callback<Coord>>,
+    /// Mouse released on the stage — commit a node at this point (feet).
     #[prop(optional)]
-    on_preview: Option<Callback<Option<Coord>>>,
+    on_commit: Option<Callback<Coord>>,
+    /// Pointer left the stage — clear the preview.
+    #[prop(optional)]
+    on_leave: Option<Callback<()>>,
 ) -> impl IntoView {
     let t = Transform { px_ft, pad, yard_d };
     let w_px = t.sx(yard_w) + pad;
@@ -45,47 +49,19 @@ pub fn Yard(
     let ground_h = yard_d * px_ft;
     let baseline_y = h_px - 16.0;
 
-    // Whether the mouse button is currently held over the stage.
-    let holding = RwSignal::new(false);
-
-    let on_down = move |ev: leptos::ev::MouseEvent| {
-        if on_pick.is_none() && on_preview.is_none() {
-            return;
-        }
-        if let Some(at) = pick_feet(&ev, t, w_px) {
-            holding.set(true);
-            if let Some(p) = on_preview {
-                p.run(Some(at));
-            }
-        }
-    };
-    let on_move = move |ev: leptos::ev::MouseEvent| {
-        if holding.get_untracked()
-            && let Some(at) = pick_feet(&ev, t, w_px)
-            && let Some(p) = on_preview
-        {
-            p.run(Some(at));
-        }
-    };
-    let on_up = move |ev: leptos::ev::MouseEvent| {
-        if !holding.get_untracked() {
-            return;
-        }
-        holding.set(false);
-        if let (Some(cb), Some(at)) = (on_pick, pick_feet(&ev, t, w_px)) {
+    let hover = move |ev: leptos::ev::MouseEvent| {
+        if let (Some(cb), Some(at)) = (on_hover, pick_feet(&ev, t, w_px)) {
             cb.run(at);
         }
-        if let Some(p) = on_preview {
-            p.run(None);
+    };
+    let commit = move |ev: leptos::ev::MouseEvent| {
+        if let (Some(cb), Some(at)) = (on_commit, pick_feet(&ev, t, w_px)) {
+            cb.run(at);
         }
     };
-    // Leaving the stage while held cancels the in-progress node (no drop).
-    let on_leave = move |_ev: leptos::ev::MouseEvent| {
-        if holding.get_untracked() {
-            holding.set(false);
-            if let Some(p) = on_preview {
-                p.run(None);
-            }
+    let leave = move |_ev: leptos::ev::MouseEvent| {
+        if let Some(cb) = on_leave {
+            cb.run(());
         }
     };
 
@@ -96,10 +72,9 @@ pub fn Yard(
             xmlns="http://www.w3.org/2000/svg"
             viewBox=view_box
             width="100%"
-            on:mousedown=on_down
-            on:mousemove=on_move
-            on:mouseup=on_up
-            on:mouseleave=on_leave
+            on:mousemove=hover
+            on:mouseup=commit
+            on:mouseleave=leave
         >
             <rect
                 x=ground_x
@@ -110,13 +85,10 @@ pub fn Yard(
                 stroke="#cfd3c0"
             />
             <Grid t=t yard_w=yard_w yard_d=yard_d />
-            // Reactive overlay: only the house subtree updates as the outline /
-            // openings / preview change, so the <svg> stays put during a gesture.
-            {move || {
-                view! {
-                    <House t=t corners=house.get() openings=openings.get() preview=preview.get() />
-                }
-            }}
+            // Reactive overlays: only these subtrees update as the plan / gesture
+            // change, so the <svg> stays put during a pointer gesture.
+            {move || view! { <House t=t corners=house.get() openings=openings.get() /> }}
+            {move || view! { <Placement t=t placed=placed.get() preview=preview.get() /> }}
             <ScaleBar t=t baseline_y=baseline_y />
         </svg>
     }

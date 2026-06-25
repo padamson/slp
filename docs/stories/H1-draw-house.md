@@ -26,13 +26,14 @@ sightlines) — for **any** house, since it's drawn and saved, not baked in.
   - [x] the drawn house is saved to the `Plan` and survives a reload
   - [ ] the house is flagged **existing** by default (not costed) — deferred to
         the cost milestone (no cost engine yet; YAGNI)
-- **H1.2 — place doors & windows** *(composable components)*
+- **H1.2 — place doors & windows** *(composable components)* ✅
   - [x] refactor `House` to compose one `Wall` component per edge; each `Wall`
         hosts its `Door`/`Window` openings (own `.stories.rs` + `.tests.rs`)
   - [x] doors/windows render as marks/gaps on their wall, to scale
         (`Opening{kind,wall,offset,width}` in the schema; `OpeningKind` enum)
-  - [ ] pick a wall and place a door or window on it (offset along wall + width)
-  - [ ] they are saved in the `Plan` and survive a reload
+  - [x] place a door or window by clicking **two points on a wall** (the span
+        between them); the second node is constrained to the first node's wall
+  - [x] they are saved in the `Plan` and survive a reload
 
 ## Notes / refs
 
@@ -45,6 +46,13 @@ sightlines) — for **any** house, since it's drawn and saved, not baked in.
   composes `Wall`/`Door`/`Window` components (each filtered to its wall). So the
   plan-file has no corner/wall duplication, yet the render tree is fully
   composable.
+- **Node-placement engine (`slp_core::place`):** one pure state machine shared by
+  all drawing tools (`Tool::{House, Door, Window}`, and future objects). A tool
+  supplies `snap_node` (where the next node lands), `commit_kind` (add / close /
+  finish), and finalize. The UI shell (Planner + Yard) just drives it:
+  mouse-move previews `snap_node`, release commits per `commit_kind`. A
+  `Placement` overlay draws the in-progress nodes + rubber-band; `House` draws
+  only the committed plan. This subsumed the earlier ad-hoc draw/place flows.
 - Schema lives in `schema/slp.yaml` (panschema → `slp_core`). `House` is a normal
   plan entity — see the existing/virtual model in `docs/PLAN.md` §4.
 - **Dogfood watch:** H1.0 is static render (dokime). H1.1 introduces *click-to-draw*
