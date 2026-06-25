@@ -13,7 +13,7 @@ use slp_core::{
     opening_from_nodes, snap_node,
 };
 
-use super::{Yard, YardControls};
+use super::{NumberField, Toggle, ToolButton, ToolGroup, Yard, YardControls};
 
 /// Pixels per foot in the SVG user space.
 const PX_FT: f64 = 12.0;
@@ -208,7 +208,8 @@ fn planner_body() -> impl IntoView {
         tool.set(Some(t));
     };
 
-    let tool_active = move |t: Tool| tool.get() == Some(t);
+    // One callback the tool buttons share; per-button derivations live in tool_btn.
+    let pick = Callback::new(pick_tool);
 
     view! {
         <header>
@@ -217,73 +218,36 @@ fn planner_body() -> impl IntoView {
         </header>
         <YardControls width=width set_width=set_width depth=depth set_depth=set_depth />
         <div class="tools">
-            <button
-                data-testid="draw-house"
-                class:active=move || tool_active(Tool::House)
-                on:click=move |_| pick_tool(Tool::House)
-            >
-                "Draw house"
-            </button>
-            <button
-                data-testid="draw-deck"
-                class:active=move || tool_active(Tool::Deck)
-                on:click=move |_| pick_tool(Tool::Deck)
-            >
-                "Draw deck"
-            </button>
-            <label>
-                "Elev (ft) "
-                <input
-                    type="number"
-                    data-testid="deck-elevation"
-                    step="0.5"
-                    prop:value=move || elevation.get()
-                    on:input=move |ev| {
-                        if let Ok(v) = event_target_value(&ev).parse::<f64>() {
-                            elevation.set(v);
-                        }
-                    }
+            <ToolGroup label="House">
+                {tool_btn(tool, pick, Tool::House, "Draw house", "draw-house")}
+                {tool_btn(tool, pick, Tool::Door, "Add door", "add-door")}
+                {tool_btn(tool, pick, Tool::Window, "Add window", "add-window")}
+            </ToolGroup>
+            <ToolGroup label="Deck">
+                {tool_btn(tool, pick, Tool::Deck, "Draw deck", "draw-deck")}
+                {tool_btn(tool, pick, Tool::Steps, "Add steps", "add-steps")}
+                <NumberField
+                    label="Elev (ft)"
+                    testid="deck-elevation"
+                    value=elevation
+                    on_input=Callback::new(move |v| elevation.set(v))
+                    step=0.5
                 />
-            </label>
-            <button
-                data-testid="add-door"
-                class:active=move || tool_active(Tool::Door)
-                on:click=move |_| pick_tool(Tool::Door)
-            >
-                "Add door"
-            </button>
-            <button
-                data-testid="add-window"
-                class:active=move || tool_active(Tool::Window)
-                on:click=move |_| pick_tool(Tool::Window)
-            >
-                "Add window"
-            </button>
-            <button
-                data-testid="add-steps"
-                class:active=move || tool_active(Tool::Steps)
-                on:click=move |_| pick_tool(Tool::Steps)
-            >
-                "Add steps"
-            </button>
-            <label>
-                <input
-                    type="checkbox"
-                    data-testid="snap-grid"
-                    prop:checked=move || grid_snap.get()
-                    on:change=move |ev| grid_snap.set(event_target_checked(&ev))
+            </ToolGroup>
+            <ToolGroup label="Snap">
+                <Toggle
+                    label="Snap to grid"
+                    testid="snap-grid"
+                    checked=grid_snap
+                    on_toggle=Callback::new(move |v| grid_snap.set(v))
                 />
-                " Snap to grid"
-            </label>
-            <label>
-                <input
-                    type="checkbox"
-                    data-testid="snap-ortho"
-                    prop:checked=move || ortho.get()
-                    on:change=move |ev| ortho.set(event_target_checked(&ev))
+                <Toggle
+                    label="Straight walls"
+                    testid="snap-ortho"
+                    checked=ortho
+                    on_toggle=Callback::new(move |v| ortho.set(v))
                 />
-                " Straight walls"
-            </label>
+            </ToolGroup>
         </div>
         <p class="hint" data-testid="hint">{move || hint(tool.get())}</p>
         // Recreate the stage only when the yard size changes; the plan, the
@@ -309,6 +273,19 @@ fn planner_body() -> impl IntoView {
             }
         }}
     }
+}
+
+/// A toolbar button for `t`, wired to the shared `pick` callback and highlighting
+/// when `t` is the active tool.
+fn tool_btn(
+    tool: RwSignal<Option<Tool>>,
+    pick: Callback<Tool>,
+    t: Tool,
+    label: &'static str,
+    testid: &'static str,
+) -> impl IntoView {
+    let active = Signal::derive(move || tool.get() == Some(t));
+    view! { <ToolButton label=label testid=testid active=active on_pick=Callback::new(move |()| pick.run(t)) /> }
 }
 
 /// The deck level whose nearest edge is closest to `anchor` (where a step run

@@ -1,7 +1,10 @@
-//! Number inputs for the yard's width and depth (feet). Editing either updates
-//! the signal the canvas renders from. Dimensions are clamped to a sane minimum.
+//! Number inputs for the yard's width and depth (feet), via the shared
+//! `NumberField`. Editing either updates the signal the canvas renders from;
+//! dimensions are clamped to a sane minimum.
 
 use leptos::prelude::*;
+
+use super::NumberField;
 
 /// Smallest allowed yard dimension, in feet.
 const MIN_FT: f64 = 1.0;
@@ -15,36 +18,22 @@ pub fn YardControls(
 ) -> impl IntoView {
     view! {
         <div class="yard-controls">
-            <label>
-                "Width (ft) "
-                <input
-                    data-testid="yard-width"
-                    type="number"
-                    min="1"
-                    step="0.5"
-                    prop:value=move || width.get()
-                    on:input=move |ev| {
-                        if let Ok(v) = event_target_value(&ev).parse::<f64>() {
-                            set_width.set(v.max(MIN_FT));
-                        }
-                    }
-                />
-            </label>
-            <label>
-                "Depth (ft) "
-                <input
-                    data-testid="yard-depth"
-                    type="number"
-                    min="1"
-                    step="0.5"
-                    prop:value=move || depth.get()
-                    on:input=move |ev| {
-                        if let Ok(v) = event_target_value(&ev).parse::<f64>() {
-                            set_depth.set(v.max(MIN_FT));
-                        }
-                    }
-                />
-            </label>
+            <NumberField
+                label="Width (ft)"
+                testid="yard-width"
+                value=width
+                on_input=Callback::new(move |v: f64| set_width.set(v.max(MIN_FT)))
+                step=0.5
+                min=MIN_FT
+            />
+            <NumberField
+                label="Depth (ft)"
+                testid="yard-depth"
+                value=depth
+                on_input=Callback::new(move |v: f64| set_depth.set(v.max(MIN_FT)))
+                step=0.5
+                min=MIN_FT
+            />
         </div>
     }
 }

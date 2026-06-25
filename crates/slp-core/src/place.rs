@@ -358,33 +358,52 @@ mod tests {
     }
 
     #[test]
-    fn stair_steps_and_run_from_elevation() {
+    fn tool_classification() {
+        assert_eq!(Tool::Door.opening_kind(), Some(OpeningKind::door));
+        assert_eq!(Tool::Window.opening_kind(), Some(OpeningKind::window));
+        assert_eq!(Tool::House.opening_kind(), None);
+        assert!(Tool::House.is_outline() && Tool::Deck.is_outline());
+        assert!(!Tool::Door.is_outline() && !Tool::Steps.is_outline());
+        assert!(Tool::Door.is_span() && Tool::Window.is_span() && Tool::Steps.is_span());
+        assert!(!Tool::House.is_span() && !Tool::Deck.is_span());
+    }
+
+    #[test]
+    fn step_run_steps_and_run_from_elevation() {
         // 7" rise: a 7" (0.583 ft) drop is one step.
         assert_eq!(step_run(STEP_RISE_FT), (1, STEP_TREAD_FT));
         // 2 ft / (7/12) = 3.43 → 4 steps; run = 4 treads.
         let (steps, run) = step_run(2.0);
         assert_eq!(steps, 4);
         assert!((run - 4.0 * STEP_TREAD_FT).abs() < 1e-9);
+        // Absolute run (literal, not via the const) pins the tread depth: a one-
+        // step run is one 11" tread ≈ 0.9167 ft.
+        assert!((step_run(0.5).1 - 11.0_f64 / 12.0).abs() < 1e-9);
         // A zero/negative drop still yields at least one step.
         assert_eq!(step_run(0.0).0, 1);
     }
 
     #[test]
-    fn stair_outward_points_away_from_the_deck() {
-        // Edge along x; deck centroid below it → stairs run upward (+y).
-        let out = step_outward(
-            &Coord::new(0.0, 0.0),
-            &Coord::new(4.0, 0.0),
-            &Coord::new(2.0, -5.0),
-        );
-        assert!((out.0 - 0.0).abs() < 1e-9 && (out.1 - 1.0).abs() < 1e-9);
-        // Centroid above → stairs run downward (-y).
-        let out = step_outward(
-            &Coord::new(0.0, 0.0),
-            &Coord::new(4.0, 0.0),
-            &Coord::new(2.0, 5.0),
-        );
-        assert!((out.1 + 1.0).abs() < 1e-9);
+    fn step_outward_is_the_unit_perpendicular_away_from_center() {
+        // Diagonal edge off the origin (so a.x/a.y matter): (1,2)→(4,6), dx=3,
+        // dy=4, len=5 → perpendicular unit is (-0.8, 0.6) or its negation;
+        // midpoint (2.5, 4).
+        let (a, b) = (Coord::new(1.0, 2.0), Coord::new(4.0, 6.0));
+        let keep = |out: (f64, f64)| (out.0 + 0.8).abs() < 1e-9 && (out.1 - 0.6).abs() < 1e-9;
+        let flip = |out: (f64, f64)| (out.0 - 0.8).abs() < 1e-9 && (out.1 + 0.6).abs() < 1e-9;
+
+        // Center far in -x (tx>0 dominates) → keep.
+        assert!(keep(step_outward(&a, &b, &Coord::new(20.0, 4.0))));
+        // Center far in +x → flips (exercises the tx term + the sign branch).
+        assert!(flip(step_outward(&a, &b, &Coord::new(-20.0, 4.0))));
+        // Center far in +y (ty term dominates) → flips.
+        assert!(flip(step_outward(&a, &b, &Coord::new(2.5, 30.0))));
+        // Center far in -y → keep.
+        assert!(keep(step_outward(&a, &b, &Coord::new(2.5, -20.0))));
+        // Sign-boundary: tx=ty=5 → dot = -0.8·5 + 0.6·5 = -1 (<0, flips). If the
+        // `py*ty` term were `py+ty` the dot would be +1.6 (kept) — so this kills
+        // the *→+ mutant on the dot.
+        assert!(flip(step_outward(&a, &b, &Coord::new(-2.5, -1.0))));
     }
 
     #[test]

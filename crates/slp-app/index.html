@@ -46,6 +46,70 @@
         border: 1px solid #e3dccb;
         border-radius: 7px;
       }
+      /* Drawing toolbar: House / Deck / Snap clusters. */
+      .tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        padding: 8px 22px;
+        align-items: flex-start;
+      }
+      .tool-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .tool-group-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #8a8275;
+      }
+      .tool-group-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+      .tools button {
+        font: inherit;
+        font-size: 13px;
+        padding: 4px 10px;
+        border: 1px solid #e3dccb;
+        border-radius: 8px;
+        background: #fff;
+        color: inherit;
+        cursor: pointer;
+      }
+      .tools button:hover {
+        background: #efe9dc;
+      }
+      .tools button.active {
+        background: #5c6b4f;
+        color: #fff;
+        border-color: #5c6b4f;
+      }
+      .tools .number-field,
+      .tools .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 13px;
+        color: #6b6557;
+      }
+      .tools .number-field input {
+        width: 60px;
+        font: inherit;
+        padding: 3px 6px;
+        border: 1px solid #e3dccb;
+        border-radius: 7px;
+      }
+      .hint {
+        margin: 2px 22px 0;
+        font-size: 12px;
+        color: #8a8275;
+      }
     </style>
   </head>
   <body></body>
