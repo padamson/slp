@@ -68,3 +68,60 @@ async fn draws_and_persists_the_deck() -> Result<()> {
     browser.close().await.context("close browser")?;
     Ok(())
 }
+
+#[tokio::test]
+async fn adds_steps_to_a_deck_edge_and_persists() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        return Ok(());
+    }
+
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = browser.new_page().await.context("new page")?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    // Draw a deck level (default elevation), then close it.
+    page.locator("[data-testid='draw-deck']")
+        .await
+        .click(None)
+        .await
+        .context("arm the deck tool")?;
+    let yard = page.locator("[data-testid='yard']").await;
+    let corners = [(140.0, 160.0), (340.0, 160.0), (340.0, 300.0), (140.0, 300.0)];
+    for (x, y) in corners {
+        click_yard(&yard, x, y).await?;
+    }
+    click_yard(&yard, 140.0, 160.0).await?; // snap-close
+    expect(page.locator("[data-testid='yard'] .deck-corner").await)
+        .to_have_count(4)
+        .await
+        .context("the deck is drawn")?;
+
+    // Add steps on the bottom edge: two clicks span the run.
+    page.locator("[data-testid='add-steps']")
+        .await
+        .click(None)
+        .await
+        .context("arm the steps tool")?;
+    click_yard(&yard, 190.0, 300.0).await?;
+    click_yard(&yard, 290.0, 300.0).await?;
+    expect(page.locator("[data-testid='yard'] .steps").await)
+        .to_have_count(1)
+        .await
+        .context("a step run is added to the deck edge")?;
+
+    // Reload — the steps persist.
+    page.reload(None).await.context("reload the page")?;
+    expect(page.locator("[data-testid='yard'] .steps").await)
+        .to_have_count(1)
+        .await
+        .context("the steps persist across a reload")?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}

@@ -1,7 +1,7 @@
 //! dokime component tests for `Deck` (multi-level footprints).
 
 use leptos::prelude::*;
-use slp_core::{Coord, DeckLevel};
+use slp_core::{Coord, DeckLevel, StepRun};
 
 use super::{Deck, Transform};
 
@@ -46,6 +46,26 @@ fn renders_one_polygon_per_level() {
     assert!(
         html.contains("+0.5 ft") && html.contains("+2.0 ft"),
         "both labels"
+    );
+}
+
+#[test]
+fn composes_step_runs_with_treads() {
+    // A 2 ft drop → 4 steps → 3 interior tread lines.
+    let run = StepRun {
+        ax: 0.0,
+        ay: 0.0,
+        bx: 4.0,
+        by: 0.0,
+        elevation: 2.0,
+    };
+    let html =
+        dokime::render(move || view! { <Deck t=t() levels=vec![square(2.0)] steps=vec![run] /> });
+    assert!(html.contains(r#"class="steps""#), "the step run renders");
+    assert_eq!(
+        dokime::count(&html, r#"class="step-tread""#),
+        3,
+        "steps-1 interior treads"
     );
 }
 

@@ -11,8 +11,8 @@ pub mod place;
 pub mod snap;
 pub mod wall;
 
-pub use generated::slp::{Coord, Deck, DeckLevel, House, Opening, OpeningKind, Plan, Stair};
+pub use generated::slp::{Coord, Deck, DeckLevel, House, Opening, OpeningKind, Plan, StepRun};
 pub use geom::{Point, area, point_in_polygon, polyline_length};
-pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node};
+pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node, step_outward, step_run};
 pub use snap::{snap_ortho, snap_to_grid};
 pub use wall::{nearest_wall, opening_segment, point_along, project_onto};

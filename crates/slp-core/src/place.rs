@@ -16,6 +16,10 @@ use crate::{
 
 /// Snap radius (ft): clicking within this of the first node closes the outline.
 pub const CLOSE_FT: f64 = 2.0;
+/// Standard step rise (ft) — 7 inches.
+pub const STEP_RISE_FT: f64 = 7.0 / 12.0;
+/// Standard step tread depth (ft) — 11 inches.
+pub const STEP_TREAD_FT: f64 = 11.0 / 12.0;
 
 /// Which object the placement tool is currently building.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,6 +32,8 @@ pub enum Tool {
     Door,
     /// A window: a two-node span on a wall.
     Window,
+    /// A run of steps: a two-node span on an edge, running outward to grade.
+    Steps,
 }
 
 impl Tool {
@@ -37,7 +43,7 @@ impl Tool {
         match self {
             Tool::Door => Some(OpeningKind::door),
             Tool::Window => Some(OpeningKind::window),
-            Tool::House | Tool::Deck => None,
+            Tool::House | Tool::Deck | Tool::Steps => None,
         }
     }
 
@@ -45,6 +51,43 @@ impl Tool {
     #[must_use]
     pub fn is_outline(self) -> bool {
         matches!(self, Tool::House | Tool::Deck)
+    }
+
+    /// Whether this tool places a two-node span on an existing edge
+    /// (door/window on a wall, stair on a deck edge).
+    #[must_use]
+    pub fn is_span(self) -> bool {
+        matches!(self, Tool::Door | Tool::Window | Tool::Steps)
+    }
+}
+
+/// The number of steps and total run depth (ft) for a stair dropping `elevation`
+/// feet, using standard rise/tread. At least one step.
+#[must_use]
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+pub fn step_run(elevation: f64) -> (u32, f64) {
+    // `elevation` is a positive height; the step count is small and bounded.
+    let steps = (elevation / STEP_RISE_FT).ceil().max(1.0) as u32;
+    (steps, f64::from(steps) * STEP_TREAD_FT)
+}
+
+/// The outward unit direction for a stair on edge `a`→`b`: perpendicular to the
+/// edge, pointing away from `away_from` (the deck centroid). Zero for a
+/// degenerate edge.
+#[must_use]
+pub fn step_outward(a: &Coord, b: &Coord, away_from: &Coord) -> (f64, f64) {
+    let (dx, dy) = (b.x - a.x, b.y - a.y);
+    let len = dx.hypot(dy);
+    if len <= 0.0 {
+        return (0.0, 0.0);
+    }
+    let (px, py) = (-dy / len, dx / len);
+    let (mx, my) = (a.x.midpoint(b.x), a.y.midpoint(b.y));
+    let (tx, ty) = (mx - away_from.x, my - away_from.y);
+    if px.mul_add(tx, py * ty) >= 0.0 {
+        (px, py)
+    } else {
+        (-px, -py)
     }
 }
 
@@ -85,7 +128,7 @@ pub fn snap_node(
             }
             p
         }
-        Tool::Door | Tool::Window => snap_to_wall(corners, placed, raw),
+        Tool::Door | Tool::Window | Tool::Steps => snap_to_wall(corners, placed, raw),
     }
 }
 
@@ -120,7 +163,7 @@ pub fn commit_kind(tool: Tool, placed: &[Coord], next: &Coord) -> Commit {
             }
         }
         // First click adds the start node; the second finishes the span.
-        Tool::Door | Tool::Window => {
+        Tool::Door | Tool::Window | Tool::Steps => {
             if placed.is_empty() {
                 Commit::Add
             } else {
@@ -312,6 +355,36 @@ mod tests {
         );
         assert_eq!(Tool::Deck.opening_kind(), None);
         assert!(Tool::Deck.is_outline());
+    }
+
+    #[test]
+    fn stair_steps_and_run_from_elevation() {
+        // 7" rise: a 7" (0.583 ft) drop is one step.
+        assert_eq!(step_run(STEP_RISE_FT), (1, STEP_TREAD_FT));
+        // 2 ft / (7/12) = 3.43 → 4 steps; run = 4 treads.
+        let (steps, run) = step_run(2.0);
+        assert_eq!(steps, 4);
+        assert!((run - 4.0 * STEP_TREAD_FT).abs() < 1e-9);
+        // A zero/negative drop still yields at least one step.
+        assert_eq!(step_run(0.0).0, 1);
+    }
+
+    #[test]
+    fn stair_outward_points_away_from_the_deck() {
+        // Edge along x; deck centroid below it → stairs run upward (+y).
+        let out = step_outward(
+            &Coord::new(0.0, 0.0),
+            &Coord::new(4.0, 0.0),
+            &Coord::new(2.0, -5.0),
+        );
+        assert!((out.0 - 0.0).abs() < 1e-9 && (out.1 - 1.0).abs() < 1e-9);
+        // Centroid above → stairs run downward (-y).
+        let out = step_outward(
+            &Coord::new(0.0, 0.0),
+            &Coord::new(4.0, 0.0),
+            &Coord::new(2.0, 5.0),
+        );
+        assert!((out.1 + 1.0).abs() < 1e-9);
     }
 
     #[test]

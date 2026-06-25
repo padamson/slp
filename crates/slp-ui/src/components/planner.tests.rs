@@ -21,7 +21,8 @@ fn renders_header_controls_tools_and_yard() {
         html.contains(r#"data-testid="draw-house""#)
             && html.contains(r#"data-testid="draw-deck""#)
             && html.contains(r#"data-testid="add-door""#)
-            && html.contains(r#"data-testid="add-window""#),
+            && html.contains(r#"data-testid="add-window""#)
+            && html.contains(r#"data-testid="add-steps""#),
         "the drawing-tool buttons render"
     );
     assert!(

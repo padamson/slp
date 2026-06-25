@@ -21,11 +21,15 @@ the yard around it — for **any** deck, since it's drawn and saved, not baked i
   - [x] `Deck` is a list of `DeckLevel { corners, elevation }`; "Draw deck" adds
         a level at the current **Elev (ft)** input (decks are additive)
   - [x] levels render stacked (lowest first) with an elevation label; persist
-- **H2.2b — stairs** *(next)*
-  - [ ] click two points on a deck edge → a stair run extends outward
-  - [ ] **steps + run computed from the level's elevation** (standard rise/tread)
-        and rendered as treads; persist
-- **H2.3 — railing** — _deferred (future slice)_
+- **H2.2b — steps** ✅
+  - [x] click two points on a deck edge → a step run extends outward (`Tool::Steps`)
+  - [x] **step count + run computed from the level's elevation** (standard
+        rise/tread) and rendered as treads; persist
+  - [x] modeled as a reusable `StepRun` + standalone `Steps` component (no
+        railings) — same primitive will serve **house steps** out of a door
+- **H2.3 — house steps** *(near-future)* — place `Steps` on a house wall (drop =
+  house floor height); reuses `StepRun` + `Steps`
+- **H2.4 — railing** — _deferred (optional add-on)_
 - existing flag (not costed) — _deferred to the cost milestone (YAGNI; no cost
   engine yet), same as the house outline_
 

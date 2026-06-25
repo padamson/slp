@@ -9,6 +9,7 @@ mod house;
 mod placement;
 mod planner;
 mod scale_bar;
+mod steps;
 mod wall;
 mod window;
 mod yard;
@@ -21,6 +22,7 @@ pub use house::House;
 pub use placement::Placement;
 pub use planner::Planner;
 pub use scale_bar::ScaleBar;
+pub use steps::Steps;
 pub use wall::Wall;
 pub use window::Window;
 pub use yard::Yard;
@@ -91,6 +93,9 @@ mod planner_stories;
 #[path = "scale_bar.stories.rs"]
 mod scale_bar_stories;
 #[cfg(feature = "stories")]
+#[path = "steps.stories.rs"]
+mod steps_stories;
+#[cfg(feature = "stories")]
 #[path = "wall.stories.rs"]
 mod wall_stories;
 #[cfg(feature = "stories")]
@@ -112,6 +117,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(placement_stories::stories());
     s.extend(house_stories::stories());
     s.extend(deck_stories::stories());
+    s.extend(steps_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
     s.extend(window_stories::stories());
@@ -143,6 +149,9 @@ mod planner_tests;
 #[cfg(test)]
 #[path = "scale_bar.tests.rs"]
 mod scale_bar_tests;
+#[cfg(test)]
+#[path = "steps.tests.rs"]
+mod steps_tests;
 #[cfg(test)]
 #[path = "transform.tests.rs"]
 mod transform_tests;

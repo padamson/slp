@@ -36,10 +36,10 @@ classes:
   Deck:
     description: |-
       A deck or patio: one or more levels (footprints at an elevation) plus
-      stairs. Drawn by the user (never hardcoded).
+      steps. Drawn by the user (never hardcoded).
     slots:
       - levels
-      - stairs
+      - steps
 
   DeckLevel:
     description: |-
@@ -52,11 +52,12 @@ classes:
       elevation:
         required: true
 
-  Stair:
+  StepRun:
     description: |-
-      A stair run on a deck edge: its top edge (a→b) extends outward (down to
-      grade). The number of steps and the run depth are computed from the level's
-      `elevation` (standard rise/tread), so only the edge + drop are stored.
+      A run of steps on an edge (a deck level or, later, a house wall): its top
+      edge (a→b) extends outward and down to grade. No railings. The number of
+      steps and the run depth are computed from the `elevation` drop (standard
+      rise/tread), so only the edge + drop are stored.
     slots:
       - ax
       - ay
@@ -139,11 +140,11 @@ slots:
     multivalued: true
     inlined_as_list: true
     description: The deck's platforms, each a footprint at an elevation.
-  stairs:
-    range: Stair
+  steps:
+    range: StepRun
     multivalued: true
     inlined_as_list: true
-    description: Stair runs on the deck's edges.
+    description: Step runs on the deck's edges.
   elevation:
     range: double
     description: Height in feet above grade.

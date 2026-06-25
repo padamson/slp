@@ -32,15 +32,15 @@ impl Coord {
 }
 
 /// A deck or patio: one or more levels (footprints at an elevation) plus
-/// stairs. Drawn by the user (never hardcoded).
+/// steps. Drawn by the user (never hardcoded).
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Deck {
     /// The deck's platforms, each a footprint at an elevation.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub levels: Vec<DeckLevel>,
-    /// Stair runs on the deck's edges.
+    /// Step runs on the deck's edges.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub stairs: Vec<Stair>,
+    pub steps: Vec<StepRun>,
 }
 
 /// One deck platform — a footprint (closed outline of corners) at a given
@@ -132,11 +132,12 @@ impl Plan {
     }
 }
 
-/// A stair run on a deck edge: its top edge (a→b) extends outward (down to
-/// grade). The number of steps and the run depth are computed from the level's
-/// `elevation` (standard rise/tread), so only the edge + drop are stored.
+/// A run of steps on an edge (a deck level or, later, a house wall): its top
+/// edge (a→b) extends outward and down to grade. No railings. The number of
+/// steps and the run depth are computed from the `elevation` drop (standard
+/// rise/tread), so only the edge + drop are stored.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
-pub struct Stair {
+pub struct StepRun {
     /// Stair top-edge start x, in feet.
     pub ax: f64,
     /// Stair top-edge start y, in feet.
@@ -149,7 +150,7 @@ pub struct Stair {
     pub elevation: f64,
 }
 
-impl Stair {
+impl StepRun {
     pub fn new(ax: f64, ay: f64, bx: f64, by: f64, elevation: f64) -> Self {
         Self {
             ax,

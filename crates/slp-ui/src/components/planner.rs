@@ -9,7 +9,8 @@
 
 use leptos::prelude::*;
 use slp_core::{
-    Commit, Coord, Deck, DeckLevel, House, Plan, Tool, commit_kind, opening_from_nodes, snap_node,
+    Commit, Coord, Deck, DeckLevel, House, Plan, StepRun, Tool, commit_kind, nearest_wall,
+    opening_from_nodes, snap_node,
 };
 
 use super::{Yard, YardControls};
@@ -55,7 +56,15 @@ fn planner_body() -> impl IntoView {
         .unwrap_or_default();
     let corners = RwSignal::new(init_corners);
     let openings = RwSignal::new(init_openings);
-    let deck = RwSignal::new(plan.deck.map(|d| d.levels).unwrap_or_default());
+    let (init_levels, init_steps) = plan
+        .deck
+        .map(|d| {
+            let Deck { levels, steps, .. } = *d;
+            (levels, steps)
+        })
+        .unwrap_or_default();
+    let deck = RwSignal::new(init_levels);
+    let steps = RwSignal::new(init_steps);
     // The elevation (ft) the next deck level is drawn at.
     let elevation = RwSignal::new(1.0_f64);
     // Placement engine state: the active tool, the nodes placed this gesture,
@@ -78,10 +87,11 @@ fn planner_body() -> impl IntoView {
             })
         });
         let dk = deck.get();
-        let deck = (!dk.is_empty()).then(|| {
+        let st = steps.get();
+        let deck = (!dk.is_empty() || !st.is_empty()).then(|| {
             Box::new(Deck {
                 levels: dk,
-                ..Default::default()
+                steps: st,
             })
         });
         save_plan(&Plan {
@@ -94,10 +104,23 @@ fn planner_body() -> impl IntoView {
     });
 
     // Snap the cursor to where the next node would land, for the active tool.
+    // Steps snap to a deck edge (the nearest level); openings to the house.
     let snap = move |tl: Tool, raw: &Coord| {
+        let outline = if tl == Tool::Steps {
+            let anchor = placed
+                .get_untracked()
+                .first()
+                .cloned()
+                .unwrap_or_else(|| raw.clone());
+            nearest_level(&deck.get_untracked(), &anchor)
+                .map(|l| l.corners)
+                .unwrap_or_default()
+        } else {
+            corners.get_untracked()
+        };
         snap_node(
             tl,
-            &corners.get_untracked(),
+            &outline,
             &placed.get_untracked(),
             raw,
             grid_snap.get_untracked(),
@@ -133,6 +156,24 @@ fn planner_body() -> impl IntoView {
                     deck.update(|v| v.push(level));
                 } else {
                     corners.set(pl);
+                }
+                reset(tool, placed, preview);
+            }
+            Commit::FinishWith if tl == Tool::Steps => {
+                // A step run on the deck edge nearest the first node; its drop is
+                // that level's elevation.
+                if let (Some(start), Some(lvl)) =
+                    (pl.first(), nearest_level(&deck.get_untracked(), &next))
+                {
+                    steps.update(|v| {
+                        v.push(StepRun {
+                            ax: start.x,
+                            ay: start.y,
+                            bx: next.x,
+                            by: next.y,
+                            elevation: lvl.elevation,
+                        });
+                    });
                 }
                 reset(tool, placed, preview);
             }
@@ -218,6 +259,13 @@ fn planner_body() -> impl IntoView {
             >
                 "Add window"
             </button>
+            <button
+                data-testid="add-steps"
+                class:active=move || tool_active(Tool::Steps)
+                on:click=move |_| pick_tool(Tool::Steps)
+            >
+                "Add steps"
+            </button>
             <label>
                 <input
                     type="checkbox"
@@ -250,6 +298,7 @@ fn planner_body() -> impl IntoView {
                     pad=PAD
                     house=corners
                     deck=deck
+                    steps=steps
                     openings=openings
                     placed=placed
                     preview=preview
@@ -260,6 +309,16 @@ fn planner_body() -> impl IntoView {
             }
         }}
     }
+}
+
+/// The deck level whose nearest edge is closest to `anchor` (where a step run
+/// attaches) — its elevation is the run's drop.
+fn nearest_level(levels: &[DeckLevel], anchor: &Coord) -> Option<DeckLevel> {
+    levels
+        .iter()
+        .filter_map(|lvl| nearest_wall(&lvl.corners, anchor).map(|(_, _, d)| (d, lvl)))
+        .min_by(|a, b| a.0.total_cmp(&b.0))
+        .map(|(_, lvl)| lvl.clone())
 }
 
 /// Clear the active tool and any in-progress placement.
@@ -281,6 +340,7 @@ fn hint(tool: Option<Tool>) -> &'static str {
         Some(Tool::Deck) => "Click corners; click the first corner to close the deck.",
         Some(Tool::Door) => "Click two points on a wall to place the door.",
         Some(Tool::Window) => "Click two points on a wall to place the window.",
+        Some(Tool::Steps) => "Click two points on a deck edge to add steps.",
     }
 }
 
