@@ -1,5 +1,5 @@
 //! Unit tests for the feet↔pixel `Transform`, incl. the inverse used to turn a
-//! pointer click (SVG user-space px) back into world feet (H1.1).
+//! pointer click (SVG user-space px) back into world feet.
 
 use super::Transform;
 

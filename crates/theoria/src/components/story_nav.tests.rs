@@ -1,5 +1,5 @@
 //! dokime component tests for `StoryNav`, plus unit tests for the pure
-//! path → tree builder behind the grouped sidebar (T8).
+//! path → tree builder behind the grouped sidebar.
 
 use leptos::prelude::*;
 

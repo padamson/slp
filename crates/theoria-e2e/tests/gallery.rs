@@ -107,6 +107,59 @@ async fn every_story_renders_and_selects() -> Result<()> {
     Ok(())
 }
 
+/// The controls panel drives the stage live: editing a knob re-renders the
+/// story view, and the show-code block carries the captured source. This is what
+/// dokime's SSR snapshots can't prove — the interactive re-render.
+#[tokio::test]
+async fn controls_drive_the_stage_live() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!("skipping theoria e2e: {} not built.", dist.display());
+        return Ok(());
+    }
+
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = browser.new_page().await.context("new page")?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to gallery")?;
+
+    // Select the knobs demo (a `#[story]` with args → renders a controls panel).
+    page.get_by_text("Knobs · demo", true)
+        .await
+        .click(None)
+        .await
+        .context("select the knobs demo")?;
+
+    // Default `on = true` → the stage shows "ON".
+    expect(page.locator(".theoria-stage .k-flag").await)
+        .to_have_text("ON")
+        .await
+        .context("flag starts ON")?;
+
+    // Toggle the bool control off; the stage re-renders to "OFF".
+    page.locator(".theoria-panel input[type=checkbox]")
+        .await
+        .click(None)
+        .await
+        .context("toggle the flag control")?;
+    expect(page.locator(".theoria-stage .k-flag").await)
+        .to_have_text("OFF")
+        .await
+        .context("toggling the control re-renders the stage")?;
+
+    // Show-code carries the captured source.
+    expect(page.locator(".theoria-panel .theoria-code summary").await)
+        .to_have_text("Show code")
+        .await
+        .context("show-code toggle present")?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
 /// The selected story survives a full page reload (persisted to localStorage) —
 /// this is what keeps you on your story across Trunk's hot reload.
 #[tokio::test]

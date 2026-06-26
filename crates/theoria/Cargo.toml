@@ -13,6 +13,8 @@ publish = false
 # slp-agnostic by design so it can be spun out once the API stabilizes.
 [dependencies]
 leptos = { version = "0.8", default-features = false }
+# The `#[story]` macro (re-exported as `theoria::story`).
+theoria-macros = { path = "../theoria-macros" }
 # Only for the gallery's localStorage (persist the selected story across reloads);
 # pulled in by the csr feature, so ssr/dokime builds don't see it.
 web-sys = { version = "0.3", optional = true, features = ["Window", "Storage"] }

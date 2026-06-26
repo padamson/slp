@@ -8,6 +8,7 @@ members = [
     "crates/dokime",
     "crates/theoria",
     "crates/theoria-cli",
+    "crates/theoria-macros",
 ]
 # slp-app is the wasm32 Leptos CSR app (built by Trunk, selects the csr runtime);
 # slp-e2e is its native playwright-rust dogfood test. Both are excluded so

@@ -5,7 +5,7 @@
 
 use leptos::prelude::*;
 
-use super::StoryNav;
+use super::{Controls, ShowCode, StoryNav};
 use crate::Story;
 
 /// `localStorage` key for the selected story name (only used in the browser build).
@@ -30,12 +30,33 @@ pub fn Gallery(stories: Vec<Story>) -> impl IntoView {
         }
     });
 
-    let current = move || stories.get(selected.get()).map(|s| (s.view)());
+    // Keep `stories` reachable from several reactive closures (stage, controls,
+    // docs, show-code) — `StoredValue` is `Copy` and read-shared.
+    let stories = StoredValue::new(stories);
+
+    let stage = move || stories.with_value(|s| s.get(selected.get()).map(|st| (st.view)()));
+    let panel = move || {
+        stories.with_value(|s| {
+            s.get(selected.get()).map(|st| {
+                let description = st.description();
+                let args = st.args().to_vec();
+                let source = st.source();
+                view! {
+                    <aside class="theoria-panel">
+                        {description.map(|d| view! { <p class="theoria-desc">{d}</p> })}
+                        <Controls args=args />
+                        {source.map(|src| view! { <ShowCode source=src /> })}
+                    </aside>
+                }
+            })
+        })
+    };
 
     view! {
         <div class="theoria">
             <StoryNav names=names selected=selected set_selected=set_selected />
-            <main class="theoria-stage">{current}</main>
+            <main class="theoria-stage">{stage}</main>
+            {panel}
         </div>
     }
 }

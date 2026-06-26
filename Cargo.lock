@@ -1648,6 +1648,7 @@ version = "0.1.0"
 dependencies = [
  "dokime",
  "leptos",
+ "theoria-macros",
  "web-sys",
 ]
 
@@ -1660,6 +1661,15 @@ dependencies = [
  "serde",
  "tempfile",
  "toml",
+]
+
+[[package]]
+name = "theoria-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

@@ -221,6 +221,18 @@ const GALLERY_INDEX_HTML: &str = r#"<!DOCTYPE html>
       .theoria-group-label:hover { color: #5c6b4f; }
       .theoria-group-label .caret { font-size: 9px; color: #b3ab9a; }
       .theoria-stage { flex: 1 1 auto; background: #fff; border: 1px solid #e3dccb; border-radius: 12px; padding: 16px; min-height: 200px; }
+      /* Right-hand panel: description, controls (knobs), and show-code. */
+      .theoria-panel { flex: 0 0 260px; display: flex; flex-direction: column; gap: 12px; }
+      .theoria-desc { margin: 0; font-size: 13px; line-height: 1.5; color: #4a463d; }
+      .theoria-controls { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e3dccb; border-radius: 10px; overflow: hidden; font-size: 13px; }
+      .theoria-controls td { padding: 6px 10px; border-top: 1px solid #f0eadd; }
+      .theoria-controls tr:first-child td { border-top: none; }
+      .theoria-controls .control-name { color: #8a8275; font-weight: 600; white-space: nowrap; }
+      .theoria-controls .control-input input { width: 100%; box-sizing: border-box; padding: 3px 6px; border: 1px solid #d8d0be; border-radius: 6px; font: inherit; }
+      .theoria-controls .control-input input[type=checkbox] { width: auto; }
+      .theoria-code { font-size: 12px; }
+      .theoria-code summary { cursor: pointer; color: #5c6b4f; font-weight: 600; }
+      .theoria-code pre { margin: 8px 0 0; padding: 12px; background: #2c2a25; color: #f3eee3; border-radius: 10px; overflow: auto; }
     </style>
   </head>
   <body></body>

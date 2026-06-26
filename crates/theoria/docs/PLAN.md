@@ -46,6 +46,13 @@ runtime reflection over `#[component]` props**, so every "auto" in Storybook
 becomes **explicit** in theoria (typed arg structs, hand-written argTypes, or a
 proc-macro). Prioritize the *value*, accept explicit authoring.
 
+> **Decision (2026-06, pulled forward to help slp design):** go **macro-first**.
+> A `#[story]` / `Meta` proc-macro (T5) derives `argTypes` from a story fn's typed
+> params and captures the body source for *show code*. Everything below builds on
+> it: **Controls (T6)**, **Autodocs (T13)**, **Show code (T16)**. Being built now,
+> not deferred. (Earlier open question — dynamic `Vec<(name, ArgValue)>` vs. typed
+> — resolved in favor of the macro emitting the arg list + source.)
+
 ### Tier 1 — converts the passive gallery into an interactive iteration loop
 - **Args + Controls ("knobs")** — live-edit a component's props in the browser
   instead of edit-recompile. *The single highest-leverage feature.* Rust path:
@@ -69,9 +76,12 @@ proc-macro). Prioritize the *value*, accept explicit authoring.
   playwright e2e; catches a useful subset (~half) of WCAG issues for ~free.
 - **Globals / theme toolbar** — a reactive theme signal all stories read + a
   toolbar toggle; genuinely useful for a styled UI.
-- **Autodocs (minimal)** — a per-component page = description + args/argTypes
-  table + the controls panel; mostly falls out of the args work. (MDX-style rich
-  docs: out of scope.)
+- **Autodocs (T13)** — a per-component page = a **Markdown-rendered description**
+  + args/argTypes table + the controls panel + the live story + show-code; falls
+  out of the macro + args work. Markdown prose (headings/lists/code) **is in
+  scope**; only the MDX *authoring format* (arbitrary JSX interleaved in Markdown
+  pages) is out of scope. **Show code (T16)** renders the source the `#[story]`
+  macro captured.
 
 ### Tier 3 — polish / already-covered elsewhere
 - **Viewport + backgrounds** — preview size presets + background swatch (a

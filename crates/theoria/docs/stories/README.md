@@ -44,16 +44,22 @@ Backlog priority tiers (and Rust/Leptos difficulty + rationale) come from the
 | T4 | Browser e2e: every story renders + selection persists (`theoria-e2e`) | (T1 slices) |
 | T8 | Story groups / nesting in the sidebar (hierarchical from `/`-delimited names) | [T8](T8-story-groups.md) |
 
+**Pulling forward now** (to help slp component design — macro-first; see PLAN.md)
+
+| # | Story | Status |
+|---|---|---|
+| T5 | `#[story]` macro + `Meta`: derive argTypes from a story fn's params + capture body source | ✅ done |
+| T6 | **Args + Controls ("knobs")** — live-edit a component's props in the gallery | ✅ done |
+| T16 | **Show code** — render the source the `#[story]` macro captured | ✅ done |
+| T13 | **Autodocs** — per-component page: Markdown description + args table + controls + live story + show-code | next (needs T5/T6) |
+
 **Backlog** (pull when an slp slice needs it)
 
 | # | Story | Tier |
 |---|---|---|
-| T6 | **Args + Controls ("knobs")** — live-edit a component's props in the gallery | 1 |
 | T10 | **Actions** — log a component's callbacks + args to a panel | 1 |
-| T5 | `#[story]` macro + `Meta` / auto-registration (CSF parity) | 1–2 |
 | T14 | Deep-linking — per-story URL (share/bookmark; drive e2e by URL) | 2 |
 | T11 | a11y — run axe-core against each story in the e2e | 2 |
 | T12 | Globals/toolbar — theme switch all stories read | 2 |
-| T13 | Autodocs — per-component page (description + args table + controls) | 2–3 |
 | T7 | Viewport + backgrounds (stage size / bg presets) | 3 |
 | T15 | Visual regression (screenshot-diff) — promote when material textures (epic M) / 3D (R2) land | 4 (defer) |

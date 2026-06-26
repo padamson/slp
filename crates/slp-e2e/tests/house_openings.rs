@@ -1,4 +1,4 @@
-//! H1.2b e2e: after drawing a house, click "Add door" then click a wall to
+//! e2e: after drawing a house, click "Add door" then click a wall to
 //! place a door; confirm it renders and persists across a reload.
 //!
 //! Build the app first, then run:
