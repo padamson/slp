@@ -92,12 +92,9 @@ jobs:
   mutation-testing:
     name: Mutation Testing (full)
     runs-on: ubuntu-latest
-    # Full-codebase mutation testing is a manual escape hatch only.
-    # Per-push verification is handled by `mutation-testing-diff` below,
-    # which scopes to just the lines a push or PR touched. The full run
-    # grows linearly with codebase size and eventually exceeds CI's
-    # per-job timeout, so we don't schedule it.
-    if: github.event_name == 'workflow_dispatch'
+    # Weekly full sweep of the in-scope logic crates; backstop for the per-push
+    # diff job, which can't see unchanged code. See docs/mutation-testing.md.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v7
 
@@ -122,9 +119,7 @@ jobs:
         with:
           tool: cargo-mutants
 
-      # If runs are too slow, add a `.mutants.toml` at the repo root and scope
-      # it to `crates/slp-core/src/**` (the correctness-critical logic), skipping
-      # the Leptos view crates where mutants are noisy and low-value.
+      # Scope + exclusions: .cargo/mutants.toml. Non-zero exit on a miss = fail.
       - name: Run mutation testing
         run: cargo mutants
 

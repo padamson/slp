@@ -17,10 +17,11 @@
 //! Supported arg types: `bool` (toggle), `f64` (number), `String` (text).
 
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use std::collections::HashMap;
 use syn::{
-    Expr, FnArg, ItemFn, Lit, Meta, Pat, Token, Type, parse_macro_input, punctuated::Punctuated,
+    Expr, FnArg, ItemFn, Lit, Meta, Pat, Token, Type, parse::Parser, punctuated::Punctuated,
     spanned::Spanned,
 };
 
@@ -32,8 +33,20 @@ enum Kind {
 
 #[proc_macro_attribute]
 pub fn story(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let func = parse_macro_input!(item as ItemFn);
-    let overrides = parse_macro_input!(attr with Punctuated::<Meta, Token![,]>::parse_terminated);
+    // Thin adapter to the testable `proc_macro2` core; all logic lives in
+    // `story_impl`.
+    story_impl(attr.into(), item.into()).into()
+}
+
+fn story_impl(attr: TokenStream2, item: TokenStream2) -> TokenStream2 {
+    let func: ItemFn = match syn::parse2(item) {
+        Ok(func) => func,
+        Err(e) => return e.to_compile_error(),
+    };
+    let overrides = match Punctuated::<Meta, Token![,]>::parse_terminated.parse2(attr) {
+        Ok(overrides) => overrides,
+        Err(e) => return e.to_compile_error(),
+    };
 
     // `name = "..."` sets the story name; any other `key = expr` is a default for
     // the matching arg.
@@ -127,7 +140,6 @@ pub fn story(attr: TokenStream, item: TokenStream) -> TokenStream {
             )
         }
     }
-    .into()
 }
 
 fn type_kind(ty: &Type) -> Option<Kind> {
@@ -182,15 +194,115 @@ fn body_source(func: &ItemFn) -> Expr {
     syn::parse_quote!(#s)
 }
 
-fn err(tokens: impl quote::ToTokens, msg: &str) -> TokenStream {
-    syn::Error::new(tokens.span(), msg)
-        .to_compile_error()
-        .into()
+fn err(tokens: impl quote::ToTokens, msg: &str) -> TokenStream2 {
+    syn::Error::new(tokens.span(), msg).to_compile_error()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quote::quote;
+
+    /// Pull the string out of a `doc_description` result: `Option::Some("lit")`
+    /// → `Some(lit)`, the `Option::None` path → `None`.
+    fn some_str(e: &Expr) -> Option<String> {
+        if let Expr::Call(call) = e
+            && let Some(Expr::Lit(syn::ExprLit {
+                lit: Lit::Str(s), ..
+            })) = call.args.first()
+        {
+            Some(s.value())
+        } else {
+            None
+        }
+    }
+
+    #[test]
+    fn story_impl_generates_a_story_constructor() {
+        let out = story_impl(
+            quote!(name = "Demo/Widget", active = true, width = 12.0),
+            quote! {
+                /// A demo widget.
+                fn widget(active: bool, width: f64, label: String) -> impl IntoView {
+                    view! { <div data-active=active data-width=width>{label}</div> }
+                }
+            },
+        )
+        .to_string();
+
+        assert!(
+            out.contains("pub fn widget"),
+            "emits a constructor named after the fn"
+        );
+        assert!(
+            out.contains("__from_macro"),
+            "builds via Story::__from_macro"
+        );
+        assert!(out.contains("Demo/Widget"), "uses the name override");
+        assert!(
+            out.contains("ArgControl :: Bool"),
+            "bool arg → Bool control"
+        );
+        assert!(out.contains("ArgControl :: Num"), "f64 arg → Num control");
+        assert!(
+            out.contains("ArgControl :: Text"),
+            "String arg → Text control"
+        );
+        assert!(out.contains("Some"), "captures the doc description");
+    }
+
+    #[test]
+    fn story_impl_falls_back_to_the_fn_name_without_an_override() {
+        let out =
+            story_impl(quote!(), quote! { fn yard() -> impl IntoView { view! {} } }).to_string();
+        // No `name = "..."`, so the story name is the fn ident as a string literal.
+        assert!(out.contains("\"yard\""), "no override → use the fn name");
+    }
+
+    #[test]
+    fn story_impl_rejects_unsupported_arg_types() {
+        let out = story_impl(
+            quote!(),
+            quote! { fn bad(n: i32) -> impl IntoView { view! {} } },
+        )
+        .to_string();
+        assert!(
+            out.contains("compile_error"),
+            "unsupported arg type → compile error"
+        );
+    }
+
+    #[test]
+    fn story_impl_rejects_self_receivers() {
+        let out = story_impl(
+            quote!(),
+            quote! { fn bad(&self) -> impl IntoView { view! {} } },
+        )
+        .to_string();
+        assert!(
+            out.contains("compile_error"),
+            "a self receiver → compile error"
+        );
+    }
+
+    #[test]
+    fn doc_description_joins_lines_with_newlines() {
+        let f: ItemFn = syn::parse_quote! {
+            /// First line.
+            /// Second line.
+            fn x() -> impl IntoView { view! {} }
+        };
+        assert_eq!(
+            some_str(&doc_description(&f)).as_deref(),
+            Some("First line.\nSecond line."),
+        );
+    }
+
+    #[test]
+    fn doc_description_is_none_without_docs() {
+        let f: ItemFn = syn::parse_quote! { fn x() -> impl IntoView { view! {} } };
+        assert_eq!(some_str(&doc_description(&f)), None);
+    }
 
     #[test]
     fn type_kind_maps_supported_types() {
