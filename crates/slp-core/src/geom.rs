@@ -106,9 +106,25 @@ mod tests {
     }
 
     #[test]
+    fn area_of_a_general_triangle() {
+        // A slanted, off-origin triangle (no zero cross-terms) pins the shoelace
+        // sum: 0.5·|1(2−6) + 5(6−1) + 2(1−2)| = 0.5·19 = 9.5. Three vertices, so
+        // it also exercises the `len < 3` guard at the boundary.
+        let tri = poly(&[(1.0, 1.0), (5.0, 2.0), (2.0, 6.0)]);
+        assert!((area(&tri) - 9.5).abs() < 1e-9);
+    }
+
+    #[test]
     fn polyline_length_sums_segments() {
         let path = poly(&[(0.0, 0.0), (3.0, 0.0), (3.0, 4.0)]);
         assert!((polyline_length(&path) - 7.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn dist_between_offset_points() {
+        // Off-origin and asymmetric in both axes so each `-` matters:
+        // hypot(1−4, 2−6) = hypot(-3, -4) = 5.
+        assert!((Point::new(1.0, 2.0).dist(Point::new(4.0, 6.0)) - 5.0).abs() < 1e-9);
     }
 
     #[test]
@@ -117,6 +133,33 @@ mod tests {
         assert!(point_in_polygon(Point::new(2.0, 2.0), &sq));
         assert!(!point_in_polygon(Point::new(5.0, 2.0), &sq));
         assert!(!point_in_polygon(Point::new(-1.0, 2.0), &sq));
+    }
+
+    #[test]
+    fn point_in_polygon_with_slanted_edges() {
+        // Triangle with two slanted edges so the x-intercept arithmetic
+        // (xj−xi)·(p.y−yi)/(yj−yi)+xi actually matters. At y=2 the left edge is
+        // at x=1 and the right edge at x=3; at y=3 they are at x=1.5 and x=2.5.
+        let tri = poly(&[(0.0, 0.0), (4.0, 0.0), (2.0, 4.0)]);
+        for inside in [(2.0, 1.0), (2.5, 2.0), (1.5, 2.0), (2.0, 3.0)] {
+            assert!(
+                point_in_polygon(Point::new(inside.0, inside.1), &tri),
+                "{inside:?}"
+            );
+        }
+        for outside in [
+            (3.5, 2.0),
+            (0.5, 2.0),
+            (3.0, 3.0),
+            (5.0, 2.0),
+            (2.0, -1.0),
+            (2.0, 5.0),
+        ] {
+            assert!(
+                !point_in_polygon(Point::new(outside.0, outside.1), &tri),
+                "{outside:?}"
+            );
+        }
     }
 
     #[test]

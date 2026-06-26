@@ -64,4 +64,21 @@ mod tests {
         // Tie → horizontal.
         assert_eq!(snap_ortho(&o, &Coord::new(3.0, 3.0)), Coord::new(3.0, 0.0));
     }
+
+    #[test]
+    fn ortho_uses_offset_from_a_nonzero_prev() {
+        // Off-origin `prev` so each delta is `p - prev` (not `p + prev`): the
+        // dominant axis is decided by the offset from prev, and the result keeps
+        // prev's other coordinate.
+        // dx=2, dy=3 → vertical → keep prev.x=3.
+        assert_eq!(
+            snap_ortho(&Coord::new(3.0, 1.0), &Coord::new(1.0, 4.0)),
+            Coord::new(3.0, 4.0)
+        );
+        // dx=3, dy=2 → horizontal → keep prev.y=3.
+        assert_eq!(
+            snap_ortho(&Coord::new(1.0, 3.0), &Coord::new(4.0, 1.0)),
+            Coord::new(4.0, 3.0)
+        );
+    }
 }

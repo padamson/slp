@@ -265,10 +265,11 @@ mod tests {
             "depends on the target crate"
         );
         assert!(cargo.contains("theoria = { path"), "depends on theoria");
-        assert!(cargo.contains("\"csr\""), "csr is added automatically");
+        // csr is appended to the *target crate's* own feature list (not just the
+        // theoria dep), after the configured features.
         assert!(
-            cargo.contains("\"stories\""),
-            "configured feature is enabled"
+            cargo.contains(r#""stories", "csr""#),
+            "csr is added to the target crate's features: {cargo}"
         );
         assert!(cargo.contains("[workspace]"), "own workspace, not absorbed");
 
@@ -301,6 +302,11 @@ mod tests {
         // Exactly one `theoria = { path ... }` key — no duplicate-dependency error.
         assert_eq!(cargo.matches("theoria = { path").count(), 1);
         assert!(cargo.contains("\"csr\"") && cargo.contains("\"stories\""));
+    }
+
+    #[test]
+    fn default_theoria_path_is_the_workspace_crate() {
+        assert_eq!(default_theoria_path(), "crates/theoria");
     }
 
     #[test]

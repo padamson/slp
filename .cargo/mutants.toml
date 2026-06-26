@@ -16,3 +16,23 @@ examine_globs = [
     "crates/dokime/src/**/*.rs",
     "crates/theoria-cli/src/**/*.rs",
 ]
+# Excluded with justification:
+#  - `area` `+=`→`-=`: equivalent — the shoelace sum is negated then `.abs()`d.
+#  - theoria-cli `main`/`trunk`: pure I/O orchestration (parse args, shell out to
+#    `trunk`); exercised end-to-end by theoria-e2e (which builds the gallery via
+#    the CLI), not by the native unit tests cargo-mutants runs.
+#  - `point_in_polygon` comparison mutants: equivalent or test-an-unspecified
+#    boundary. `<`→`>` is equivalent (a closed ring crosses any ray an even
+#    number of times, so counting the other side preserves parity); `>`→`>=` and
+#    `<`→`<=` change behavior only when the point lies exactly on a vertex/edge,
+#    which the function documents as unspecified. (The `<=` pattern also covers
+#    the `n < 3` guard, which is separately covered by the triangle test.)
+exclude_re = [
+    'replace \+= with -= in area',
+    'replace main -> Result',
+    'replace trunk -> Result',
+    'delete ! in trunk',
+    'replace > with >= in point_in_polygon',
+    'replace < with > in point_in_polygon',
+    'replace < with <= in point_in_polygon',
+]

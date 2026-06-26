@@ -100,13 +100,34 @@ mod tests {
 
     #[test]
     fn project_onto_gives_offset_and_perpendicular_distance() {
-        let (a, b) = (Coord::new(0.0, 0.0), Coord::new(10.0, 0.0));
-        let (offset, dist) = project_onto(&a, &b, &Coord::new(4.0, 2.0));
-        assert!((offset - 4.0).abs() < 1e-9);
-        assert!((dist - 2.0).abs() < 1e-9);
+        // Off-origin segment so each delta (`end-start`, `p-start`) matters.
+        let (a, b) = (Coord::new(1.0, 1.0), Coord::new(11.0, 1.0));
+        let (offset, dist) = project_onto(&a, &b, &Coord::new(5.0, 3.0));
+        assert!((offset - 4.0).abs() < 1e-9, "offset {offset}");
+        assert!((dist - 2.0).abs() < 1e-9, "dist {dist}");
         // Past the end clamps the offset to the wall length.
         let (offset, _) = project_onto(&a, &b, &Coord::new(99.0, 1.0));
         assert!((offset - 10.0).abs() < 1e-9);
+        // A slanted, off-origin segment (1,1)→(7,9) (len 10) exercises the dy
+        // terms *and* a non-zero start.y: the point (5.6,-1.2) sits 1 ft along
+        // and 5 ft off it.
+        let (offset, dist) = project_onto(
+            &Coord::new(1.0, 1.0),
+            &Coord::new(7.0, 9.0),
+            &Coord::new(5.6, -1.2),
+        );
+        assert!((offset - 1.0).abs() < 1e-9, "slanted offset {offset}");
+        assert!((dist - 5.0).abs() < 1e-9, "slanted dist {dist}");
+    }
+
+    #[test]
+    fn project_onto_distance_to_an_offset_endpoint() {
+        // Degenerate (zero-length) wall: distance from p to the start point,
+        // off-origin and asymmetric so both `p - start` terms matter.
+        let a = Coord::new(1.0, 2.0);
+        let (offset, dist) = project_onto(&a, &a, &Coord::new(4.0, 6.0));
+        assert!(offset.abs() < 1e-9);
+        assert!((dist - 5.0).abs() < 1e-9, "dist {dist}");
     }
 
     fn square() -> Vec<Coord> {
@@ -129,6 +150,26 @@ mod tests {
         // Near the right edge (edge 1).
         let (wall, _, _) = nearest_wall(&sq, &Coord::new(9.0, 6.0)).unwrap();
         assert_eq!(wall, 1);
+    }
+
+    #[test]
+    fn nearest_wall_ties_go_to_the_first_edge() {
+        // The square's centre is equidistant from all four edges; the strict
+        // `dist < bd` keeps the first (index 0), not a later one.
+        let (wall, _, _) = nearest_wall(&square(), &Coord::new(5.0, 5.0)).unwrap();
+        assert_eq!(wall, 0);
+    }
+
+    #[test]
+    fn nearest_wall_works_for_a_triangle() {
+        // Exactly three corners (the `n < 3` boundary): still has walls.
+        let tri = vec![
+            Coord::new(0.0, 0.0),
+            Coord::new(10.0, 0.0),
+            Coord::new(5.0, 8.0),
+        ];
+        let (wall, _, _) = nearest_wall(&tri, &Coord::new(5.0, 1.0)).unwrap();
+        assert_eq!(wall, 0, "closest to the bottom edge");
     }
 
     #[test]

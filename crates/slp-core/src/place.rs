@@ -418,4 +418,62 @@ mod tests {
             .is_none()
         );
     }
+
+    #[test]
+    fn house_close_distance_to_the_first_corner() {
+        // Off-origin, asymmetric ring so each subtraction in the distance check
+        // matters. First corner (10,20).
+        let ring = [
+            Coord::new(10.0, 20.0),
+            Coord::new(30.0, 20.0),
+            Coord::new(30.0, 40.0),
+        ];
+        // Within the snap radius of the first corner → close.
+        assert_eq!(
+            commit_kind(Tool::House, &ring, &Coord::new(11.0, 21.0)),
+            Commit::Finish
+        );
+        // Just outside → keep adding. These also pin the subtraction: a `/` in
+        // place of either `-` would read these as "close" and wrongly finish.
+        assert_eq!(
+            commit_kind(Tool::House, &ring, &Coord::new(8.0, 20.5)),
+            Commit::Add
+        );
+        assert_eq!(
+            commit_kind(Tool::House, &ring, &Coord::new(10.5, 22.0)),
+            Commit::Add
+        );
+    }
+
+    #[test]
+    fn spans_work_on_a_triangle() {
+        // Exactly three corners — the `n < 3` boundary in snap_to_wall /
+        // opening_from_nodes. A door snaps onto, and spans, the bottom edge.
+        let tri = [
+            Coord::new(0.0, 0.0),
+            Coord::new(10.0, 0.0),
+            Coord::new(5.0, 8.0),
+        ];
+        assert_eq!(
+            snap_node(
+                Tool::Door,
+                &tri,
+                &[],
+                &Coord::new(5.0, 1.0),
+                false,
+                false,
+                1.0
+            ),
+            Coord::new(5.0, 0.0)
+        );
+        let o = opening_from_nodes(
+            &tri,
+            OpeningKind::door,
+            &Coord::new(2.0, 0.0),
+            &Coord::new(6.0, 0.0),
+        )
+        .unwrap();
+        assert_eq!(o.wall, 0);
+        assert!((o.offset - 2.0).abs() < 1e-9 && (o.width - 4.0).abs() < 1e-9);
+    }
 }
