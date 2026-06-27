@@ -5,7 +5,7 @@
 
 use leptos::prelude::*;
 
-use super::{Controls, ShowCode, StoryNav};
+use super::{Controls, Markdown, ShowCode, StoryNav};
 use crate::Story;
 
 /// `localStorage` key for the selected story name (only used in the browser build).
@@ -43,7 +43,7 @@ pub fn Gallery(stories: Vec<Story>) -> impl IntoView {
                 let source = st.source();
                 view! {
                     <aside class="theoria-panel">
-                        {description.map(|d| view! { <p class="theoria-desc">{d}</p> })}
+                        {description.map(|d| view! { <Markdown text=d /> })}
                         <Controls args=args />
                         {source.map(|src| view! { <ShowCode source=src /> })}
                     </aside>

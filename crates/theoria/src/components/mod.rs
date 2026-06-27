@@ -5,11 +5,13 @@
 
 mod controls;
 mod gallery;
+mod markdown;
 mod show_code;
 mod story_nav;
 
 pub use controls::Controls;
 pub use gallery::Gallery;
+pub use markdown::Markdown;
 pub use show_code::ShowCode;
 pub use story_nav::StoryNav;
 
@@ -36,6 +38,9 @@ pub fn stories() -> Vec<crate::Story> {
 #[cfg(test)]
 #[path = "controls.tests.rs"]
 mod controls_tests;
+#[cfg(test)]
+#[path = "markdown.tests.rs"]
+mod markdown_tests;
 #[cfg(test)]
 #[path = "show_code.tests.rs"]
 mod show_code_tests;

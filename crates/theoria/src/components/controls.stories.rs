@@ -7,9 +7,15 @@ use leptos::prelude::*;
 use super::Controls;
 use crate::{ArgControl, Story, story};
 
-/// A knobs demo: edit the controls and watch the stage update live. The
-/// `#[story]` macro wires each arg's signal to the view, so toggling a control
-/// re-renders the stage — the integration the e2e test drives.
+/// A **knobs** demo: edit the controls and watch the stage update live.
+///
+/// It exercises the autodocs panel against theoria's own components:
+///
+/// - `on` toggles the flag shown on the stage.
+/// - `count` and `label` echo straight through.
+///
+/// The `#[story]` macro wires each arg's signal to the view (so a control edit
+/// re-renders the stage) and captures the source shown under "Show code".
 #[story(name = "Knobs · demo", on = true, count = 2.0, label = "hi")]
 fn knobs(on: bool, count: f64, label: String) -> impl IntoView {
     view! {

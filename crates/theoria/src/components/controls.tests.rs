@@ -20,6 +20,10 @@ fn renders_a_widget_per_arg() {
     assert_eq!(dokime::count(&html, "<input"), 3, "one widget per arg");
     assert!(html.contains("checkbox"), "bool → checkbox");
     assert!(html.contains("number"), "f64 → number input");
+    // The argTypes table documents each arg's type.
+    assert!(html.contains(">bool<"), "bool type label");
+    assert!(html.contains(">f64<"), "f64 type label");
+    assert!(html.contains(">String<"), "String type label");
 }
 
 #[test]

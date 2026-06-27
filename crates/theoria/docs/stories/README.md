@@ -51,7 +51,7 @@ Backlog priority tiers (and Rust/Leptos difficulty + rationale) come from the
 | T5 | `#[story]` macro + `Meta`: derive argTypes from a story fn's params + capture body source | ✅ done |
 | T6 | **Args + Controls ("knobs")** — live-edit a component's props in the gallery | ✅ done |
 | T16 | **Show code** — render the source the `#[story]` macro captured | ✅ done |
-| T13 | **Autodocs** — per-component page: Markdown description + args table + controls + live story + show-code | next (needs T5/T6) |
+| T13 | **Autodocs** — per-component page: Markdown description + args table + controls + live story + show-code | ✅ done |
 
 **Backlog** (pull when an slp slice needs it)
 

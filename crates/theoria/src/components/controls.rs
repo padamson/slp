@@ -1,10 +1,20 @@
-//! The controls ("knobs") panel: one editable widget per story arg. Editing a
-//! widget writes the arg's signal, which the story's view reads — so the stage
-//! re-renders live. The args come from the `#[story]` macro.
+//! The controls ("knobs") panel, rendered as an argTypes table: a row per story
+//! arg with its name, type, and an editable widget. Editing a widget writes the
+//! arg's signal, which the story's view reads — so the stage re-renders live.
+//! The args come from the `#[story]` macro.
 
 use leptos::prelude::*;
 
 use crate::ArgControl;
+
+/// The arg's Rust type, for the table's Type column.
+fn type_label(ctl: ArgControl) -> &'static str {
+    match ctl {
+        ArgControl::Bool(_) => "bool",
+        ArgControl::Num(_) => "f64",
+        ArgControl::Text(_) => "String",
+    }
+}
 
 #[component]
 pub fn Controls(args: Vec<(&'static str, ArgControl)>) -> impl IntoView {
@@ -12,6 +22,7 @@ pub fn Controls(args: Vec<(&'static str, ArgControl)>) -> impl IntoView {
         let rows = args
             .into_iter()
             .map(|(name, ctl)| {
+                let ty = type_label(ctl);
                 let widget = match ctl {
                     ArgControl::Bool(s) => view! {
                         <input
@@ -46,6 +57,7 @@ pub fn Controls(args: Vec<(&'static str, ArgControl)>) -> impl IntoView {
                 view! {
                     <tr class="control-row">
                         <td class="control-name">{name}</td>
+                        <td class="control-type"><code>{ty}</code></td>
                         <td class="control-input">{widget}</td>
                     </tr>
                 }
@@ -53,6 +65,13 @@ pub fn Controls(args: Vec<(&'static str, ArgControl)>) -> impl IntoView {
             .collect::<Vec<_>>();
         view! {
             <table class="theoria-controls">
+                <thead>
+                    <tr>
+                        <th>"Arg"</th>
+                        <th>"Type"</th>
+                        <th>"Control"</th>
+                    </tr>
+                </thead>
                 <tbody>{rows}</tbody>
             </table>
         }

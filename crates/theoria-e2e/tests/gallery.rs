@@ -156,6 +156,33 @@ async fn controls_drive_the_stage_live() -> Result<()> {
         .await
         .context("show-code toggle present")?;
 
+    // Autodocs: the doc-comment renders as Markdown (bold + a list), and the
+    // argTypes table documents each arg's type.
+    let strong = page
+        .locator(".theoria-panel .theoria-md strong")
+        .await
+        .count()
+        .await
+        .context("count rendered <strong>")?;
+    ensure!(strong > 0, "description renders Markdown emphasis");
+    let items = page
+        .locator(".theoria-panel .theoria-md li")
+        .await
+        .count()
+        .await
+        .context("count rendered <li>")?;
+    ensure!(items > 0, "description renders a Markdown list");
+    let types = page
+        .locator(".theoria-panel .theoria-controls .control-type")
+        .await
+        .all_inner_texts()
+        .await
+        .context("read argTypes type column")?;
+    ensure!(
+        types.iter().any(|t| t.trim() == "bool"),
+        "argTypes table documents the bool arg, got {types:?}"
+    );
+
     browser.close().await.context("close browser")?;
     Ok(())
 }

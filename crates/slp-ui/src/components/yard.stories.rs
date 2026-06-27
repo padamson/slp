@@ -8,7 +8,14 @@ use theoria::{Story, story};
 
 use super::Yard;
 
-/// The to-scale yard canvas. Adjust **width** and **depth** to resize it.
+/// The to-scale base canvas the rest of the plan draws onto (house, deck, beds).
+/// One grid square is `1 ft`, so set the size to your lot's real dimensions
+/// before placing anything; everything else snaps to this grid.
+///
+/// - **width** — the lot's east-west extent, in feet.
+/// - **depth** — its north-south extent, in feet.
+///
+/// Drag either control and the canvas reflows to scale.
 #[story(name = "Canvas/Yard", yard_w = 70.0, yard_d = 30.0)]
 fn yard(yard_w: f64, yard_d: f64) -> impl IntoView {
     view! { <Yard yard_w=yard_w yard_d=yard_d px_ft=12.0 pad=40.0 /> }

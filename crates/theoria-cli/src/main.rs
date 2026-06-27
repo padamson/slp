@@ -221,13 +221,21 @@ const GALLERY_INDEX_HTML: &str = r#"<!DOCTYPE html>
       .theoria-group-label:hover { color: #5c6b4f; }
       .theoria-group-label .caret { font-size: 9px; color: #b3ab9a; }
       .theoria-stage { flex: 1 1 auto; background: #fff; border: 1px solid #e3dccb; border-radius: 12px; padding: 16px; min-height: 200px; }
-      /* Right-hand panel: description, controls (knobs), and show-code. */
-      .theoria-panel { flex: 0 0 260px; display: flex; flex-direction: column; gap: 12px; }
-      .theoria-desc { margin: 0; font-size: 13px; line-height: 1.5; color: #4a463d; }
+      /* Right-hand panel: Markdown description, argTypes table, and show-code. */
+      .theoria-panel { flex: 0 0 280px; display: flex; flex-direction: column; gap: 12px; }
+      .theoria-md { font-size: 13px; line-height: 1.55; color: #4a463d; }
+      .theoria-md > :first-child { margin-top: 0; }
+      .theoria-md h1, .theoria-md h2, .theoria-md h3 { margin: .5em 0 .3em; line-height: 1.2; }
+      .theoria-md h1 { font-size: 17px; } .theoria-md h2 { font-size: 15px; } .theoria-md h3 { font-size: 13px; }
+      .theoria-md ul, .theoria-md ol { margin: .3em 0; padding-left: 1.2em; }
+      .theoria-md code { background: #efe9dc; padding: 1px 4px; border-radius: 4px; font-size: 12px; }
+      .theoria-md a { color: #5c6b4f; }
       .theoria-controls { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e3dccb; border-radius: 10px; overflow: hidden; font-size: 13px; }
+      .theoria-controls th { text-align: left; padding: 5px 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #8a8275; border-bottom: 1px solid #e3dccb; }
       .theoria-controls td { padding: 6px 10px; border-top: 1px solid #f0eadd; }
-      .theoria-controls tr:first-child td { border-top: none; }
-      .theoria-controls .control-name { color: #8a8275; font-weight: 600; white-space: nowrap; }
+      .theoria-controls tbody tr:first-child td { border-top: none; }
+      .theoria-controls .control-name { color: #2c2a25; font-weight: 600; white-space: nowrap; }
+      .theoria-controls .control-type code { color: #5c6b4f; font-size: 12px; }
       .theoria-controls .control-input input { width: 100%; box-sizing: border-box; padding: 3px 6px; border: 1px solid #d8d0be; border-radius: 6px; font: inherit; }
       .theoria-controls .control-input input[type=checkbox] { width: auto; }
       .theoria-code { font-size: 12px; }

@@ -15,6 +15,8 @@ publish = false
 leptos = { version = "0.8", default-features = false }
 # The `#[story]` macro (re-exported as `theoria::story`).
 theoria-macros = { path = "../theoria-macros" }
+# Render story descriptions (component doc-comments) as Markdown for autodocs.
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 # Only for the gallery's localStorage (persist the selected story across reloads);
 # pulled in by the csr feature, so ssr/dokime builds don't see it.
 web-sys = { version = "0.3", optional = true, features = ["Window", "Storage"] }
