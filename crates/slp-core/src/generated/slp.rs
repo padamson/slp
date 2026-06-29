@@ -6,8 +6,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(non_camel_case_types, non_snake_case, dead_code, clippy::all)]
 
-/// Whether a placed item counts toward the cost take-off. Absent means
-/// planned.
+/// Whether a placed item counts toward the cost take-off.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub enum ItemStatus {
@@ -138,29 +137,31 @@ pub struct House {
 /// An item placed on the plan: a point at (`x`, `y`) in feet, rotated `rot`
 /// degrees clockwise, referencing a catalog item by `catalog_ref`. `status`
 /// controls whether it counts toward cost (planned counts; existing and
-/// virtual do not). Absent status means planned.
-#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+/// virtual do not), and defaults to planned when absent.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Object {
     /// Id of the catalog item this object places.
     pub catalog_ref: String,
     /// Rotation in degrees, clockwise from north.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rot: Option<f64>,
-    /// Cost status of a placed item; absent means planned.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub status: Option<ItemStatus>,
+    /// Cost status of a placed item; defaults to planned when absent.
+    #[serde(default = "default_object_status")]
+    pub status: ItemStatus,
     /// East-west position, in feet.
     pub x: f64,
     /// North-south position, in feet.
     pub y: f64,
 }
 
+fn default_object_status() -> ItemStatus { ItemStatus::planned }
+
 impl Object {
     pub fn new(catalog_ref: String, x: f64, y: f64) -> Self {
         Self {
             catalog_ref,
             rot: None,
-            status: None,
+            status: ItemStatus::planned,
             x,
             y,
         }

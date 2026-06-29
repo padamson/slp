@@ -51,7 +51,7 @@ product, since the catalog and placements are saved in the plan, not hardcoded.
 - Enablers F1 (select/move/delete) and G1 (save/load `.slp.json`) are sequenced
   near here in PLAN §6 but are separable; placement reuses the existing
   reload-persistence the house/deck already use.
-- **`status` default:** absent ⇒ planned is currently a take-off **convention**
-  (the cost engine treats `None` as planned), not schema-encoded. The next slice
-  moves it into the schema with LinkML `ifabsent` so the default has a single
-  source of truth.
+- **`status` default:** schema-encoded — the `status` slot declares
+  `ifabsent: ItemStatus(planned)`, so an absent status deserializes to `planned`
+  from a single source of truth (`status` is a non-`Option` field with a serde
+  default; the cost engine needs no None-means-planned convention).

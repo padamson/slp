@@ -57,7 +57,7 @@ classes:
       An item placed on the plan: a point at (`x`, `y`) in feet, rotated `rot`
       degrees clockwise, referencing a catalog item by `catalog_ref`. `status`
       controls whether it counts toward cost (planned counts; existing and
-      virtual do not). Absent status means planned.
+      virtual do not), and defaults to planned when absent.
     slots:
       - catalog_ref
       - x
@@ -202,7 +202,8 @@ slots:
     description: Rotation in degrees, clockwise from north.
   status:
     range: ItemStatus
-    description: Cost status of a placed item; absent means planned.
+    ifabsent: ItemStatus(planned)
+    description: Cost status of a placed item; defaults to planned when absent.
   corners:
     range: Coord
     multivalued: true
@@ -267,9 +268,7 @@ enums:
         description: A window.
 
   ItemStatus:
-    description: |-
-      Whether a placed item counts toward the cost take-off. Absent means
-      planned.
+    description: Whether a placed item counts toward the cost take-off.
     permissible_values:
       planned:
         description: A real item to purchase (counted).
