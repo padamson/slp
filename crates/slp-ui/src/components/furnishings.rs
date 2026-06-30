@@ -6,11 +6,16 @@
 //!
 //! An object whose `catalog_ref` resolves to no catalog item is skipped (there is
 //! no footprint to draw) — the same exclusion the cost take-off makes.
+//!
+//! When `surfaces` (deck levels, paver areas) are supplied, an object whose
+//! footprint is not fully inside a single surface — it overhangs an edge, sits
+//! off every surface, or straddles two — is outlined in red, so it's easy to see
+//! at a glance what doesn't fit.
 
 use std::collections::HashMap;
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, Object};
+use slp_core::{CatalogItem, Coord, Object, Point, footprint_corners, within_a_single};
 
 use super::Transform;
 
@@ -25,6 +30,10 @@ pub fn Furnishings(
     /// The plan catalog, used to resolve each object's footprint dimensions.
     #[prop(optional)]
     catalog: Vec<CatalogItem>,
+    /// Surfaces a placed object should sit within (deck levels, paver areas). An
+    /// object not fully inside a single one is highlighted. Empty = no check.
+    #[prop(optional)]
+    surfaces: Vec<Vec<Coord>>,
 ) -> impl IntoView {
     // Resolve each catalog id to its footprint (consuming the catalog). One pass
     // instead of a linear scan per object; the object's `rot`/position handle the
@@ -44,19 +53,30 @@ pub fn Furnishings(
             )
         })
         .collect();
+    // Surface polygons in world points, once. Empty → skip the fit check.
+    let surface_polys: Vec<Vec<Point>> = surfaces
+        .into_iter()
+        .map(|poly| poly.into_iter().map(|c| Point::new(c.x, c.y)).collect())
+        .collect();
     let items = objects
         .into_iter()
         .filter_map(|obj| {
             let &(w_ft, d_ft) = dims.get(&obj.catalog_ref)?;
+            let rot = obj.rot.unwrap_or(0.0);
+            let overflows = !surface_polys.is_empty()
+                && !within_a_single(
+                    &footprint_corners(obj.x, obj.y, w_ft, d_ft, rot),
+                    &surface_polys,
+                );
+            let (class, stroke, stroke_w) = if overflows {
+                ("furniture-item furniture-item--overflows", "#d4351c", "2.5")
+            } else {
+                ("furniture-item", "#5a4a3a", "1.5")
+            };
             let (w_px, d_px) = (w_ft * t.px_ft, d_ft * t.px_ft);
-            let transform = format!(
-                "translate({},{}) rotate({})",
-                t.sx(obj.x),
-                t.sy(obj.y),
-                obj.rot.unwrap_or(0.0)
-            );
+            let transform = format!("translate({},{}) rotate({})", t.sx(obj.x), t.sy(obj.y), rot);
             Some(view! {
-                <g class="furniture-item" transform=transform>
+                <g class=class transform=transform>
                     <rect
                         x=-w_px / 2.0
                         y=-d_px / 2.0
@@ -64,8 +84,8 @@ pub fn Furnishings(
                         height=d_px
                         fill="#a8927a"
                         fill-opacity="0.7"
-                        stroke="#5a4a3a"
-                        stroke-width="1.5"
+                        stroke=stroke
+                        stroke-width=stroke_w
                     />
                 </g>
             })

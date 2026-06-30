@@ -1,7 +1,7 @@
 //! dokime component tests for `Furnishings` (placed-object footprints).
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, ItemStatus, Object};
+use slp_core::{CatalogItem, Coord, ItemStatus, Object};
 
 use super::{Furnishings, Transform};
 
@@ -110,6 +110,55 @@ fn missing_dimensions_fall_back_to_a_default_footprint() {
     let html =
         dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(html.contains(r#"width="10""#), "1 ft default → 10 px");
+}
+
+fn deck(w: f64, d: f64) -> Vec<Coord> {
+    vec![
+        Coord::new(0.0, 0.0),
+        Coord::new(w, 0.0),
+        Coord::new(w, d),
+        Coord::new(0.0, d),
+    ]
+}
+
+#[test]
+fn an_object_overhanging_its_surface_is_highlighted() {
+    // A 4×4 ft chair centered at (5,5) pokes past a 6×6 ft deck (corners reach
+    // x=7, y=7) — it does not fit on a single surface.
+    let catalog = vec![item("chair", Some(4.0), Some(4.0))];
+    let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(6.0, 6.0)] /> }
+    });
+    assert!(
+        html.contains("furniture-item--overflows"),
+        "an overhanging object is highlighted"
+    );
+}
+
+#[test]
+fn an_object_fully_on_a_surface_is_not_highlighted() {
+    // A 2×2 ft chair well inside a 10×10 ft deck fits.
+    let catalog = vec![item("chair", Some(2.0), Some(2.0))];
+    let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(10.0, 10.0)] /> }
+    });
+    assert!(
+        !html.contains("furniture-item--overflows"),
+        "a contained object keeps the normal outline"
+    );
+}
+
+#[test]
+fn no_surfaces_means_no_fit_check() {
+    // Without surfaces there is nothing to fit within, so nothing is highlighted.
+    let catalog = vec![item("chair", Some(4.0), Some(4.0))];
+    let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog /> }
+    });
+    assert!(!html.contains("furniture-item--overflows"));
 }
 
 #[test]
