@@ -24,10 +24,13 @@ product, since the catalog and placements are saved in the plan, not hardcoded.
   - [x] `takeoff::take_off(&Plan)` returns a bill of materials (per catalog item:
         qty, unit_price, line total) + grand total — a pure fn, unit + mutation
         tested; unresolved `catalog_ref`s are excluded
-- **E1.1 — place + render furniture**
-  - [ ] a furniture `Tool` places an `Object` at a clicked point (catalog item
+- **E1.1 — place + render furniture** ✅ *done*
+  - [x] a furniture `Tool` places an `Object` at a clicked point (catalog item
         chosen from a picker); the footprint renders to scale inside `Yard`
-  - [ ] the placement is saved to the `Plan` and survives a reload
+  - [x] the placement is saved to the `Plan` and survives a reload
+  - [x] an object whose footprint isn't fully inside a single deck/paver surface
+        is outlined in red, so it's obvious what doesn't fit (paver surfaces join
+        the check when that slice lands)
 - **E1.2 — estimate panel**
   - [ ] a side panel shows the BOM (line items + total), reacting live as
         furniture is placed/removed
@@ -43,6 +46,10 @@ product, since the catalog and placements are saved in the plan, not hardcoded.
   "nothing hardcoded". The committed `materials/manifest.toml` + `slp-ingest`
   become an *import-into-the-plan's-catalog* path later (M4–M5), not a competing
   source of truth.
+- **Starter catalog:** a small furniture catalog is seeded into the plan the
+  first time a deck is drawn (the surface furniture sits on) — plan data the user
+  can place, ignore, or replace, like the default yard size, not hardcoded
+  geometry. Catalog *authoring* (add / edit / import) is its own later slice.
 - **Cost model:** furniture is **count × unit_price**. Later categories add
   area/volume pricing (pavers ft², mulch yd³) — same BOM/total shape, new
   per-category math in `slp-core`.
