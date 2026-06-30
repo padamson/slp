@@ -318,6 +318,7 @@ fn hint(tool: Option<Tool>) -> &'static str {
         Some(Tool::Door) => "Click two points on a wall to place the door.",
         Some(Tool::Window) => "Click two points on a wall to place the window.",
         Some(Tool::Steps) => "Click two points on a deck edge to add steps.",
+        Some(Tool::Furniture) => "Click to place the selected item on the plan.",
     }
 }
 
