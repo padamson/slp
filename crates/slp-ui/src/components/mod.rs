@@ -4,6 +4,7 @@
 
 mod deck;
 mod door;
+mod furnishings;
 mod grid;
 mod house;
 mod number_field;
@@ -21,6 +22,7 @@ mod yard_controls;
 
 pub use deck::Deck;
 pub use door::Door;
+pub use furnishings::Furnishings;
 pub use grid::Grid;
 pub use house::House;
 pub use number_field::NumberField;
@@ -86,6 +88,9 @@ mod deck_stories;
 #[path = "door.stories.rs"]
 mod door_stories;
 #[cfg(feature = "stories")]
+#[path = "furnishings.stories.rs"]
+mod furnishings_stories;
+#[cfg(feature = "stories")]
 #[path = "grid.stories.rs"]
 mod grid_stories;
 #[cfg(feature = "stories")]
@@ -137,6 +142,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(placement_stories::stories());
     s.extend(house_stories::stories());
     s.extend(deck_stories::stories());
+    s.extend(furnishings_stories::stories());
     s.extend(steps_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
@@ -159,6 +165,9 @@ mod deck_tests;
 #[cfg(test)]
 #[path = "door.tests.rs"]
 mod door_tests;
+#[cfg(test)]
+#[path = "furnishings.tests.rs"]
+mod furnishings_tests;
 #[cfg(test)]
 #[path = "grid.tests.rs"]
 mod grid_tests;
