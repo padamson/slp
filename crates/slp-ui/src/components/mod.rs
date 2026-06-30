@@ -2,6 +2,7 @@
 //! `<name>.rs` + `<name>.stories.rs` (`stories` feature) + `<name>.tests.rs`
 //! (`cfg(test)`). Dotted file names use `#[path]` (not valid module idents).
 
+mod catalog_picker;
 mod deck;
 mod door;
 mod furnishings;
@@ -20,6 +21,7 @@ mod window;
 mod yard;
 mod yard_controls;
 
+pub use catalog_picker::CatalogPicker;
 pub use deck::Deck;
 pub use door::Door;
 pub use furnishings::Furnishings;
@@ -81,6 +83,9 @@ impl Transform {
     }
 }
 
+#[cfg(feature = "stories")]
+#[path = "catalog_picker.stories.rs"]
+mod catalog_picker_stories;
 #[cfg(feature = "stories")]
 #[path = "deck.stories.rs"]
 mod deck_stories;
@@ -154,11 +159,15 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(tool_button_stories::stories());
     s.extend(toggle_stories::stories());
     s.extend(number_field_stories::stories());
+    s.extend(catalog_picker_stories::stories());
     s.extend(tool_group_stories::stories());
     s.extend(yard_controls_stories::stories());
     s
 }
 
+#[cfg(test)]
+#[path = "catalog_picker.tests.rs"]
+mod catalog_picker_tests;
 #[cfg(test)]
 #[path = "deck.tests.rs"]
 mod deck_tests;
