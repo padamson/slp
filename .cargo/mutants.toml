@@ -19,6 +19,15 @@ examine_globs = [
     "crates/theoria-cli/src/**/*.rs",
     "crates/theoria-macros/src/**/*.rs",
 ]
+# panschema-generated code is excluded: it is codegen output (the LinkML schema is
+# the source of truth, and the generator is tested upstream), not hand-written slp
+# logic, and slp has no native tests targeting the generated constructors — so
+# mutating it yields surviving-mutant noise, not signal (same rationale as the view
+# crates above). The cost-engine logic that *uses* these types lives elsewhere in
+# slp-core and stays in scope.
+exclude_globs = [
+    "crates/slp-core/src/generated/**/*.rs",
+]
 # Excluded with justification:
 #  - `area` `+=`→`-=`: equivalent — the shoelace sum is negated then `.abs()`d.
 #  - theoria-cli `main`/`trunk`: pure I/O orchestration (parse args, shell out to

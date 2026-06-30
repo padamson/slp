@@ -3,7 +3,21 @@
 // Schema version: 0.1.0
 // Do not hand-edit; re-run `panschema generate` to refresh.
 
-#![allow(non_camel_case_types, non_snake_case, dead_code)]
+#![cfg_attr(rustfmt, rustfmt_skip)]
+#![allow(non_camel_case_types, non_snake_case, dead_code, clippy::all)]
+
+/// Whether a placed item counts toward the cost take-off.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub enum ItemStatus {
+    /// Already in the yard; shown but not purchased (not counted).
+    existing,
+    /// A real item to purchase (counted).
+    planned,
+    /// A what-if ghost at an alternate position (not counted).
+    #[serde(rename = "virtual")]
+    r#virtual,
+}
 
 /// The kind of wall opening.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -13,6 +27,47 @@ pub enum OpeningKind {
     door,
     /// A window.
     window,
+}
+
+/// A purchasable product the user has added to the plan's catalog. Objects
+/// reference it by `id`. The footprint (`width_ft`/`depth_ft`) and `height_ft`
+/// drive the 2D render and the future 3D view; `unit_price` drives cost.
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+pub struct CatalogItem {
+    /// Catalog category, e.g. "furniture".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    /// Footprint depth, in feet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depth_ft: Option<f64>,
+    /// Item height, in feet (for the future 3D view).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height_ft: Option<f64>,
+    /// Stable identifier for a catalog item.
+    pub id: String,
+    /// Human-readable name for this plan.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// Price per item, in dollars.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unit_price: Option<f64>,
+    /// Footprint width, in feet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub width_ft: Option<f64>,
+}
+
+impl CatalogItem {
+    pub fn new(id: String) -> Self {
+        Self {
+            category: None,
+            depth_ft: None,
+            height_ft: None,
+            id,
+            name: None,
+            unit_price: None,
+            width_ft: None,
+        }
+    }
 }
 
 /// A point in the plan, in feet. The yard's south-west corner is the origin;
@@ -27,7 +82,10 @@ pub struct Coord {
 
 impl Coord {
     pub fn new(x: f64, y: f64) -> Self {
-        Self { x, y }
+        Self {
+            x,
+            y,
+        }
     }
 }
 
@@ -76,6 +134,40 @@ pub struct House {
     pub openings: Vec<Opening>,
 }
 
+/// An item placed on the plan: a point at (`x`, `y`) in feet, rotated `rot`
+/// degrees clockwise, referencing a catalog item by `catalog_ref`. `status`
+/// controls whether it counts toward cost (planned counts; existing and
+/// virtual do not), and defaults to planned when absent.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Object {
+    /// Id of the catalog item this object places.
+    pub catalog_ref: String,
+    /// Rotation in degrees, clockwise from north.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rot: Option<f64>,
+    /// Cost status of a placed item; defaults to planned when absent.
+    #[serde(default = "default_object_status")]
+    pub status: ItemStatus,
+    /// East-west position, in feet.
+    pub x: f64,
+    /// North-south position, in feet.
+    pub y: f64,
+}
+
+fn default_object_status() -> ItemStatus { ItemStatus::planned }
+
+impl Object {
+    pub fn new(catalog_ref: String, x: f64, y: f64) -> Self {
+        Self {
+            catalog_ref,
+            rot: None,
+            status: ItemStatus::planned,
+            x,
+            y,
+        }
+    }
+}
+
 /// A door or window placed along a wall (the edge from corner `wall` to the
 /// next corner). Positioned by its `offset` in feet from the wall's start,
 /// spanning `width` feet.
@@ -105,6 +197,9 @@ impl Opening {
 /// A complete landscape plan.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Plan {
+    /// Products the user has added, available to place onto the plan.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub catalog: Vec<CatalogItem>,
     /// The deck outline, if the user has drawn one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deck: Option<Box<Deck>>,
@@ -114,6 +209,9 @@ pub struct Plan {
     /// Human-readable name for this plan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Items placed on the plan (furniture and, later, other objects).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub objects: Vec<Object>,
     /// Yard depth (north-south), in feet.
     pub yard_depth: f64,
     /// Yard width (east-west), in feet.
@@ -123,9 +221,11 @@ pub struct Plan {
 impl Plan {
     pub fn new(yard_depth: f64, yard_width: f64) -> Self {
         Self {
+            catalog: Vec::new(),
             deck: None,
             house: None,
             name: None,
+            objects: Vec::new(),
             yard_depth,
             yard_width,
         }

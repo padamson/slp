@@ -6,9 +6,9 @@
 //! from screen pixels to world feet.
 
 use leptos::prelude::*;
-use slp_core::{Coord, DeckLevel, Opening, StepRun};
+use slp_core::{CatalogItem, Coord, DeckLevel, Object, Opening, StepRun};
 
-use super::{Deck, Grid, House, Placement, ScaleBar, Transform};
+use super::{Deck, Furnishings, Grid, House, Placement, ScaleBar, Transform};
 
 #[component]
 pub fn Yard(
@@ -28,6 +28,12 @@ pub fn Yard(
     /// Committed doors/windows on the house walls.
     #[prop(optional, into)]
     openings: Signal<Vec<Opening>>,
+    /// Objects placed on the plan (furniture, …).
+    #[prop(optional, into)]
+    objects: Signal<Vec<Object>>,
+    /// The plan catalog, used to resolve each object's footprint.
+    #[prop(optional, into)]
+    catalog: Signal<Vec<CatalogItem>>,
     /// Nodes placed so far in the current placement gesture.
     #[prop(optional, into)]
     placed: Signal<Vec<Coord>>,
@@ -95,6 +101,19 @@ pub fn Yard(
             // change, so the <svg> stays put during a pointer gesture.
             {move || view! { <Deck t=t levels=deck.get() steps=steps.get() /> }}
             {move || view! { <House t=t corners=house.get() openings=openings.get() /> }}
+            {move || {
+                // Deck levels are the surfaces furniture should sit within (paver
+                // areas join them when that slice lands).
+                let surfaces = deck.get().into_iter().map(|l| l.corners).collect::<Vec<_>>();
+                view! {
+                    <Furnishings
+                        t=t
+                        objects=objects.get()
+                        catalog=catalog.get()
+                        surfaces=surfaces
+                    />
+                }
+            }}
             {move || view! { <Placement t=t placed=placed.get() preview=preview.get() /> }}
             <ScaleBar t=t baseline_y=baseline_y />
         </svg>

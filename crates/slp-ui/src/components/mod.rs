@@ -2,8 +2,10 @@
 //! `<name>.rs` + `<name>.stories.rs` (`stories` feature) + `<name>.tests.rs`
 //! (`cfg(test)`). Dotted file names use `#[path]` (not valid module idents).
 
+mod catalog_picker;
 mod deck;
 mod door;
+mod furnishings;
 mod grid;
 mod house;
 mod number_field;
@@ -19,8 +21,10 @@ mod window;
 mod yard;
 mod yard_controls;
 
+pub use catalog_picker::CatalogPicker;
 pub use deck::Deck;
 pub use door::Door;
+pub use furnishings::Furnishings;
 pub use grid::Grid;
 pub use house::House;
 pub use number_field::NumberField;
@@ -80,11 +84,17 @@ impl Transform {
 }
 
 #[cfg(feature = "stories")]
+#[path = "catalog_picker.stories.rs"]
+mod catalog_picker_stories;
+#[cfg(feature = "stories")]
 #[path = "deck.stories.rs"]
 mod deck_stories;
 #[cfg(feature = "stories")]
 #[path = "door.stories.rs"]
 mod door_stories;
+#[cfg(feature = "stories")]
+#[path = "furnishings.stories.rs"]
+mod furnishings_stories;
 #[cfg(feature = "stories")]
 #[path = "grid.stories.rs"]
 mod grid_stories;
@@ -137,6 +147,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(placement_stories::stories());
     s.extend(house_stories::stories());
     s.extend(deck_stories::stories());
+    s.extend(furnishings_stories::stories());
     s.extend(steps_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
@@ -148,17 +159,24 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(tool_button_stories::stories());
     s.extend(toggle_stories::stories());
     s.extend(number_field_stories::stories());
+    s.extend(catalog_picker_stories::stories());
     s.extend(tool_group_stories::stories());
     s.extend(yard_controls_stories::stories());
     s
 }
 
 #[cfg(test)]
+#[path = "catalog_picker.tests.rs"]
+mod catalog_picker_tests;
+#[cfg(test)]
 #[path = "deck.tests.rs"]
 mod deck_tests;
 #[cfg(test)]
 #[path = "door.tests.rs"]
 mod door_tests;
+#[cfg(test)]
+#[path = "furnishings.tests.rs"]
+mod furnishings_tests;
 #[cfg(test)]
 #[path = "grid.tests.rs"]
 mod grid_tests;

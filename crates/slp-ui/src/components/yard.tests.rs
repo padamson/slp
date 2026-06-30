@@ -1,7 +1,7 @@
 //! dokime component tests for `Yard`.
 
 use leptos::prelude::*;
-use slp_core::Coord;
+use slp_core::{CatalogItem, Coord, Object};
 
 use super::Yard;
 
@@ -41,5 +41,29 @@ fn renders_no_house_outline_by_default() {
     assert!(
         !html.contains(r#"class="house""#),
         "a yard with no house draws no outline"
+    );
+}
+
+#[test]
+fn renders_placed_furniture_inside_the_stage() {
+    let mut chair = CatalogItem::new("chair".to_string());
+    chair.width_ft = Some(2.0);
+    chair.depth_ft = Some(2.0);
+    let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! {
+            <Yard
+                yard_w=10.0
+                yard_d=10.0
+                px_ft=12.0
+                pad=40.0
+                objects=objects
+                catalog=vec![chair]
+            />
+        }
+    });
+    assert!(
+        html.contains(r#"class="furnishings""#),
+        "placed objects draw inside the yard stage"
     );
 }

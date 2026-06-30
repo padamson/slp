@@ -27,10 +27,49 @@ classes:
       - yard_depth
       - house
       - deck
+      - catalog
+      - objects
     slot_usage:
       yard_width:
         required: true
       yard_depth:
+        required: true
+
+  CatalogItem:
+    description: |-
+      A purchasable product the user has added to the plan's catalog. Objects
+      reference it by `id`. The footprint (`width_ft`/`depth_ft`) and `height_ft`
+      drive the 2D render and the future 3D view; `unit_price` drives cost.
+    slots:
+      - id
+      - name
+      - category
+      - unit_price
+      - width_ft
+      - depth_ft
+      - height_ft
+    slot_usage:
+      id:
+        required: true
+
+  Object:
+    description: |-
+      An item placed on the plan: a point at (`x`, `y`) in feet, rotated `rot`
+      degrees clockwise, referencing a catalog item by `catalog_ref`. `status`
+      controls whether it counts toward cost (planned counts; existing and
+      virtual do not), and defaults to planned when absent.
+    slots:
+      - catalog_ref
+      - x
+      - y
+      - rot
+      - status
+    slot_usage:
+      catalog_ref:
+        required: true
+      x:
+        required: true
+      y:
         required: true
 
   Deck:
@@ -130,6 +169,41 @@ slots:
     range: Deck
     inlined: true
     description: The deck outline, if the user has drawn one.
+  catalog:
+    range: CatalogItem
+    multivalued: true
+    inlined_as_list: true
+    description: Products the user has added, available to place onto the plan.
+  objects:
+    range: Object
+    multivalued: true
+    inlined_as_list: true
+    description: Items placed on the plan (furniture and, later, other objects).
+  id:
+    description: Stable identifier for a catalog item.
+  category:
+    description: Catalog category, e.g. "furniture".
+  unit_price:
+    range: double
+    description: Price per item, in dollars.
+  width_ft:
+    range: double
+    description: Footprint width, in feet.
+  depth_ft:
+    range: double
+    description: Footprint depth, in feet.
+  height_ft:
+    range: double
+    description: Item height, in feet (for the future 3D view).
+  catalog_ref:
+    description: Id of the catalog item this object places.
+  rot:
+    range: double
+    description: Rotation in degrees, clockwise from north.
+  status:
+    range: ItemStatus
+    ifabsent: ItemStatus(planned)
+    description: Cost status of a placed item; defaults to planned when absent.
   corners:
     range: Coord
     multivalued: true
@@ -192,3 +266,13 @@ enums:
         description: A doorway.
       window:
         description: A window.
+
+  ItemStatus:
+    description: Whether a placed item counts toward the cost take-off.
+    permissible_values:
+      planned:
+        description: A real item to purchase (counted).
+      existing:
+        description: Already in the yard; shown but not purchased (not counted).
+      virtual:
+        description: A what-if ghost at an alternate position (not counted).

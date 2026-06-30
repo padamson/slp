@@ -9,11 +9,11 @@
 
 use leptos::prelude::*;
 use slp_core::{
-    Commit, Coord, Deck, DeckLevel, House, Plan, StepRun, Tool, commit_kind, nearest_wall,
-    opening_from_nodes, snap_node,
+    CatalogItem, Commit, Coord, Deck, DeckLevel, House, Object, Plan, StepRun, Tool, commit_kind,
+    nearest_wall, opening_from_nodes, snap_node,
 };
 
-use super::{NumberField, Toggle, ToolButton, ToolGroup, Yard, YardControls};
+use super::{CatalogPicker, NumberField, Toggle, ToolButton, ToolGroup, Yard, YardControls};
 
 /// Pixels per foot in the SVG user space.
 const PX_FT: f64 = 12.0;
@@ -65,6 +65,17 @@ fn planner_body() -> impl IntoView {
         .unwrap_or_default();
     let deck = RwSignal::new(init_levels);
     let steps = RwSignal::new(init_steps);
+    // Placed objects + the catalog they reference. `selected_id` is the catalog
+    // item the furniture tool will drop; `seeded` guards the one-time starter
+    // catalog (see the seed effect below).
+    let init_catalog = plan.catalog;
+    let init_selected = init_catalog
+        .first()
+        .map_or_else(String::new, |c| c.id.clone());
+    let objects = RwSignal::new(plan.objects);
+    let catalog = RwSignal::new(init_catalog);
+    let selected_id = RwSignal::new(init_selected);
+    let seeded = RwSignal::new(false);
     // The elevation (ft) the next deck level is drawn at.
     let elevation = RwSignal::new(1.0_f64);
     // Placement engine state: the active tool, the nodes placed this gesture,
@@ -99,8 +110,24 @@ fn planner_body() -> impl IntoView {
             yard_depth: depth.get(),
             house,
             deck,
+            catalog: catalog.get(),
+            objects: objects.get(),
             ..Default::default()
         });
+    });
+
+    // Seed a starter furniture catalog the first time a deck is drawn — the
+    // surface furniture sits on. Guarded so it runs once and never fights a user
+    // who clears it; a loaded plan that already has a catalog is left alone.
+    Effect::new(move |_| {
+        if !deck.get().is_empty() && !seeded.get_untracked() && catalog.get_untracked().is_empty() {
+            let starter = starter_catalog();
+            if let Some(first) = starter.first() {
+                selected_id.set(first.id.clone());
+            }
+            catalog.set(starter);
+            seeded.set(true);
+        }
     });
 
     // Snap the cursor to where the next node would land, for the active tool.
@@ -156,6 +183,14 @@ fn planner_body() -> impl IntoView {
                     deck.update(|v| v.push(level));
                 } else {
                     corners.set(pl);
+                }
+                reset(tool, placed, preview);
+            }
+            Commit::FinishWith if tl == Tool::Furniture => {
+                // Drop the selected catalog item at the clicked point.
+                let id = selected_id.get_untracked();
+                if !id.is_empty() {
+                    objects.update(|v| v.push(Object::new(id, next.x, next.y)));
                 }
                 reset(tool, placed, preview);
             }
@@ -234,6 +269,30 @@ fn planner_body() -> impl IntoView {
                     step=0.5
                 />
             </ToolGroup>
+            // The furniture group appears once there's a catalog (seeded when a
+            // deck is drawn).
+            {move || {
+                (!catalog.get().is_empty())
+                    .then(|| {
+                        view! {
+                            <ToolGroup label="Furniture">
+                                {tool_btn(
+                                    tool,
+                                    pick,
+                                    Tool::Furniture,
+                                    "Place furniture",
+                                    "place-furniture",
+                                )}
+                                <CatalogPicker
+                                    testid="catalog-picker"
+                                    catalog=catalog
+                                    selected=Signal::derive(move || selected_id.get())
+                                    on_pick=Callback::new(move |id| selected_id.set(id))
+                                />
+                            </ToolGroup>
+                        }
+                    })
+            }}
             <ToolGroup label="Snap">
                 <Toggle
                     label="Snap to grid"
@@ -264,6 +323,8 @@ fn planner_body() -> impl IntoView {
                     deck=deck
                     steps=steps
                     openings=openings
+                    objects=objects
+                    catalog=catalog
                     placed=placed
                     preview=preview
                     on_hover=on_hover
@@ -318,7 +379,31 @@ fn hint(tool: Option<Tool>) -> &'static str {
         Some(Tool::Door) => "Click two points on a wall to place the door.",
         Some(Tool::Window) => "Click two points on a wall to place the window.",
         Some(Tool::Steps) => "Click two points on a deck edge to add steps.",
+        Some(Tool::Furniture) => "Click to place the selected item on the plan.",
     }
+}
+
+/// A small starter catalog of deck furniture, seeded the first time a deck is
+/// drawn. Plan data the user can place, ignore, or (once catalog editing lands)
+/// replace — not hardcoded geometry. Footprints are in feet, prices in dollars.
+fn starter_catalog() -> Vec<CatalogItem> {
+    let furniture = |id: &str, name: &str, w: f64, d: f64, h: f64, price: f64| {
+        let mut c = CatalogItem::new(id.to_string());
+        c.name = Some(name.to_string());
+        c.category = Some("furniture".to_string());
+        c.width_ft = Some(w);
+        c.depth_ft = Some(d);
+        c.height_ft = Some(h);
+        c.unit_price = Some(price);
+        c
+    };
+    vec![
+        furniture("lounge-chair", "Lounge chair", 2.5, 3.0, 2.5, 199.0),
+        furniture("outdoor-sofa", "Outdoor sofa", 7.0, 3.0, 2.5, 899.0),
+        furniture("dining-table", "Dining table", 4.0, 6.0, 2.5, 649.0),
+        furniture("side-table", "Side table", 1.5, 1.5, 1.5, 89.0),
+        furniture("patio-umbrella", "Patio umbrella", 9.0, 9.0, 8.0, 149.0),
+    ]
 }
 
 #[cfg(feature = "csr")]
