@@ -9,10 +9,15 @@ pub mod generated;
 pub mod geom;
 pub mod place;
 pub mod snap;
+pub mod takeoff;
 pub mod wall;
 
-pub use generated::slp::{Coord, Deck, DeckLevel, House, Opening, OpeningKind, Plan, StepRun};
+pub use generated::slp::{
+    CatalogItem, Coord, Deck, DeckLevel, House, ItemStatus, Object, Opening, OpeningKind, Plan,
+    StepRun,
+};
 pub use geom::{Point, area, point_in_polygon, polyline_length};
 pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node, step_outward, step_run};
 pub use snap::{snap_ortho, snap_to_grid};
+pub use takeoff::{BillOfMaterials, LineItem, take_off};
 pub use wall::{nearest_wall, opening_segment, point_along, project_onto};

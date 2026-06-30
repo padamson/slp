@@ -13,15 +13,15 @@ product, since the catalog and placements are saved in the plan, not hardcoded.
 
 ## Vertical slices
 
-- **E1.0 — catalog + cost engine (headless, `slp-core`)** 🚧 *model landed; cost engine next*
+- **E1.0 — catalog + cost engine (headless, `slp-core`)** ✅ *done*
   - [x] schema grows a `CatalogItem` (id, name, category, unit_price, footprint
         `width_ft`/`depth_ft`, `height_ft`) and an `Object` (catalog_ref, x, y,
         rot, status), wired into `Plan` as `catalog[]` + `objects[]`; generated
         into `slp-core` (the `virtual` status escapes to `r#virtual`, wire name
         unchanged)
-  - [ ] `ItemStatus` enum (planned / existing / virtual); take-off counts only
+  - [x] `ItemStatus` enum (planned / existing / virtual); take-off counts only
         **planned** (excludes existing + virtual), per the domain rule
-  - [ ] `takeoff::take_off(&Plan)` returns a bill of materials (per catalog item:
+  - [x] `takeoff::take_off(&Plan)` returns a bill of materials (per catalog item:
         qty, unit_price, line total) + grand total — a pure fn, unit + mutation
         tested; unresolved `catalog_ref`s are excluded
 - **E1.1 — place + render furniture**
