@@ -7,6 +7,7 @@
 
 pub mod generated;
 pub mod geom;
+pub mod pick;
 pub mod place;
 pub mod snap;
 pub mod takeoff;
@@ -19,6 +20,7 @@ pub use generated::slp::{
 pub use geom::{
     Point, area, footprint_corners, point_in_polygon, polyline_length, within_a_single,
 };
+pub use pick::object_at;
 pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node, step_outward, step_run};
 pub use snap::{snap_ortho, snap_to_grid};
 pub use takeoff::{BillOfMaterials, LineItem, take_off};
