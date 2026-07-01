@@ -10,6 +10,10 @@ use slp_core::{CatalogItem, Coord, DeckLevel, Object, Opening, StepRun};
 
 use super::{Deck, Furnishings, Grid, House, Placement, ScaleBar, Transform};
 
+/// Fixed strip (px) reserved below the grid for the scale bar, independent of
+/// the grid padding so the grid can sit flush to the canvas box.
+const SCALE_BAR_ROOM: f64 = 30.0;
+
 #[component]
 pub fn Yard(
     yard_w: f64,
@@ -52,7 +56,10 @@ pub fn Yard(
 ) -> impl IntoView {
     let t = Transform { px_ft, pad, yard_d };
     let w_px = t.sx(yard_w) + pad;
-    let h_px = t.sy(0.0) + pad;
+    // A fixed strip below the grid holds the scale bar; with pad = 0 (the app)
+    // the grid is otherwise flush to the canvas box, so its edges line up with
+    // the surrounding page layout.
+    let h_px = t.sy(0.0) + SCALE_BAR_ROOM;
     let view_box = format!("0 0 {w_px} {h_px}");
 
     let ground_x = t.sx(0.0);

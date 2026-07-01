@@ -31,8 +31,8 @@ product, since the catalog and placements are saved in the plan, not hardcoded.
   - [x] an object whose footprint isn't fully inside a single deck/paver surface
         is outlined in red, so it's obvious what doesn't fit (paver surfaces join
         the check when that slice lands)
-- **E1.2 — estimate panel**
-  - [ ] a side panel shows the BOM (line items + total), reacting live as
+- **E1.2 — estimate panel** ✅ *done*
+  - [x] a side panel shows the BOM (line items + total), reacting live as
         furniture is placed/removed
 - **E1.3 — status + rotation + e2e**
   - [ ] per-object **existing/virtual** toggle removes it from the estimate

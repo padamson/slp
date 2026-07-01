@@ -10,15 +10,18 @@
 use leptos::prelude::*;
 use slp_core::{
     CatalogItem, Commit, Coord, Deck, DeckLevel, House, Object, Plan, StepRun, Tool, commit_kind,
-    nearest_wall, opening_from_nodes, snap_node,
+    nearest_wall, opening_from_nodes, snap_node, take_off,
 };
 
-use super::{CatalogPicker, NumberField, Toggle, ToolButton, ToolGroup, Yard, YardControls};
+use super::{
+    CatalogPicker, EstimatePanel, NumberField, Toggle, ToolButton, ToolGroup, Yard, YardControls,
+};
 
 /// Pixels per foot in the SVG user space.
 const PX_FT: f64 = 12.0;
-/// Padding around the yard, in pixels.
-const PAD: f64 = 40.0;
+/// Grid padding (px). Zero in the app so the grid sits flush to its canvas box
+/// and lines up with the page layout; the scale bar has its own reserved strip.
+const PAD: f64 = 0.0;
 /// Default yard size in feet (first run, before anything is saved).
 const DEFAULT_W: f64 = 70.0;
 const DEFAULT_D: f64 = 30.0;
@@ -246,6 +249,17 @@ fn planner_body() -> impl IntoView {
     // One callback the tool buttons share; per-button derivations live in tool_btn.
     let pick = Callback::new(pick_tool);
 
+    // The live bill of materials for the placed objects — recomputed whenever the
+    // objects or catalog change, so the estimate panel reacts as furniture is
+    // placed or removed.
+    let bom = Signal::derive(move || {
+        take_off(&Plan {
+            catalog: catalog.get(),
+            objects: objects.get(),
+            ..Default::default()
+        })
+    });
+
     view! {
         <header>
             <h1>"Simple Landscape Planner"</h1>
@@ -309,30 +323,36 @@ fn planner_body() -> impl IntoView {
             </ToolGroup>
         </div>
         <p class="hint" data-testid="hint">{move || hint(tool.get())}</p>
-        // Recreate the stage only when the yard size changes; the plan, the
-        // placement, and the preview are read reactively inside Yard, so the
-        // <svg> persists during a pointer gesture.
-        {move || {
-            view! {
-                <Yard
-                    yard_w=width.get()
-                    yard_d=depth.get()
-                    px_ft=PX_FT
-                    pad=PAD
-                    house=corners
-                    deck=deck
-                    steps=steps
-                    openings=openings
-                    objects=objects
-                    catalog=catalog
-                    placed=placed
-                    preview=preview
-                    on_hover=on_hover
-                    on_commit=on_commit
-                    on_leave=on_leave
-                />
-            }
-        }}
+        <div class="stage">
+            <div class="canvas">
+                // Recreate the canvas only when the yard size changes; the plan,
+                // the placement, and the preview are read reactively inside Yard,
+                // so the <svg> persists during a pointer gesture.
+                {move || {
+                    view! {
+                        <Yard
+                            yard_w=width.get()
+                            yard_d=depth.get()
+                            px_ft=PX_FT
+                            pad=PAD
+                            house=corners
+                            deck=deck
+                            steps=steps
+                            openings=openings
+                            objects=objects
+                            catalog=catalog
+                            placed=placed
+                            preview=preview
+                            on_hover=on_hover
+                            on_commit=on_commit
+                            on_leave=on_leave
+                        />
+                    }
+                }}
+            </div>
+            // The estimate appears alongside the canvas once there's a catalog.
+            {move || { (!catalog.get().is_empty()).then(|| view! { <EstimatePanel bom=bom /> }) }}
+        </div>
     }
 }
 

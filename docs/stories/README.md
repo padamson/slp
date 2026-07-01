@@ -48,7 +48,7 @@ cross-cutting machinery folded into that point in the sequence.
 | F1 | *Enabler:* select / move / reshape / delete | _doc pending_ | backlog |
 | G1 | *Enabler:* save/load `.slp.json` | _doc pending_ | backlog |
 | M1–M3 | *Enabler:* materials/catalog + cost engine (folded into E1) | [E1](E1-place-furniture.md) | ✅ cost engine (headless) |
-| E1 | Place deck furniture (look + cost) | [E1](E1-place-furniture.md) | 🚧 place + render done; estimate panel next |
+| E1 | Place deck furniture (look + cost) | [E1](E1-place-furniture.md) | 🚧 estimate panel done; status/rotation + e2e next |
 | D2 | Fire pit | _doc pending_ | backlog |
 | D1 | Trees | _doc pending_ | backlog |
 | B4 | Draw mulch beds; mulch volume/cost | _doc pending_ | backlog |

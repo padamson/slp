@@ -110,6 +110,91 @@
         font-size: 12px;
         color: #8a8275;
       }
+      /* Catalog picker select, in the toolbar. */
+      .tools .catalog-picker {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 13px;
+        color: #6b6557;
+      }
+      .tools .catalog-picker select {
+        font: inherit;
+        font-size: 13px;
+        padding: 3px 6px;
+        border: 1px solid #e3dccb;
+        border-radius: 7px;
+        background: #fff;
+      }
+      /* Canvas + estimate, side by side — the estimate wraps below the canvas
+         when the window is too narrow to keep the canvas at a usable width. */
+      .stage {
+        display: flex;
+        flex-wrap: wrap;
+        /* Grid ↔ estimate gap matches the page's side margin. */
+        gap: 22px;
+        align-items: flex-start;
+        padding: 0 22px 16px;
+      }
+      .canvas {
+        flex: 1 1 360px;
+        /* Keep a usable canvas width; below this the estimate wraps below
+           rather than the grid being squished. Never exceed the row. */
+        min-width: min(360px, 100%);
+        margin: 8px 0;
+      }
+      /* The canvas is a plain block flex item so the SVG fills it predictably,
+         instead of the SVG being sized by its own intrinsic aspect ratio. */
+      .canvas svg#yard {
+        display: block;
+        width: 100%;
+        height: auto;
+        margin: 0;
+      }
+      /* Estimate side panel. */
+      .estimate {
+        flex: 0 0 240px;
+        margin-top: 8px;
+        padding: 10px 14px;
+        border: 1px solid #e3dccb;
+        border-radius: 10px;
+        background: #fff;
+        font-size: 13px;
+      }
+      .estimate h2 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+      .estimate table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .estimate th {
+        text-align: left;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #8a8275;
+        font-weight: 600;
+        padding-bottom: 4px;
+      }
+      .estimate td {
+        padding: 3px 0;
+      }
+      .estimate .estimate-qty,
+      .estimate .estimate-unit,
+      .estimate .estimate-line {
+        text-align: right;
+      }
+      .estimate .estimate-grand td {
+        border-top: 1px solid #e3dccb;
+        padding-top: 6px;
+        font-weight: 600;
+      }
+      .estimate-empty {
+        margin: 0;
+        color: #8a8275;
+      }
     </style>
   </head>
   <body></body>
