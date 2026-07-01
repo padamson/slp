@@ -65,7 +65,7 @@ async fn draws_and_persists_the_house_outline() -> Result<()> {
         .context("the closed outline has four corners")?;
 
     // Snapping is on by default → the outline polygon's coordinates are whole
-    // user-space px (40 + 12·feet).
+    // user-space px (12·feet; the grid is flush to the canvas, no padding).
     let points = page
         .locator("[data-testid='yard'] .house polygon")
         .await
@@ -118,13 +118,14 @@ async fn holds_to_adjust_and_drops_on_release() -> Result<()> {
         .context("measure the yard")?
         .context("yard has a bounding box")?;
 
-    // Default 70 ft yard → viewBox width = 70·12 + 2·40 = 920. Map a page-x to
-    // the snapped SVG user-space x a dropped node would get (grid step 1 ft).
-    let scale = 920.0 / bbox.width;
+    // Default 70 ft yard → viewBox width = 70·12 = 840 (grid flush to the canvas,
+    // no padding). Map a page-x to the snapped SVG user-space x a dropped node
+    // would get (grid step 1 ft).
+    let scale = 840.0 / bbox.width;
     let snapped_cx = |page_x: f64| -> f64 {
         let ux = (page_x - bbox.x) * scale;
-        let feet = ((ux - 40.0) / 12.0).round();
-        40.0 + feet * 12.0
+        let feet = (ux / 12.0).round();
+        feet * 12.0
     };
 
     // Press at A, drag to B, release at B — the node drops at B.
