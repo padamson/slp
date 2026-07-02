@@ -101,6 +101,18 @@ pub fn footprint_corners(cx: f64, cy: f64, w: f64, d: f64, rot_deg: f64) -> [Poi
     ]
 }
 
+/// The heading from `center` to `to`, in degrees **clockwise from north** —
+/// north is 0°, east 90°, south 180°, west 270°. Matches the rotation sense of
+/// [`footprint_corners`], so dragging a handle to a point and setting `rot` to
+/// this heading turns the object's north edge toward that point. `center == to`
+/// yields 0°.
+#[must_use]
+pub fn heading(center: Point, to: Point) -> f64 {
+    let east = to.x - center.x;
+    let north = to.y - center.y;
+    east.atan2(north).to_degrees().rem_euclid(360.0)
+}
+
 /// Whether every point of `pts` lies inside one and the same polygon among
 /// `surfaces` — i.e. the footprint is fully contained in a *single* area.
 /// A footprint that touches/crosses a boundary, sits off every surface, or
@@ -237,6 +249,30 @@ mod tests {
             "SW → due west: {:?}",
             c[0]
         );
+    }
+
+    #[test]
+    fn heading_is_clockwise_from_north() {
+        let c = Point::new(2.0, 3.0);
+        // N, E, S, W of the center → 0, 90, 180, 270.
+        assert!(
+            (heading(c, Point::new(2.0, 9.0)) - 0.0).abs() < 1e-9,
+            "north"
+        );
+        assert!(
+            (heading(c, Point::new(9.0, 3.0)) - 90.0).abs() < 1e-9,
+            "east"
+        );
+        assert!(
+            (heading(c, Point::new(2.0, -1.0)) - 180.0).abs() < 1e-9,
+            "south"
+        );
+        assert!(
+            (heading(c, Point::new(-1.0, 3.0)) - 270.0).abs() < 1e-9,
+            "west"
+        );
+        // A degenerate (center == to) is 0, not NaN.
+        assert!((heading(c, c) - 0.0).abs() < 1e-9, "self → 0");
     }
 
     #[test]

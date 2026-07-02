@@ -5,6 +5,7 @@
 //! it can be unit- and mutation-tested fast on the native target, independent of
 //! the UI — keeping the math separate from the DOM.
 
+pub mod corner;
 pub mod generated;
 pub mod geom;
 pub mod pick;
@@ -13,12 +14,13 @@ pub mod snap;
 pub mod takeoff;
 pub mod wall;
 
+pub use corner::{Corner, free_corner};
 pub use generated::slp::{
     CatalogItem, Coord, Deck, DeckLevel, House, ItemStatus, Object, Opening, OpeningKind, Plan,
     StepRun,
 };
 pub use geom::{
-    Point, area, footprint_corners, point_in_polygon, polyline_length, within_a_single,
+    Point, area, footprint_corners, heading, point_in_polygon, polyline_length, within_a_single,
 };
 pub use pick::object_at;
 pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node, step_outward, step_run};
