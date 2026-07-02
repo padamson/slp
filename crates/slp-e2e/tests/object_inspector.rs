@@ -1,8 +1,9 @@
 //! E1.3 e2e: the object-inspector window floats in the first *empty* yard corner
-//! (priority NW → SW → NE → SE, falling back to NW when all are occupied). We
-//! draw a central deck (which seeds the furniture catalog), place a target chair
-//! in the middle, then fill corners one at a time and re-select the target,
-//! asserting the window hops to the next free corner each time.
+//! (priority NE → NW → SE → SW, falling back to NE when all are occupied), plus
+//! the drag-to-rotate handle. We draw a central deck (which seeds the furniture
+//! catalog), place a target chair in the middle, then fill corners one at a time
+//! and re-select the target, asserting the window hops to the next free corner
+//! each time; and separately, drag the selected object's handle to rotate it.
 //!
 //! Build the app first, then run:
 //!   (cd crates/slp-app && trunk build)
@@ -148,6 +149,84 @@ async fn inspector_floats_in_the_first_empty_corner() -> Result<()> {
     place(&page, &yard, ppf, 5.0, 5.0).await?;
     click_ft(&yard, ppf, tx, ty).await?;
     assert_corner(&page, "ne").await?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn dragging_the_handle_rotates_the_object() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        return Ok(());
+    }
+
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = browser.new_page().await.context("new page")?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    let yard = page.locator("[data-testid='yard']").await;
+    let ppf = measure_ppf(&yard).await?;
+
+    // Draw a central deck to seed the catalog.
+    page.locator("[data-testid='draw-deck']")
+        .await
+        .click(None)
+        .await
+        .context("arm the deck tool")?;
+    let deck = [(28.0, 12.0), (42.0, 12.0), (42.0, 18.0), (28.0, 18.0)];
+    for (fx, fy) in deck {
+        click_ft(&yard, ppf, fx, fy).await?;
+    }
+    click_ft(&yard, ppf, deck[0].0, deck[0].1).await?; // snap-close
+    expect(page.locator("[data-testid='yard'] .deck polygon").await)
+        .to_have_count(1)
+        .await
+        .context("the deck is drawn")?;
+
+    // Re-measure after the estimate panel appears, and grab the yard's screen box.
+    let ppf = measure_ppf(&yard).await?;
+    let BoundingBox { x, y, .. } = yard
+        .bounding_box()
+        .await
+        .context("measure the yard")?
+        .context("yard has a bounding box")?;
+
+    // Place a chair in the middle and select it.
+    let (cx_ft, cy_ft) = (35.0, 15.0);
+    place(&page, &yard, ppf, cx_ft, cy_ft).await?;
+    click_ft(&yard, ppf, cx_ft, cy_ft).await?; // select
+    expect(page.locator("[data-testid='yard'] .furniture-item[transform*='rotate(0)']").await)
+        .to_have_count(1)
+        .await
+        .context("the object starts un-rotated")?;
+
+    // Grab the rotation handle and drag due east of the object's center — its
+    // north edge turns to face the cursor, which snaps to 90°.
+    page.locator("[data-testid='rotate-handle']")
+        .await
+        .hover(None)
+        .await
+        .context("hover the rotation handle")?;
+    let mouse = page.mouse();
+    mouse.down(None).await.context("press the handle")?;
+    let center_x = x + cx_ft * ppf;
+    let center_y = y + (YARD_D - cy_ft) * ppf;
+    mouse
+        .move_to((center_x + 120.0) as i32, center_y as i32, None)
+        .await
+        .context("drag east")?;
+    mouse.up(None).await.context("release")?;
+
+    expect(page.locator("[data-testid='yard'] .furniture-item[transform*='rotate(90)']").await)
+        .to_have_count(1)
+        .await
+        .context("dragging the handle east rotates the object to 90°")?;
 
     browser.close().await.context("close browser")?;
     Ok(())

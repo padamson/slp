@@ -32,6 +32,13 @@
         touch-action: none;
         user-select: none;
       }
+      /* Rotation handle on the selected object — grab to turn it. */
+      .rotate-handle {
+        cursor: grab;
+      }
+      .rotate-handle:active {
+        cursor: grabbing;
+      }
       .yard-controls {
         display: flex;
         gap: 18px;

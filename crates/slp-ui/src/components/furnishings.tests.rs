@@ -168,6 +168,32 @@ fn the_selected_object_is_highlighted() {
 }
 
 #[test]
+fn the_selected_object_shows_a_rotation_handle() {
+    let catalog = vec![item("chair", Some(2.0), Some(2.0))];
+    let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(0) /> }
+    });
+    assert!(
+        html.contains(r#"data-testid="rotate-handle""#),
+        "the selected object carries a rotation handle"
+    );
+}
+
+#[test]
+fn unselected_objects_have_no_rotation_handle() {
+    let catalog = vec![item("chair", Some(2.0), Some(2.0))];
+    let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog /> }
+    });
+    assert!(
+        !html.contains("rotate-handle"),
+        "no handle without a selection"
+    );
+}
+
+#[test]
 fn no_surfaces_means_no_fit_check() {
     // Without surfaces there is nothing to fit within, so nothing is highlighted.
     let catalog = vec![item("chair", Some(4.0), Some(4.0))];

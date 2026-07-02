@@ -34,10 +34,20 @@ product, since the catalog and placements are saved in the plan, not hardcoded.
 - **E1.2 — estimate panel** ✅ *done*
   - [x] a side panel shows the BOM (line items + total), reacting live as
         furniture is placed/removed
-- **E1.3 — status + rotation + e2e**
-  - [ ] per-object **existing/virtual** toggle removes it from the estimate
-  - [ ] rotate a placed object; footprint reflects `rot`
-  - [ ] e2e: place furniture → footprint renders + estimate updates
+- **E1.3 — select + inspect + rotate + e2e** ✅ *done*
+  - [x] click a placed object to select it (`slp_core::pick::object_at` hit-tests
+        topmost footprint); the selected object shows a selection tint
+  - [x] a floating **object inspector** appears in the first empty yard corner
+        (priority NE → NW → SE → SW, fallback NE — `slp_core::corner::free_corner`
+        over the placed points; corner measured against the grid's rendered
+        screen-rect, computed once per mount/resize as `CanvasMetrics`)
+  - [x] the inspector shows the object's metadata + a **planned/existing/virtual**
+        status toggle; existing/virtual drop it from the estimate
+  - [x] a **drag-to-rotate handle** on the selected object turns it (free rotation;
+        snaps to 15° when "Snap to grid" is on) via `slp_core::geom::heading`;
+        a **Reset** button zeroes the rotation
+  - [x] e2e: inspector hops through all four corners by the placement rules;
+        dragging the handle east rotates the object to 90°
 
 ## Notes / refs
 

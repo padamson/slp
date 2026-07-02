@@ -59,6 +59,9 @@ pub fn Yard(
     /// Report the canvas's rendered geometry, measured on mount + window resize.
     #[prop(optional)]
     on_metrics: Option<Callback<CanvasMetrics>>,
+    /// The selected object's rotation handle was pressed — start a rotate drag.
+    #[prop(optional)]
+    on_handle_press: Option<Callback<()>>,
 ) -> impl IntoView {
     let t = Transform { px_ft, pad, yard_d };
     let w_px = t.sx(yard_w) + pad;
@@ -144,6 +147,7 @@ pub fn Yard(
                         catalog=catalog.get()
                         surfaces=surfaces
                         selected=selected.get()
+                        on_handle_press=on_handle_press
                     />
                 }
             }}

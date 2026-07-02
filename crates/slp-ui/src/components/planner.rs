@@ -10,7 +10,8 @@
 use leptos::prelude::*;
 use slp_core::{
     CatalogItem, Commit, Coord, Corner, Deck, DeckLevel, House, Object, Plan, Point, StepRun, Tool,
-    commit_kind, free_corner, nearest_wall, object_at, opening_from_nodes, snap_node, take_off,
+    commit_kind, free_corner, heading, nearest_wall, object_at, opening_from_nodes, snap_node,
+    take_off,
 };
 
 use super::{
@@ -28,6 +29,8 @@ const DEFAULT_W: f64 = 70.0;
 const DEFAULT_D: f64 = 30.0;
 /// Grid step (ft) that nodes snap to when grid-snap is on (matches the minor grid).
 const GRID_STEP: f64 = 1.0;
+/// Rotation snap increment (degrees) when grid-snap is on.
+const ROT_STEP: f64 = 15.0;
 /// Approximate footprint (px) of the object-inspector window, converted to feet
 /// via the measured px-per-foot to judge which yard corner is empty enough for it.
 const INSPECTOR_W_PX: f64 = 210.0;
@@ -90,6 +93,8 @@ fn planner_body() -> impl IntoView {
     let selected = RwSignal::new(None::<usize>);
     // The canvas's rendered geometry, measured once per resize (from Yard).
     let metrics = RwSignal::new(CanvasMetrics::default());
+    // True while dragging the selected object's rotation handle.
+    let rotating = RwSignal::new(false);
     // The elevation (ft) the next deck level is drawn at.
     let elevation = RwSignal::new(1.0_f64);
     // Placement engine state: the active tool, the nodes placed this gesture,
@@ -170,8 +175,23 @@ fn planner_body() -> impl IntoView {
         )
     };
 
-    // Pointer move → preview the next node.
+    // Pointer move → rotate the selected object toward the cursor while its handle
+    // is held, otherwise preview the next node.
     let on_hover = Callback::new(move |raw: Coord| {
+        if rotating.get_untracked() {
+            if let Some(i) = selected.get_untracked() {
+                objects.update(|v| {
+                    if let Some(o) = v.get_mut(i) {
+                        let mut deg = heading(Point::new(o.x, o.y), Point::new(raw.x, raw.y));
+                        if grid_snap.get_untracked() {
+                            deg = ((deg / ROT_STEP).round() * ROT_STEP).rem_euclid(360.0);
+                        }
+                        o.rot = Some(deg);
+                    }
+                });
+            }
+            return;
+        }
         if let Some(tl) = tool.get_untracked() {
             preview.set(Some(snap(tl, &raw)));
         }
@@ -179,6 +199,11 @@ fn planner_body() -> impl IntoView {
 
     // Pointer release → commit a node (or close / finish the object).
     let on_commit = Callback::new(move |raw: Coord| {
+        // Releasing after a rotate-handle drag just ends the gesture.
+        if rotating.get_untracked() {
+            rotating.set(false);
+            return;
+        }
         let Some(tl) = tool.get_untracked() else {
             // No tool armed: a click selects the object under the cursor, or
             // clears the selection when it lands on empty space.
@@ -367,6 +392,7 @@ fn planner_body() -> impl IntoView {
                             on_commit=on_commit
                             on_leave=on_leave
                             on_metrics=Callback::new(move |m| metrics.set(m))
+                            on_handle_press=Callback::new(move |()| rotating.set(true))
                         />
                     }
                 }}

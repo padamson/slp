@@ -22,6 +22,10 @@ use super::Transform;
 /// Fallback footprint side (ft) when a catalog item carries no dimensions, so a
 /// placed object is still visible and selectable.
 const DEFAULT_FT: f64 = 1.0;
+/// Rotation-handle geometry (viewBox px): gap from the footprint's north edge to
+/// the handle, and the handle's radius.
+const HANDLE_GAP_PX: f64 = 12.0;
+const HANDLE_R: f64 = 5.0;
 
 #[component]
 pub fn Furnishings(
@@ -35,9 +39,12 @@ pub fn Furnishings(
     #[prop(optional)]
     surfaces: Vec<Vec<Coord>>,
     /// The index (into `objects`) of the currently selected object, if any — it
-    /// renders with a selection tint.
+    /// renders with a selection tint and a rotation handle.
     #[prop(default = None)]
     selected: Option<usize>,
+    /// The rotation handle was pressed — start a rotate gesture.
+    #[prop(default = None)]
+    on_handle_press: Option<Callback<()>>,
 ) -> impl IntoView {
     // Resolve each catalog id to its footprint (consuming the catalog). One pass
     // instead of a linear scan per object; the object's `rot`/position handle the
@@ -93,6 +100,26 @@ pub fn Furnishings(
             };
             let (w_px, d_px) = (w_ft * t.px_ft, d_ft * t.px_ft);
             let transform = format!("translate({},{}) rotate({})", t.sx(obj.x), t.sy(obj.y), rot);
+            // The rotation handle rides inside the rotated group (local north is
+            // -y), so it turns with the object; pressing it starts a rotate drag.
+            let handle = is_selected.then(|| {
+                let stem = d_px / 2.0 + HANDLE_GAP_PX;
+                view! {
+                    <g
+                        class="rotate-handle"
+                        data-testid="rotate-handle"
+                        on:mousedown=move |ev: leptos::ev::MouseEvent| {
+                            ev.stop_propagation();
+                            if let Some(cb) = on_handle_press {
+                                cb.run(());
+                            }
+                        }
+                    >
+                        <line x1="0" y1="0" x2="0" y2=-stem stroke="#2b6cb0" stroke-width="1" />
+                        <circle cx="0" cy=-stem r=HANDLE_R fill="#2b6cb0" />
+                    </g>
+                }
+            });
             Some(view! {
                 <g class=class transform=transform>
                     <rect
@@ -105,6 +132,7 @@ pub fn Furnishings(
                         stroke=stroke
                         stroke-width=stroke_w
                     />
+                    {handle}
                 </g>
             })
         })
