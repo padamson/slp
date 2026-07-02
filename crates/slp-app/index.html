@@ -137,11 +137,76 @@
         padding: 0 22px 16px;
       }
       .canvas {
+        position: relative; /* the object inspector floats in its corners */
         flex: 1 1 360px;
         /* Keep a usable canvas width; below this the estimate wraps below
            rather than the grid being squished. Never exceed the row. */
         min-width: min(360px, 100%);
         margin: 8px 0;
+      }
+      /* Object inspector: floats in an empty corner of the canvas when a placed
+         object is selected. */
+      .object-inspector {
+        /* Fixed to the viewport; top/left are set inline from the measured grid
+           screen-rect so the window sits exactly inside the grid corner. */
+        position: fixed;
+        width: 190px;
+        padding: 8px 12px 10px;
+        background: #fff;
+        border: 1px solid #e3dccb;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(60, 50, 30, 0.12);
+        font-size: 12px;
+      }
+      .inspector-name {
+        margin: 0 0 6px;
+        font-size: 13px;
+      }
+      .inspector-meta {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 2px 10px;
+        margin: 0;
+      }
+      .inspector-meta dt {
+        color: #8a8275;
+      }
+      .inspector-meta dd {
+        margin: 0;
+      }
+      .inspector-reset {
+        margin-left: 8px;
+        font: inherit;
+        font-size: 11px;
+        padding: 1px 6px;
+        border: 1px solid #e3dccb;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+      }
+      .inspector-status {
+        display: flex;
+        gap: 4px;
+        margin-top: 8px;
+      }
+      .inspector-status .status-btn {
+        flex: 1;
+        font: inherit;
+        font-size: 12px;
+        padding: 3px 4px;
+        border: 1px solid #e3dccb;
+        border-radius: 7px;
+        background: #fff;
+        color: inherit;
+        cursor: pointer;
+      }
+      .inspector-status .status-btn:hover {
+        background: #efe9dc;
+      }
+      .inspector-status .status-btn.active {
+        background: #2b6cb0;
+        color: #fff;
+        border-color: #2b6cb0;
       }
       /* The canvas is a plain block flex item so the SVG fills it predictably,
          instead of the SVG being sized by its own intrinsic aspect ratio. */

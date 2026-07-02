@@ -8,7 +8,7 @@
 use leptos::prelude::*;
 use slp_core::{CatalogItem, Coord, DeckLevel, Object, Opening, StepRun};
 
-use super::{Deck, Furnishings, Grid, House, Placement, ScaleBar, Transform};
+use super::{CanvasMetrics, Deck, Furnishings, Grid, House, Placement, ScaleBar, Transform};
 
 /// Fixed strip (px) reserved below the grid for the scale bar, independent of
 /// the grid padding so the grid can sit flush to the canvas box.
@@ -56,6 +56,9 @@ pub fn Yard(
     /// Pointer left the stage — clear the preview.
     #[prop(optional)]
     on_leave: Option<Callback<()>>,
+    /// Report the canvas's rendered geometry, measured on mount + window resize.
+    #[prop(optional)]
+    on_metrics: Option<Callback<CanvasMetrics>>,
 ) -> impl IntoView {
     let t = Transform { px_ft, pad, yard_d };
     let w_px = t.sx(yard_w) + pad;
@@ -86,6 +89,25 @@ pub fn Yard(
             cb.run(());
         }
     };
+
+    // Measure the rendered canvas once it's laid out, and on every window resize,
+    // reporting it upward so consumers position against one measured value.
+    #[cfg(feature = "csr")]
+    if let Some(cb) = on_metrics {
+        let emit = move || {
+            if let Some(m) = measure_canvas(w_px, px_ft) {
+                cb.run(m);
+            }
+        };
+        Effect::new(move |_| {
+            emit();
+            let handle =
+                leptos::prelude::window_event_listener(leptos::ev::resize, move |_| emit());
+            on_cleanup(move || handle.remove());
+        });
+    }
+    #[cfg(not(feature = "csr"))]
+    let _ = on_metrics;
 
     view! {
         <svg
@@ -153,4 +175,23 @@ fn pick_feet(ev: &leptos::ev::MouseEvent, t: Transform, w_px: f64) -> Option<Coo
 #[cfg(not(feature = "csr"))]
 fn pick_feet(_ev: &leptos::ev::MouseEvent, _t: Transform, _w_px: f64) -> Option<Coord> {
     None
+}
+
+/// Measure the rendered `#yard` SVG into [`CanvasMetrics`]. `w_px`/`px_ft` are the
+/// viewBox width and viewBox px-per-foot, used to convert the measured pixel size
+/// into a rendered scale. Browser-only.
+#[cfg(feature = "csr")]
+fn measure_canvas(w_px: f64, px_ft: f64) -> Option<CanvasMetrics> {
+    let svg = web_sys::window()?.document()?.get_element_by_id("yard")?;
+    let rect = svg.get_bounding_client_rect();
+    if rect.width() <= 0.0 {
+        return None;
+    }
+    let scale = rect.width() / w_px; // rendered px per viewBox px
+    Some(CanvasMetrics {
+        left: rect.left(),
+        top: rect.top(),
+        px_ft: px_ft * scale,
+        strip_px: SCALE_BAR_ROOM * scale,
+    })
 }

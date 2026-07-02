@@ -9,12 +9,13 @@
 
 use leptos::prelude::*;
 use slp_core::{
-    CatalogItem, Commit, Coord, Deck, DeckLevel, House, Object, Plan, Point, StepRun, Tool,
-    commit_kind, nearest_wall, object_at, opening_from_nodes, snap_node, take_off,
+    CatalogItem, Commit, Coord, Corner, Deck, DeckLevel, House, Object, Plan, Point, StepRun, Tool,
+    commit_kind, free_corner, nearest_wall, object_at, opening_from_nodes, snap_node, take_off,
 };
 
 use super::{
-    CatalogPicker, EstimatePanel, NumberField, Toggle, ToolButton, ToolGroup, Yard, YardControls,
+    CanvasMetrics, CatalogPicker, EstimatePanel, NumberField, ObjectInspector, Toggle, ToolButton,
+    ToolGroup, Yard, YardControls,
 };
 
 /// Pixels per foot in the SVG user space.
@@ -27,6 +28,12 @@ const DEFAULT_W: f64 = 70.0;
 const DEFAULT_D: f64 = 30.0;
 /// Grid step (ft) that nodes snap to when grid-snap is on (matches the minor grid).
 const GRID_STEP: f64 = 1.0;
+/// Approximate footprint (px) of the object-inspector window, converted to feet
+/// via the measured px-per-foot to judge which yard corner is empty enough for it.
+const INSPECTOR_W_PX: f64 = 210.0;
+const INSPECTOR_H_PX: f64 = 190.0;
+/// Inset (px) of the inspector window from the grid corner.
+const INSPECTOR_MARGIN_PX: f64 = 10.0;
 /// `localStorage` key for the persisted plan (only used in the browser build).
 #[cfg(feature = "csr")]
 const STORAGE_KEY: &str = "slp:plan";
@@ -81,6 +88,8 @@ fn planner_body() -> impl IntoView {
     let seeded = RwSignal::new(false);
     // The index (into `objects`) of the selected placed object, if any.
     let selected = RwSignal::new(None::<usize>);
+    // The canvas's rendered geometry, measured once per resize (from Yard).
+    let metrics = RwSignal::new(CanvasMetrics::default());
     // The elevation (ft) the next deck level is drawn at.
     let elevation = RwSignal::new(1.0_f64);
     // Placement engine state: the active tool, the nodes placed this gesture,
@@ -357,8 +366,87 @@ fn planner_body() -> impl IntoView {
                             on_hover=on_hover
                             on_commit=on_commit
                             on_leave=on_leave
+                            on_metrics=Callback::new(move |m| metrics.set(m))
                         />
                     }
+                }}
+                // When an object is selected, float its inspector in the first
+                // empty corner of the canvas.
+                {move || {
+                    let objs = objects.get();
+                    let i = selected.get()?;
+                    let object = objs.get(i)?.clone();
+                    let item = catalog.get().iter().find(|c| c.id == object.catalog_ref).cloned();
+                    let m = metrics.get();
+                    // Pick the corner in world feet, sizing the probe to the
+                    // window's real footprint via the measured px-per-foot.
+                    let corner = if m.px_ft > 0.0 {
+                        // Content the window should avoid: house + deck vertices
+                        // and object centers.
+                        let mut points: Vec<Point> =
+                            corners.get().iter().map(|c| Point::new(c.x, c.y)).collect();
+                        points.extend(
+                            deck.get()
+                                .iter()
+                                .flat_map(|l| l.corners.iter().map(|c| Point::new(c.x, c.y))),
+                        );
+                        points.extend(objs.iter().map(|o| Point::new(o.x, o.y)));
+                        free_corner(
+                            &points,
+                            width.get(),
+                            depth.get(),
+                            INSPECTOR_W_PX / m.px_ft,
+                            INSPECTOR_H_PX / m.px_ft,
+                        )
+                    } else {
+                        Corner::Nw
+                    };
+                    // The grid's screen rect (viewport px) from the measured
+                    // metrics; the window is fixed-positioned exactly inside the
+                    // chosen corner (the grid excludes the scale-bar strip, so
+                    // bottom corners clear it).
+                    let mgn = INSPECTOR_MARGIN_PX;
+                    let grid_w = width.get() * m.px_ft;
+                    let grid_h = depth.get() * m.px_ft;
+                    let (left_edge, right_edge) = (m.left + mgn, m.left + grid_w - INSPECTOR_W_PX - mgn);
+                    let (top_edge, bottom_edge) = (m.top + mgn, m.top + grid_h - INSPECTOR_H_PX - mgn);
+                    let (top, left) = match corner {
+                        Corner::Nw => (top_edge, left_edge),
+                        Corner::Ne => (top_edge, right_edge),
+                        Corner::Sw => (bottom_edge, left_edge),
+                        Corner::Se => (bottom_edge, right_edge),
+                    };
+                    let style = format!("top: {top}px; left: {left}px;");
+                    Some(
+                        view! {
+                            <ObjectInspector
+                                object=object
+                                item=item
+                                corner=corner
+                                style=style
+                                on_status=Callback::new(move |s| {
+                                    if let Some(i) = selected.get_untracked() {
+                                        objects
+                                            .update(|v| {
+                                                if let Some(o) = v.get_mut(i) {
+                                                    o.status = s;
+                                                }
+                                            });
+                                    }
+                                })
+                                on_reset_rotation=Callback::new(move |()| {
+                                    if let Some(i) = selected.get_untracked() {
+                                        objects
+                                            .update(|v| {
+                                                if let Some(o) = v.get_mut(i) {
+                                                    o.rot = Some(0.0);
+                                                }
+                                            });
+                                    }
+                                })
+                            />
+                        },
+                    )
                 }}
             </div>
             // The estimate appears alongside the canvas once there's a catalog.

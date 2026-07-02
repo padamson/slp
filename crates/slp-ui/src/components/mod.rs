@@ -10,6 +10,7 @@ mod furnishings;
 mod grid;
 mod house;
 mod number_field;
+mod object_inspector;
 mod placement;
 mod planner;
 mod scale_bar;
@@ -30,6 +31,7 @@ pub use furnishings::Furnishings;
 pub use grid::Grid;
 pub use house::House;
 pub use number_field::NumberField;
+pub use object_inspector::ObjectInspector;
 pub use placement::Placement;
 pub use planner::Planner;
 pub use scale_bar::ScaleBar;
@@ -85,6 +87,22 @@ impl Transform {
     }
 }
 
+/// The canvas's rendered geometry, measured once per resize so consumers (the
+/// object inspector's placement, the corner probe, …) read one shared value
+/// instead of each re-measuring the DOM. Screen-space, so it lives in the UI —
+/// the headless `Plan` stays world-coordinate.
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
+pub struct CanvasMetrics {
+    /// SVG screen-space origin (px): the yard's NW corner (north is up).
+    pub left: f64,
+    pub top: f64,
+    /// Rendered pixels per foot.
+    pub px_ft: f64,
+    /// Rendered height (px) of the scale-bar strip below the grid, so bottom
+    /// corners can be inset to stay inside the grid.
+    pub strip_px: f64,
+}
+
 #[cfg(feature = "stories")]
 #[path = "catalog_picker.stories.rs"]
 mod catalog_picker_stories;
@@ -109,6 +127,9 @@ mod house_stories;
 #[cfg(feature = "stories")]
 #[path = "number_field.stories.rs"]
 mod number_field_stories;
+#[cfg(feature = "stories")]
+#[path = "object_inspector.stories.rs"]
+mod object_inspector_stories;
 #[cfg(feature = "stories")]
 #[path = "placement.stories.rs"]
 mod placement_stories;
@@ -154,6 +175,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(deck_stories::stories());
     s.extend(furnishings_stories::stories());
     s.extend(estimate_panel_stories::stories());
+    s.extend(object_inspector_stories::stories());
     s.extend(steps_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
@@ -195,6 +217,9 @@ mod house_tests;
 #[cfg(test)]
 #[path = "number_field.tests.rs"]
 mod number_field_tests;
+#[cfg(test)]
+#[path = "object_inspector.tests.rs"]
+mod object_inspector_tests;
 #[cfg(test)]
 #[path = "placement.tests.rs"]
 mod placement_tests;
