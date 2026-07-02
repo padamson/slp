@@ -34,6 +34,10 @@ pub fn Furnishings(
     /// object not fully inside a single one is highlighted. Empty = no check.
     #[prop(optional)]
     surfaces: Vec<Vec<Coord>>,
+    /// The index (into `objects`) of the currently selected object, if any — it
+    /// renders with a selection tint.
+    #[prop(default = None)]
+    selected: Option<usize>,
 ) -> impl IntoView {
     // Resolve each catalog id to its footprint (consuming the catalog). One pass
     // instead of a linear scan per object; the object's `rot`/position handle the
@@ -60,7 +64,8 @@ pub fn Furnishings(
         .collect();
     let items = objects
         .into_iter()
-        .filter_map(|obj| {
+        .enumerate()
+        .filter_map(|(i, obj)| {
             let &(w_ft, d_ft) = dims.get(&obj.catalog_ref)?;
             let rot = obj.rot.unwrap_or(0.0);
             let overflows = !surface_polys.is_empty()
@@ -68,10 +73,23 @@ pub fn Furnishings(
                     &footprint_corners(obj.x, obj.y, w_ft, d_ft, rot),
                     &surface_polys,
                 );
-            let (class, stroke, stroke_w) = if overflows {
-                ("furniture-item furniture-item--overflows", "#d4351c", "2.5")
+            let is_selected = selected == Some(i);
+            // Selection tints the fill; overflow colors the outline — both can show
+            // on the same object (a selected piece that also doesn't fit).
+            let mut class = String::from("furniture-item");
+            if is_selected {
+                class.push_str(" furniture-item--selected");
+            }
+            if overflows {
+                class.push_str(" furniture-item--overflows");
+            }
+            let fill = if is_selected { "#7ea9d4" } else { "#a8927a" };
+            let (stroke, stroke_w) = if overflows {
+                ("#d4351c", "2.5")
+            } else if is_selected {
+                ("#2b6cb0", "2")
             } else {
-                ("furniture-item", "#5a4a3a", "1.5")
+                ("#5a4a3a", "1.5")
             };
             let (w_px, d_px) = (w_ft * t.px_ft, d_ft * t.px_ft);
             let transform = format!("translate({},{}) rotate({})", t.sx(obj.x), t.sy(obj.y), rot);
@@ -82,7 +100,7 @@ pub fn Furnishings(
                         y=-d_px / 2.0
                         width=w_px
                         height=d_px
-                        fill="#a8927a"
+                        fill=fill
                         fill-opacity="0.7"
                         stroke=stroke
                         stroke-width=stroke_w

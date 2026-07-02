@@ -38,6 +38,9 @@ pub fn Yard(
     /// The plan catalog, used to resolve each object's footprint.
     #[prop(optional, into)]
     catalog: Signal<Vec<CatalogItem>>,
+    /// The selected object's index (into `objects`), if any.
+    #[prop(optional, into)]
+    selected: Signal<Option<usize>>,
     /// Nodes placed so far in the current placement gesture.
     #[prop(optional, into)]
     placed: Signal<Vec<Coord>>,
@@ -118,6 +121,7 @@ pub fn Yard(
                         objects=objects.get()
                         catalog=catalog.get()
                         surfaces=surfaces
+                        selected=selected.get()
                     />
                 }
             }}

@@ -9,8 +9,8 @@
 
 use leptos::prelude::*;
 use slp_core::{
-    CatalogItem, Commit, Coord, Deck, DeckLevel, House, Object, Plan, StepRun, Tool, commit_kind,
-    nearest_wall, opening_from_nodes, snap_node, take_off,
+    CatalogItem, Commit, Coord, Deck, DeckLevel, House, Object, Plan, Point, StepRun, Tool,
+    commit_kind, nearest_wall, object_at, opening_from_nodes, snap_node, take_off,
 };
 
 use super::{
@@ -79,6 +79,8 @@ fn planner_body() -> impl IntoView {
     let catalog = RwSignal::new(init_catalog);
     let selected_id = RwSignal::new(init_selected);
     let seeded = RwSignal::new(false);
+    // The index (into `objects`) of the selected placed object, if any.
+    let selected = RwSignal::new(None::<usize>);
     // The elevation (ft) the next deck level is drawn at.
     let elevation = RwSignal::new(1.0_f64);
     // Placement engine state: the active tool, the nodes placed this gesture,
@@ -169,6 +171,13 @@ fn planner_body() -> impl IntoView {
     // Pointer release → commit a node (or close / finish the object).
     let on_commit = Callback::new(move |raw: Coord| {
         let Some(tl) = tool.get_untracked() else {
+            // No tool armed: a click selects the object under the cursor, or
+            // clears the selection when it lands on empty space.
+            selected.set(object_at(
+                Point::new(raw.x, raw.y),
+                &objects.get_untracked(),
+                &catalog.get_untracked(),
+            ));
             return;
         };
         let next = snap(tl, &raw);
@@ -243,6 +252,7 @@ fn planner_body() -> impl IntoView {
         }
         placed.set(Vec::new());
         preview.set(None);
+        selected.set(None);
         tool.set(Some(t));
     };
 
@@ -341,6 +351,7 @@ fn planner_body() -> impl IntoView {
                             openings=openings
                             objects=objects
                             catalog=catalog
+                            selected=selected
                             placed=placed
                             preview=preview
                             on_hover=on_hover

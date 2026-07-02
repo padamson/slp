@@ -151,6 +151,23 @@ fn an_object_fully_on_a_surface_is_not_highlighted() {
 }
 
 #[test]
+fn the_selected_object_is_highlighted() {
+    let catalog = vec![item("chair", Some(2.0), Some(2.0))];
+    let objects = vec![
+        Object::new("chair".to_string(), 2.0, 2.0),
+        Object::new("chair".to_string(), 8.0, 8.0),
+    ];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(1) /> }
+    });
+    assert_eq!(
+        dokime::count(&html, "furniture-item--selected"),
+        1,
+        "only the selected object carries the selection class"
+    );
+}
+
+#[test]
 fn no_surfaces_means_no_fit_check() {
     // Without surfaces there is nothing to fit within, so nothing is highlighted.
     let catalog = vec![item("chair", Some(4.0), Some(4.0))];
