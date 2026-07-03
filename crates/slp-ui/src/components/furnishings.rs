@@ -1,13 +1,14 @@
 //! Placed objects (furniture first): each `Object`'s footprint rendered to scale
 //! and rotated. The catalog supplies the footprint dimensions (width × depth);
 //! the object supplies position and rotation. This draws the *committed* objects
-//! from the `Plan` — every object is shown regardless of cost `status` (existing
-//! and virtual items appear on the plan; status only affects the take-off), but
-//! `status` still shapes the *look*: **existing** items (already in the yard)
-//! render with a dashed outline and reduced fill opacity, and **virtual** items
-//! (a what-if duplicate at an alternate position) render as a lighter ghost still
-//! — dashed and more transparent — so both read at a glance as "not a purchase"
-//! without opening the inspector. A **planned** item keeps today's solid look.
+//! from the `Plan` — every object is shown regardless of cost `status`/
+//! `is_virtual` (both only affect the take-off), but they still shape the
+//! *look*, via two independent channels ([`crate::style::furniture_style`]):
+//! **existing** items (already owned) render with a **double** outline (two
+//! nested strokes) instead of **planned**'s single line, and **virtual** items
+//! (a what-if ghost duplicate) render **dashed** and more transparent instead
+//! of a real item's solid, full-color look — so status and realness both read
+//! at a glance without opening the inspector.
 //!
 //! An object whose `catalog_ref` resolves to no catalog item is skipped (there is
 //! no footprint to draw) — the same exclusion the cost take-off makes.
@@ -24,8 +25,8 @@ use slp_core::{CatalogItem, Coord, Object, Point, footprint_corners, within_a_si
 
 use super::Transform;
 use crate::style::{
-    FURNITURE_FILL, FURNITURE_STROKE, OVERFLOW_STROKE, SELECTED_FILL, SELECTED_STROKE,
-    furniture_style,
+    DOUBLE_LINE_GAP_PX, DOUBLE_LINE_STROKE_W, FURNITURE_FILL, FURNITURE_STROKE, OVERFLOW_STROKE,
+    SELECTED_FILL, SELECTED_STROKE, furniture_style,
 };
 
 /// Fallback footprint side (ft) when a catalog item carries no dimensions, so a
@@ -94,76 +95,137 @@ pub fn Furnishings(
                     &surface_polys,
                 );
             let is_selected = selected == Some(i);
-            // Selection tints the fill; overflow colors the outline — both can show
-            // on the same object (a selected piece that also doesn't fit). Status is
-            // an independent axis: it shapes the dash pattern + opacity, so it still
-            // reads through a selection tint or an overflow outline.
-            let mut class = String::from("furniture-item");
-            if is_selected {
-                class.push_str(" furniture-item--selected");
-            }
-            if overflows {
-                class.push_str(" furniture-item--overflows");
-            }
-            let status = furniture_style(&obj.status);
-            class.push_str(status.class);
-            let fill = if is_selected { SELECTED_FILL } else { FURNITURE_FILL };
-            let (stroke, stroke_w) = if overflows {
-                (OVERFLOW_STROKE, "2.5")
-            } else if is_selected {
-                (SELECTED_STROKE, "2")
-            } else {
-                (FURNITURE_STROKE, "1.5")
-            };
-            let (w_px, d_px) = (w_ft * t.px_ft, d_ft * t.px_ft);
-            let transform = format!("translate({},{}) rotate({})", t.sx(obj.x), t.sy(obj.y), rot);
-            // The rotation handle rides inside the rotated group (local north is
-            // -y), so it turns with the object; pressing it starts a rotate drag.
-            let handle = is_selected.then(|| {
-                let stem = d_px / 2.0 + HANDLE_GAP_PX;
-                view! {
-                    <g
-                        class="rotate-handle"
-                        data-testid="rotate-handle"
-                        on:mousedown=move |ev: leptos::ev::MouseEvent| {
-                            ev.stop_propagation();
-                            if let Some(cb) = on_handle_press {
-                                cb.run(());
-                            }
-                        }
-                    >
-                        <line x1="0" y1="0" x2="0" y2=-stem stroke=SELECTED_STROKE stroke-width="1" />
-                        <circle cx="0" cy=-stem r=HANDLE_R fill=SELECTED_STROKE />
-                    </g>
-                }
-            });
-            Some(view! {
-                <g
-                    class=class
-                    transform=transform
-                    on:mousedown=move |_ev: leptos::ev::MouseEvent| {
-                        if let Some(cb) = on_object_press {
-                            cb.run(i);
-                        }
-                    }
-                >
-                    <rect
-                        x=-w_px / 2.0
-                        y=-d_px / 2.0
-                        width=w_px
-                        height=d_px
-                        fill=fill
-                        fill-opacity=status.fill_opacity
-                        stroke=stroke
-                        stroke-width=stroke_w
-                        stroke-dasharray=status.dash
-                    />
-                    {handle}
-                </g>
-            })
+            Some(object_view(
+                t,
+                obj,
+                i,
+                (w_ft, d_ft),
+                is_selected,
+                overflows,
+                on_handle_press,
+                on_object_press,
+            ))
         })
         .collect::<Vec<_>>();
     (!items.is_empty()).then(|| {
         view! { <g class="furnishings">{items}</g> }
     })
+}
+
+/// One object's footprint: its fill/outline (driven by selection, overflow,
+/// and [`furniture_style`]), an inset second stroke when `existing` (a double
+/// outline), and — when selected — a rotation handle.
+///
+/// `obj` is a by-value prop-like passthrough (matching `Steps`'s `run`):
+/// Edition 2024's RPIT lifetime-capture rules mean a `&Object` here would tie
+/// the returned `impl IntoView` to `obj`'s borrow, which the caller can't
+/// satisfy (the object is a short-lived local in the iterator closure above).
+#[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
+fn object_view(
+    t: Transform,
+    obj: Object,
+    i: usize,
+    (w_ft, d_ft): (f64, f64),
+    is_selected: bool,
+    overflows: bool,
+    on_handle_press: Option<Callback<()>>,
+    on_object_press: Option<Callback<usize>>,
+) -> impl IntoView {
+    let rot = obj.rot.unwrap_or(0.0);
+    // Selection tints the fill; overflow colors the outline — both can show on
+    // the same object (a selected piece that also doesn't fit). Status/virtual
+    // are an independent axis: they shape the outline count/dash/opacity, so
+    // they still read through a selection tint or an overflow outline.
+    let mut class = String::from("furniture-item");
+    if is_selected {
+        class.push_str(" furniture-item--selected");
+    }
+    if overflows {
+        class.push_str(" furniture-item--overflows");
+    }
+    let style = furniture_style(&obj.status, obj.is_virtual);
+    class.push_str(style.class);
+    let fill = if is_selected {
+        SELECTED_FILL
+    } else {
+        FURNITURE_FILL
+    };
+    let (stroke, single_stroke_w) = if overflows {
+        (OVERFLOW_STROKE, "2.5")
+    } else if is_selected {
+        (SELECTED_STROKE, "2")
+    } else {
+        (FURNITURE_STROKE, "1.5")
+    };
+    // A double (existing) outline uses two thin, closely-spaced lines so the
+    // pair doesn't read as one heavy border.
+    let stroke_w = if style.double {
+        DOUBLE_LINE_STROKE_W
+    } else {
+        single_stroke_w
+    };
+    let (w_px, d_px) = (w_ft * t.px_ft, d_ft * t.px_ft);
+    let transform = format!("translate({},{}) rotate({})", t.sx(obj.x), t.sy(obj.y), rot);
+    // An `existing` item draws a second, inset stroke — a double outline reads
+    // as "already owned" without needing a legend.
+    let inner_outline = style.double.then(|| {
+        let gap = DOUBLE_LINE_GAP_PX;
+        view! {
+            <rect
+                x=-w_px / 2.0 + gap
+                y=-d_px / 2.0 + gap
+                width=w_px - 2.0 * gap
+                height=d_px - 2.0 * gap
+                fill="none"
+                stroke=stroke
+                stroke-width=stroke_w
+                stroke-dasharray=style.dash
+            />
+        }
+    });
+    // The rotation handle rides inside the rotated group (local north is -y),
+    // so it turns with the object; pressing it starts a rotate drag.
+    let handle = is_selected.then(|| {
+        let stem = d_px / 2.0 + HANDLE_GAP_PX;
+        view! {
+            <g
+                class="rotate-handle"
+                data-testid="rotate-handle"
+                on:mousedown=move |ev: leptos::ev::MouseEvent| {
+                    ev.stop_propagation();
+                    if let Some(cb) = on_handle_press {
+                        cb.run(());
+                    }
+                }
+            >
+                <line x1="0" y1="0" x2="0" y2=-stem stroke=SELECTED_STROKE stroke-width="1" />
+                <circle cx="0" cy=-stem r=HANDLE_R fill=SELECTED_STROKE />
+            </g>
+        }
+    });
+    view! {
+        <g
+            class=class
+            transform=transform
+            on:mousedown=move |_ev: leptos::ev::MouseEvent| {
+                if let Some(cb) = on_object_press {
+                    cb.run(i);
+                }
+            }
+        >
+            <rect
+                x=-w_px / 2.0
+                y=-d_px / 2.0
+                width=w_px
+                height=d_px
+                fill=fill
+                fill-opacity=style.fill_opacity
+                stroke=stroke
+                stroke-width=stroke_w
+                stroke-dasharray=style.dash
+            />
+            {inner_outline}
+            {handle}
+        </g>
+    }
 }

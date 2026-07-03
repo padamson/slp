@@ -1,11 +1,14 @@
 //! The object inspector: a small window that floats in an empty yard corner when
 //! an object is selected. It shows the object's metadata (name, category,
-//! footprint, height, unit price, position, rotation) and lets you set its cost
-//! status and reset its rotation — rotation is otherwise turned with the drag
-//! handle on the object itself.
+//! footprint, height, unit price, position, rotation) and lets you set its
+//! status (planned/existing) and realness (real/virtual — two independent
+//! controls, not a single 3-way choice) and reset its rotation — rotation is
+//! otherwise turned with the drag handle on the object itself.
 
 use leptos::prelude::*;
 use slp_core::{CatalogItem, Corner, ItemStatus, Object};
+
+use super::Toggle;
 
 /// Short name for the corner the window floats in (for `data-corner`).
 fn corner_name(corner: Corner) -> &'static str {
@@ -29,8 +32,10 @@ pub fn ObjectInspector(
     /// the measured canvas metrics, so it sits inside the grid corner.
     #[prop(optional, into)]
     style: String,
-    /// Set the object's cost status.
+    /// Set the object's status (planned/existing).
     on_status: Callback<ItemStatus>,
+    /// Set whether the object is a virtual (what-if ghost) duplicate.
+    on_virtual: Callback<bool>,
     /// Reset the object's rotation to 0°.
     on_reset_rotation: Callback<()>,
     /// Remove the object from the plan.
@@ -41,6 +46,7 @@ pub fn ObjectInspector(
         catalog_ref,
         rot,
         status,
+        is_virtual,
         x,
         y,
     } = object;
@@ -116,8 +122,13 @@ pub fn ObjectInspector(
             <div class="inspector-status" data-testid="inspector-status">
                 {status_btn(ItemStatus::planned, "Planned", "status-planned")}
                 {status_btn(ItemStatus::existing, "Existing", "status-existing")}
-                {status_btn(ItemStatus::r#virtual, "Virtual", "status-virtual")}
             </div>
+            <Toggle
+                label="Virtual (what-if ghost)"
+                testid="inspector-virtual"
+                checked=is_virtual
+                on_toggle=on_virtual
+            />
             <button
                 class="inspector-delete"
                 data-testid="delete-object"

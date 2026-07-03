@@ -1,5 +1,5 @@
-//! dokime component tests for `ObjectInspector`. (Clicking the status/reset
-//! controls is exercised end-to-end in slp-e2e; dokime renders markup.)
+//! dokime component tests for `ObjectInspector`. (Clicking the status/virtual/
+//! reset controls is exercised end-to-end in slp-e2e; dokime renders markup.)
 
 use leptos::prelude::*;
 use slp_core::{CatalogItem, Corner, ItemStatus, Object};
@@ -29,6 +29,7 @@ fn shows_metadata_status_and_reset() {
                 item=Some(chair())
                 corner=Corner::Nw
                 on_status=Callback::new(|_| {})
+                on_virtual=Callback::new(|_| {})
                 on_reset_rotation=Callback::new(|()| {})
                 on_delete=Callback::new(|()| {})
             />
@@ -53,6 +54,10 @@ fn shows_metadata_status_and_reset() {
         "remove button"
     );
     assert!(
+        html.contains(r#"data-testid="inspector-virtual""#),
+        "the virtual toggle"
+    );
+    assert!(
         html.contains(r#"data-corner="nw""#),
         "floats in the chosen corner"
     );
@@ -73,6 +78,7 @@ fn falls_back_when_the_catalog_item_is_missing() {
                 object=obj
                 corner=Corner::Se
                 on_status=Callback::new(|_| {})
+                on_virtual=Callback::new(|_| {})
                 on_reset_rotation=Callback::new(|()| {})
                 on_delete=Callback::new(|()| {})
             />

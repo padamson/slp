@@ -21,7 +21,7 @@ fn square(elevation: f64) -> DeckLevel {
             Coord::new(4.0, 3.0),
             Coord::new(0.0, 3.0),
         ],
-        elevation,
+        ..DeckLevel::new(elevation)
     }
 }
 

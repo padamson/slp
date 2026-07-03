@@ -6,17 +6,19 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(non_camel_case_types, non_snake_case, dead_code, clippy::all)]
 
-/// Whether a placed item counts toward the cost take-off.
+/// Whether a real item is already owned/built (existing) or still to be
+/// bought/built (planned). Used by `Object` (where `planned` counts toward
+/// cost, `existing` doesn't) and by structures (`House`/`DeckLevel`, where
+/// it's descriptive only — no cost math exists for structures yet).
+/// Orthogonal to `Object.is_virtual` — a status alone never means
+/// "what-if"; only `is_virtual` does.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub enum ItemStatus {
-    /// Already in the yard; shown but not purchased (not counted).
+    /// Already owned/built.
     existing,
-    /// A real item to purchase (counted).
+    /// To be bought/built.
     planned,
-    /// A what-if ghost at an alternate position (not counted).
-    #[serde(rename = "virtual")]
-    r#virtual,
 }
 
 /// The kind of wall opening.
@@ -102,29 +104,44 @@ pub struct Deck {
 }
 
 /// One deck platform — a footprint (closed outline of corners) at a given
-/// elevation in feet above grade.
-#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+/// elevation in feet above grade. Always real (a structure, never a
+/// what-if ghost); `structure_status` distinguishes an already-built level
+/// from a planned addition, defaulting to existing since most decks are
+/// drawn to map what's already there.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DeckLevel {
     /// Ordered corner points of a closed outline (house wall or deck level).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub corners: Vec<Coord>,
     /// Height in feet above grade.
     pub elevation: f64,
+    /// Whether a structure (house, deck level) is already built (existing) or
+    /// a planned addition, defaulting to existing when absent since most
+    /// structures are drawn to map what's already there. A structure is always
+    /// real — there's no virtual variant for a structure.
+    #[serde(default = "default_deck_level_structure_status")]
+    pub structure_status: ItemStatus,
 }
+
+fn default_deck_level_structure_status() -> ItemStatus { ItemStatus::existing }
 
 impl DeckLevel {
     pub fn new(elevation: f64) -> Self {
         Self {
             corners: Vec::new(),
             elevation,
+            structure_status: ItemStatus::existing,
         }
     }
 }
 
 /// The house, drawn by the user as a closed outline of corner points (never
 /// hardcoded). Each wall is the edge between consecutive corners; doors and
-/// windows are placed along those walls.
-#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+/// windows are placed along those walls. Always real (never a what-if
+/// ghost); `structure_status` distinguishes the already-built house from a
+/// planned addition, defaulting to existing since most houses are drawn to
+/// map what's already there.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct House {
     /// Ordered corner points of a closed outline (house wall or deck level).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -132,16 +149,31 @@ pub struct House {
     /// Doors and windows placed along the house's walls.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub openings: Vec<Opening>,
+    /// Whether a structure (house, deck level) is already built (existing) or
+    /// a planned addition, defaulting to existing when absent since most
+    /// structures are drawn to map what's already there. A structure is always
+    /// real — there's no virtual variant for a structure.
+    #[serde(default = "default_house_structure_status")]
+    pub structure_status: ItemStatus,
 }
 
+fn default_house_structure_status() -> ItemStatus { ItemStatus::existing }
+
 /// An item placed on the plan: a point at (`x`, `y`) in feet, rotated `rot`
-/// degrees clockwise, referencing a catalog item by `catalog_ref`. `status`
-/// controls whether it counts toward cost (planned counts; existing and
-/// virtual do not), and defaults to planned when absent.
+/// degrees clockwise, referencing a catalog item by `catalog_ref`. Two
+/// independent flags describe it: `status` (planned counts toward cost;
+/// existing does not, since it's already owned) and `is_virtual` (a what-if
+/// ghost duplicate at an alternate position — never counted, regardless of
+/// `status` — so a virtual object is never a second real item to buy).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Object {
     /// Id of the catalog item this object places.
     pub catalog_ref: String,
+    /// A what-if ghost duplicate at an alternate position, not a second real
+    /// item — never counted toward cost regardless of `status`. Defaults to
+    /// false (a real item) when absent.
+    #[serde(default = "default_object_is_virtual")]
+    pub is_virtual: bool,
     /// Rotation in degrees, clockwise from north.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rot: Option<f64>,
@@ -154,12 +186,15 @@ pub struct Object {
     pub y: f64,
 }
 
+fn default_object_is_virtual() -> bool { false }
+
 fn default_object_status() -> ItemStatus { ItemStatus::planned }
 
 impl Object {
     pub fn new(catalog_ref: String, x: f64, y: f64) -> Self {
         Self {
             catalog_ref,
+            is_virtual: false,
             rot: None,
             status: ItemStatus::planned,
             x,

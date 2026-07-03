@@ -116,15 +116,20 @@ app. See `CLAUDE.md` for all commands.
   - **Deck(s)** — a footprint polygon (optionally multi-level, with stairs and
     railing), drawn by the user.
   These are normal plan entities (drawn, saved, edited) — *not* hardcoded
-  geometry — and typically carry the **existing** flag (below).
-- **Item status** — every shape/structure/object can be flagged **existing** or **virtual**,
-  both *excluded from cost*:
-  - **existing** — a real, fixed-location item shown on the plan but not a
-    purchase (e.g. the deck or a mature tree already in the yard).
-  - **virtual** — a duplicate of an item placed to show an *alternate* position
-    (a what-if ghost), not a second real item.
-  Take-off counts only **planned** items (neither existing nor virtual). Nothing
-  is hardcoded as always-existing — it's a per-item flag.
+  geometry — and carry a **status** (below), defaulting to **existing**.
+- **Item status — two independent axes** (nothing is hardcoded; both are
+  per-item flags):
+  - **status** (`planned` | `existing`): `planned` is to buy/build, `existing`
+    is already owned/built. Both are *real*.
+  - **virtual** (`is_virtual`, objects only): a what-if ghost duplicate at an
+    *alternate* position — never a second real item. Structures are always real
+    (no virtual variant); an object crosses the two axes freely (planned/
+    existing × real/virtual).
+  Take-off counts an object only when **planned *and* real** — existing (already
+  owned) or virtual (a ghost) is excluded regardless of the other flag. On the
+  canvas the axes read separately: line count encodes status (single = planned,
+  double = existing) and line style encodes realness (solid = real, dashed =
+  virtual). *(Structure status is carried but not yet cost- or render-differentiated.)*
 - **Shape** (tagged union by `kind`), **every shape carries `elevation` +
   `height` (default flat) and a `material_ref`** so 2D→3D is additive:
   - `Polygon` — paver area / mulch bed: `pts[]`, `material_ref`, `border`, …

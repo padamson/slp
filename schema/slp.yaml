@@ -55,15 +55,18 @@ classes:
   Object:
     description: |-
       An item placed on the plan: a point at (`x`, `y`) in feet, rotated `rot`
-      degrees clockwise, referencing a catalog item by `catalog_ref`. `status`
-      controls whether it counts toward cost (planned counts; existing and
-      virtual do not), and defaults to planned when absent.
+      degrees clockwise, referencing a catalog item by `catalog_ref`. Two
+      independent flags describe it: `status` (planned counts toward cost;
+      existing does not, since it's already owned) and `is_virtual` (a what-if
+      ghost duplicate at an alternate position — never counted, regardless of
+      `status` — so a virtual object is never a second real item to buy).
     slots:
       - catalog_ref
       - x
       - y
       - rot
       - status
+      - is_virtual
     slot_usage:
       catalog_ref:
         required: true
@@ -83,10 +86,14 @@ classes:
   DeckLevel:
     description: |-
       One deck platform — a footprint (closed outline of corners) at a given
-      elevation in feet above grade.
+      elevation in feet above grade. Always real (a structure, never a
+      what-if ghost); `structure_status` distinguishes an already-built level
+      from a planned addition, defaulting to existing since most decks are
+      drawn to map what's already there.
     slots:
       - corners
       - elevation
+      - structure_status
     slot_usage:
       elevation:
         required: true
@@ -114,10 +121,14 @@ classes:
     description: |-
       The house, drawn by the user as a closed outline of corner points (never
       hardcoded). Each wall is the edge between consecutive corners; doors and
-      windows are placed along those walls.
+      windows are placed along those walls. Always real (never a what-if
+      ghost); `structure_status` distinguishes the already-built house from a
+      planned addition, defaulting to existing since most houses are drawn to
+      map what's already there.
     slots:
       - corners
       - openings
+      - structure_status
 
   Opening:
     description: |-
@@ -204,6 +215,21 @@ slots:
     range: ItemStatus
     ifabsent: ItemStatus(planned)
     description: Cost status of a placed item; defaults to planned when absent.
+  is_virtual:
+    range: boolean
+    ifabsent: false
+    description: |-
+      A what-if ghost duplicate at an alternate position, not a second real
+      item — never counted toward cost regardless of `status`. Defaults to
+      false (a real item) when absent.
+  structure_status:
+    range: ItemStatus
+    ifabsent: ItemStatus(existing)
+    description: |-
+      Whether a structure (house, deck level) is already built (existing) or
+      a planned addition, defaulting to existing when absent since most
+      structures are drawn to map what's already there. A structure is always
+      real — there's no virtual variant for a structure.
   corners:
     range: Coord
     multivalued: true
@@ -268,11 +294,15 @@ enums:
         description: A window.
 
   ItemStatus:
-    description: Whether a placed item counts toward the cost take-off.
+    description: |-
+      Whether a real item is already owned/built (existing) or still to be
+      bought/built (planned). Used by `Object` (where `planned` counts toward
+      cost, `existing` doesn't) and by structures (`House`/`DeckLevel`, where
+      it's descriptive only — no cost math exists for structures yet).
+      Orthogonal to `Object.is_virtual` — a status alone never means
+      "what-if"; only `is_virtual` does.
     permissible_values:
       planned:
-        description: A real item to purchase (counted).
+        description: To be bought/built.
       existing:
-        description: Already in the yard; shown but not purchased (not counted).
-      virtual:
-        description: A what-if ghost at an alternate position (not counted).
+        description: Already owned/built.

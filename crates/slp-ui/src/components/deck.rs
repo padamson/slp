@@ -53,7 +53,9 @@ fn deck_centroid(levels: &[DeckLevel]) -> Coord {
 
 /// One platform: its footprint polygon, corner markers, and an elevation label.
 fn level_view(t: Transform, lvl: DeckLevel) -> impl IntoView {
-    let DeckLevel { corners, elevation } = lvl;
+    let DeckLevel {
+        corners, elevation, ..
+    } = lvl;
     let points = corners
         .iter()
         .map(|c| format!("{},{}", t.sx(c.x), t.sy(c.y)))

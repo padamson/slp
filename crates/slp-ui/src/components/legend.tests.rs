@@ -12,7 +12,8 @@ fn renders_one_item_per_visual_convention() {
         "legend-item-deck",
         "legend-item-planned",
         "legend-item-existing",
-        "legend-item-virtual",
+        "legend-item-planned-virtual",
+        "legend-item-existing-virtual",
         "legend-item-selected",
         "legend-item-overflow",
     ] {
@@ -37,28 +38,39 @@ fn house_and_deck_icons_carry_node_corner_markers() {
 }
 
 #[test]
-fn furniture_status_icons_match_the_shared_canvas_styling() {
+fn furniture_entries_match_the_shared_canvas_styling() {
     // The legend reads from the same `furniture_style` the canvas uses, so a
-    // status's dash pattern + opacity are identical in both places.
+    // combination's dash pattern + opacity are identical in both places.
     let html = dokime::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
     assert!(
         html.contains(r#"stroke-dasharray="none""#),
-        "planned: solid outline"
+        "real: solid outline, same as the canvas"
     );
     assert!(
-        html.contains(r#"stroke-dasharray="6,3""#),
-        "existing: the same dash as the canvas"
+        html.contains(r#"stroke-dasharray="4,3""#),
+        "virtual: the same dash as the canvas"
     );
     assert!(
-        html.contains(r#"stroke-dasharray="3,3""#),
-        "virtual: the same tighter dash as the canvas"
+        html.contains(r#"fill-opacity="0.7""#),
+        "real: the same full opacity as the canvas"
     );
     assert!(
-        html.contains(r#"fill-opacity="0.55""#),
-        "existing: the same reduced opacity as the canvas"
-    );
-    assert!(
-        html.contains(r#"fill-opacity="0.3""#),
+        html.contains(r#"fill-opacity="0.35""#),
         "virtual: the same ghost opacity as the canvas"
+    );
+}
+
+#[test]
+fn existing_entries_carry_a_double_outline() {
+    // Existing (double-line) icons get a second, inset stroke rect; planned
+    // (single-line) icons don't.
+    let html = dokime::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
+    // House, Deck (2), Planned (1), Existing (2), Planned-virtual (1),
+    // Existing-virtual (2), Selected (1), Doesn't-fit (1) = 10 furniture-icon
+    // + house/deck rects.
+    assert_eq!(
+        dokime::count(&html, "<rect"),
+        10,
+        "existing entries render a second inset rect"
     );
 }

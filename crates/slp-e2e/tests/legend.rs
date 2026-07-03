@@ -41,7 +41,8 @@ async fn legend_renders_to_the_right_of_the_scale_bar() -> Result<()> {
         "legend-item-deck",
         "legend-item-planned",
         "legend-item-existing",
-        "legend-item-virtual",
+        "legend-item-planned-virtual",
+        "legend-item-existing-virtual",
         "legend-item-selected",
         "legend-item-overflow",
     ] {

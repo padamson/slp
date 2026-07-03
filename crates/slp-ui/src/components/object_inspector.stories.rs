@@ -28,6 +28,7 @@ pub fn stories() -> Vec<Story> {
                     corner=Corner::Nw
                     style="top: 10px; left: 10px;"
                     on_status=Callback::new(move |s| status.set(s))
+                    on_virtual=Callback::new(|_| {})
                     on_reset_rotation=Callback::new(|()| {})
                     on_delete=Callback::new(|()| {})
                 />

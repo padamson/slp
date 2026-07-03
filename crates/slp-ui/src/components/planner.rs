@@ -9,9 +9,9 @@
 
 use leptos::prelude::*;
 use slp_core::{
-    CatalogItem, Commit, Coord, Corner, Deck, DeckLevel, House, Object, Plan, Point, StepRun, Tool,
-    commit_kind, dragged_center, free_corner, heading, nearest_wall, object_at, opening_from_nodes,
-    snap_node, take_off,
+    CatalogItem, Commit, Coord, Corner, Deck, DeckLevel, House, ItemStatus, Object, Plan, Point,
+    StepRun, Tool, commit_kind, dragged_center, free_corner, heading, nearest_wall, object_at,
+    opening_from_nodes, snap_node, take_off,
 };
 
 use super::{
@@ -67,16 +67,21 @@ fn planner_body() -> impl IntoView {
     });
     let (width, set_width) = signal(plan.yard_width);
     let (depth, set_depth) = signal(plan.yard_depth);
-    // The committed house: outline corners + openings.
-    let (init_corners, init_openings) = plan
-        .house
-        .map(|h| {
+    // The committed house: outline corners + openings. `structure_status` isn't
+    // tracked by its own signal (no UI sets it yet — see the F1/E1.6 backlog),
+    // so it's captured once here and carried through unchanged on every save,
+    // rather than being silently reset to `existing` on the next persist.
+    let (init_corners, init_openings, house_status) = plan.house.map_or_else(
+        || (Vec::new(), Vec::new(), ItemStatus::existing),
+        |h| {
             let House {
-                corners, openings, ..
+                corners,
+                openings,
+                structure_status,
             } = *h;
-            (corners, openings)
-        })
-        .unwrap_or_default();
+            (corners, openings, structure_status)
+        },
+    );
     let corners = RwSignal::new(init_corners);
     let openings = RwSignal::new(init_openings);
     let (init_levels, init_steps) = plan
@@ -128,6 +133,7 @@ fn planner_body() -> impl IntoView {
             Box::new(House {
                 corners: cs,
                 openings: os,
+                structure_status: house_status.clone(),
             })
         });
         let dk = deck.get();
@@ -259,9 +265,12 @@ fn planner_body() -> impl IntoView {
                 // The placed nodes become a committed outline: a new deck level
                 // (decks are multi-level — additive) or the house outline.
                 if tl == Tool::Deck {
+                    // `DeckLevel::new` sets `structure_status: existing` — a
+                    // freshly-drawn level is presumed already-built, matching
+                    // the schema's default.
                     let level = DeckLevel {
                         corners: pl,
-                        elevation: elevation.get_untracked(),
+                        ..DeckLevel::new(elevation.get_untracked())
                     };
                     deck.update(|v| v.push(level));
                 } else {
@@ -543,6 +552,16 @@ fn planner_body() -> impl IntoView {
                                             .update(|v| {
                                                 if let Some(o) = v.get_mut(i) {
                                                     o.status = s;
+                                                }
+                                            });
+                                    }
+                                })
+                                on_virtual=Callback::new(move |is_virtual| {
+                                    if let Some(i) = selected.get_untracked() {
+                                        objects
+                                            .update(|v| {
+                                                if let Some(o) = v.get_mut(i) {
+                                                    o.is_virtual = is_virtual;
                                                 }
                                             });
                                     }

@@ -1,8 +1,10 @@
 //! Cost take-off: turn a plan's placed objects into a priced bill of materials.
 //!
 //! The take-off answers "what do I buy, and what does it cost?" — it counts only
-//! **planned** placements (`existing` and `virtual` objects appear on the plan
-//! but are never purchased) and prices each by its catalog item.
+//! objects that are both **planned** (`status`) and **real** (`!is_virtual`).
+//! `existing` objects are already owned, so they're excluded regardless of
+//! `is_virtual`; a `virtual` object is a what-if ghost duplicate, never a
+//! second real item, so it's excluded regardless of `status`.
 
 use crate::generated::slp::{ItemStatus, Plan};
 
@@ -35,12 +37,14 @@ pub struct BillOfMaterials {
 
 /// Cost take-off for a plan.
 ///
-/// Counts only **planned** placements: `existing` and `virtual` objects are
-/// shown on the plan but never bought, so they are excluded. Objects whose
-/// `catalog_ref` matches no catalog item are excluded too (you can't price what
-/// isn't in the catalog). Lines come out in catalog order; a catalog item with
-/// no planned placements yields no line. A catalog item with no `unit_price` is
-/// priced at `0.0`.
+/// Counts only placements that are both **planned** and **real**
+/// (`!is_virtual`): `existing` objects are shown on the plan but already
+/// owned, and `virtual` objects are what-if ghosts, never a second real item —
+/// both are excluded regardless of the other flag. Objects whose `catalog_ref`
+/// matches no catalog item are excluded too (you can't price what isn't in the
+/// catalog). Lines come out in catalog order; a catalog item with no counted
+/// placements yields no line. A catalog item with no `unit_price` is priced at
+/// `0.0`.
 #[must_use]
 pub fn take_off(plan: &Plan) -> BillOfMaterials {
     let mut lines = Vec::new();
@@ -48,7 +52,8 @@ pub fn take_off(plan: &Plan) -> BillOfMaterials {
     for item in &plan.catalog {
         let mut qty: u32 = 0;
         for object in &plan.objects {
-            if object.status == ItemStatus::planned && object.catalog_ref == item.id {
+            let counts = object.status == ItemStatus::planned && !object.is_virtual;
+            if counts && object.catalog_ref == item.id {
                 qty += 1;
             }
         }
@@ -84,6 +89,12 @@ mod tests {
     fn placed(catalog_ref: &str, status: ItemStatus) -> Object {
         let mut o = Object::new(catalog_ref.to_string(), 0.0, 0.0);
         o.status = status;
+        o
+    }
+
+    fn virtual_placed(catalog_ref: &str, status: ItemStatus) -> Object {
+        let mut o = placed(catalog_ref, status);
+        o.is_virtual = true;
         o
     }
 
@@ -127,15 +138,32 @@ mod tests {
     }
 
     #[test]
-    fn existing_and_virtual_placements_are_not_counted() {
-        // Same item placed once each as planned / existing / virtual: only the
-        // planned one is bought.
+    fn existing_placements_are_not_counted() {
+        // Same item placed once each as planned / existing (both real): only
+        // the planned one is bought.
         let bom = take_off(&plan(
             vec![item("chair", "Patio chair", Some(50.0))],
             vec![
                 placed("chair", ItemStatus::planned),
                 placed("chair", ItemStatus::existing),
-                placed("chair", ItemStatus::r#virtual),
+            ],
+        ));
+        assert_eq!(bom.lines.len(), 1);
+        assert_eq!(bom.lines[0].qty, 1);
+        assert!((bom.grand_total - 50.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn virtual_placements_are_never_counted_regardless_of_status() {
+        // A what-if ghost of a planned item, and one of an existing item:
+        // neither is a second real item, so neither is bought. Only the one
+        // real planned placement counts.
+        let bom = take_off(&plan(
+            vec![item("chair", "Patio chair", Some(50.0))],
+            vec![
+                placed("chair", ItemStatus::planned),
+                virtual_placed("chair", ItemStatus::planned),
+                virtual_placed("chair", ItemStatus::existing),
             ],
         ));
         assert_eq!(bom.lines.len(), 1);

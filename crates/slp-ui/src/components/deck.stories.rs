@@ -22,7 +22,7 @@ pub fn stories() -> Vec<Story> {
                     Coord::new(30.0, 22.0),
                     Coord::new(8.0, 22.0),
                 ],
-                elevation: 1.0,
+                ..DeckLevel::new(1.0)
             },
             DeckLevel {
                 corners: vec![
@@ -31,7 +31,7 @@ pub fn stories() -> Vec<Story> {
                     Coord::new(30.0, 22.0),
                     Coord::new(18.0, 22.0),
                 ],
-                elevation: 3.0,
+                ..DeckLevel::new(3.0)
             },
         ];
         view! {

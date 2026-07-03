@@ -1,7 +1,8 @@
-//! E1.4 e2e: toggling a placed object's cost status in the inspector changes how
-//! it's drawn on the canvas — existing/virtual objects pick up a status class
-//! (and, per `Furnishings`, a dashed outline + reduced opacity) so "not a
-//! purchase" reads at a glance without opening the inspector.
+//! E1.6 e2e: the inspector's two independent controls — an existing/planned
+//! status toggle and a real/virtual toggle — change how the object is drawn on
+//! the canvas. Existing gets a double outline (vs. planned's single); virtual
+//! gets a dashed, ghosted look (vs. real's solid, full color) — so both status
+//! and realness read at a glance without reopening the inspector.
 //!
 //! Build the app first, then run:
 //!   (cd crates/slp-app && trunk build)
@@ -17,7 +18,7 @@ use playwright_rs::protocol::Playwright;
 use playwright_rs::expect;
 
 #[tokio::test]
-async fn toggling_status_changes_the_footprints_class() -> Result<()> {
+async fn status_and_virtual_toggles_change_the_footprints_class() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
         eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
@@ -37,67 +38,90 @@ async fn toggling_status_changes_the_footprints_class() -> Result<()> {
     draw_central_deck(&page, &yard, ppf).await?;
     let ppf = measure_ppf(&yard).await?;
 
-    // Place a chair and select it — it starts planned (no status class).
+    // Place a chair and select it — it starts planned + real.
     place(&page, &yard, ppf, 35.0, 15.0).await?;
     click_ft(&yard, ppf, 35.0, 15.0).await?; // select
-    let footprint = page.locator("[data-testid='yard'] .furniture-item").await;
-    expect(footprint.clone()).to_have_count(1).await.context("the object is on the plan")?;
-    expect(
-        page.locator("[data-testid='yard'] .furniture-item--existing")
-            .await,
-    )
-    .to_have_count(0)
-    .await
-    .context("planned starts with no status class")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item").await)
+        .to_have_count(1)
+        .await
+        .context("the object is on the plan")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--planned").await)
+        .to_have_count(1)
+        .await
+        .context("starts planned")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--existing").await)
+        .to_have_count(0)
+        .await
+        .context("not existing")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+        .to_have_count(0)
+        .await
+        .context("not virtual")?;
 
-    // Existing: picks up the existing status class, and drops off virtual's.
+    // Existing: swaps the status class; still real (no virtual class).
     page.locator("[data-testid='status-existing']")
         .await
         .click(None)
         .await
         .context("click Existing")?;
-    expect(
-        page.locator("[data-testid='yard'] .furniture-item--existing")
-            .await,
-    )
-    .to_have_count(1)
-    .await
-    .context("existing status shows on the canvas")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--existing").await)
+        .to_have_count(1)
+        .await
+        .context("existing status shows on the canvas")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--planned").await)
+        .to_have_count(0)
+        .await
+        .context("no longer planned")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+        .to_have_count(0)
+        .await
+        .context("still real — the virtual toggle is untouched")?;
 
-    // Virtual: swaps to the virtual status class.
-    page.locator("[data-testid='status-virtual']")
+    // Virtual toggle: an independent control — existing stays, virtual joins.
+    page.locator("[data-testid='inspector-virtual']")
         .await
         .click(None)
         .await
-        .context("click Virtual")?;
-    expect(
-        page.locator("[data-testid='yard'] .furniture-item--existing")
-            .await,
-    )
-    .to_have_count(0)
-    .await
-    .context("no longer carries the existing class")?;
-    expect(
-        page.locator("[data-testid='yard'] .furniture-item--virtual")
-            .await,
-    )
-    .to_have_count(1)
-    .await
-    .context("virtual status shows on the canvas")?;
+        .context("toggle Virtual on")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--existing").await)
+        .to_have_count(1)
+        .await
+        .context("still existing")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+        .to_have_count(1)
+        .await
+        .context("virtual joins independently of status")?;
 
-    // Back to planned: neither status class remains.
+    // Status flips back to planned while virtual stays on — the two controls
+    // are independent, not a single 3-way choice.
     page.locator("[data-testid='status-planned']")
         .await
         .click(None)
         .await
         .context("click Planned")?;
-    expect(
-        page.locator("[data-testid='yard'] .furniture-item--virtual")
-            .await,
-    )
-    .to_have_count(0)
-    .await
-    .context("planned drops the virtual class")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--planned").await)
+        .to_have_count(1)
+        .await
+        .context("back to planned")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--existing").await)
+        .to_have_count(0)
+        .await
+        .context("no longer existing")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+        .to_have_count(1)
+        .await
+        .context("virtual is untouched by the status change")?;
+
+    // Toggle virtual back off: real, planned.
+    page.locator("[data-testid='inspector-virtual']")
+        .await
+        .click(None)
+        .await
+        .context("toggle Virtual off")?;
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+        .to_have_count(0)
+        .await
+        .context("virtual toggles off independently")?;
 
     browser.close().await.context("close browser")?;
     Ok(())
