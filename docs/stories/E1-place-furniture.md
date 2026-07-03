@@ -48,6 +48,19 @@ product, since the catalog and placements are saved in the plan, not hardcoded.
         a **Reset** button zeroes the rotation
   - [x] e2e: inspector hops through all four corners by the placement rules;
         dragging the handle east rotates the object to 90°
+- **E1.4 — visually distinguish status on the canvas** ✅ *done*
+  - [x] an **existing** object renders with a dashed outline + reduced fill
+        opacity — visibly "already there, not a purchase" without opening the
+        inspector
+  - [x] a **virtual** object renders as a lighter **ghost** (dashed, more
+        transparent than existing) — visibly a what-if duplicate, per the
+        domain rule (PLAN.md's "not a second real item")
+  - [x] a **planned** object's look is unchanged (today's solid fill/stroke) —
+        no regression for the common case
+  - [x] the selection tint and overflow (red) outline still take precedence, so
+        a selected or overflowing existing/virtual object stays legible
+  - [x] dokime tests per status; e2e: toggle an object's status in the
+        inspector and assert its canvas markup changes accordingly
 
 ## Notes / refs
 

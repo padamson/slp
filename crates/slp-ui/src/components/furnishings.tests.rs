@@ -94,10 +94,90 @@ fn existing_and_virtual_objects_still_render() {
     let objects = vec![existing, ghost];
     let html =
         dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    // Prefix match (not the exact class attribute): existing/virtual objects
+    // carry an extra status class alongside "furniture-item".
     assert_eq!(
-        dokime::count(&html, r#"class="furniture-item""#),
+        dokime::count(&html, r#"class="furniture-item"#),
         2,
         "existing + virtual both render"
+    );
+}
+
+#[test]
+fn existing_objects_are_dashed_and_dimmed() {
+    let catalog = vec![item("chair", Some(2.0), Some(2.0))];
+    let mut obj = Object::new("chair".to_string(), 5.0, 5.0);
+    obj.status = ItemStatus::existing;
+    let objects = vec![obj];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        html.contains("furniture-item--existing"),
+        "carries the existing status class"
+    );
+    assert!(html.contains(r#"stroke-dasharray="6,3""#), "dashed outline");
+    assert!(
+        html.contains(r#"fill-opacity="0.55""#),
+        "reduced fill opacity"
+    );
+}
+
+#[test]
+fn virtual_objects_are_a_lighter_ghost_than_existing() {
+    let catalog = vec![item("chair", Some(2.0), Some(2.0))];
+    let mut obj = Object::new("chair".to_string(), 5.0, 5.0);
+    obj.status = ItemStatus::r#virtual;
+    let objects = vec![obj];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        html.contains("furniture-item--virtual"),
+        "carries the virtual status class"
+    );
+    assert!(
+        html.contains(r#"stroke-dasharray="3,3""#),
+        "a tighter dash than existing"
+    );
+    assert!(
+        html.contains(r#"fill-opacity="0.3""#),
+        "more transparent than existing"
+    );
+}
+
+#[test]
+fn planned_objects_keep_the_solid_default_look() {
+    let catalog = vec![item("chair", Some(2.0), Some(2.0))];
+    let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)]; // default status: planned
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(!html.contains("furniture-item--existing"));
+    assert!(!html.contains("furniture-item--virtual"));
+    assert!(
+        html.contains(r#"stroke-dasharray="none""#),
+        "a solid outline"
+    );
+    assert!(
+        html.contains(r#"fill-opacity="0.7""#),
+        "today's full opacity"
+    );
+}
+
+#[test]
+fn a_selected_existing_object_keeps_its_dashed_outline_under_the_selection_tint() {
+    let catalog = vec![item("chair", Some(2.0), Some(2.0))];
+    let mut obj = Object::new("chair".to_string(), 5.0, 5.0);
+    obj.status = ItemStatus::existing;
+    let objects = vec![obj];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(0) /> }
+    });
+    assert!(
+        html.contains(r##"fill="#7ea9d4""##),
+        "the selection tint still wins the fill color"
+    );
+    assert!(
+        html.contains(r#"stroke-dasharray="6,3""#),
+        "the dash pattern still reads through a selection"
     );
 }
 

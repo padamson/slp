@@ -2,7 +2,12 @@
 //! and rotated. The catalog supplies the footprint dimensions (width × depth);
 //! the object supplies position and rotation. This draws the *committed* objects
 //! from the `Plan` — every object is shown regardless of cost `status` (existing
-//! and virtual items appear on the plan; status only affects the take-off).
+//! and virtual items appear on the plan; status only affects the take-off), but
+//! `status` still shapes the *look*: **existing** items (already in the yard)
+//! render with a dashed outline and reduced fill opacity, and **virtual** items
+//! (a what-if duplicate at an alternate position) render as a lighter ghost still
+//! — dashed and more transparent — so both read at a glance as "not a purchase"
+//! without opening the inspector. A **planned** item keeps today's solid look.
 //!
 //! An object whose `catalog_ref` resolves to no catalog item is skipped (there is
 //! no footprint to draw) — the same exclusion the cost take-off makes.
@@ -15,7 +20,7 @@
 use std::collections::HashMap;
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, Coord, Object, Point, footprint_corners, within_a_single};
+use slp_core::{CatalogItem, Coord, ItemStatus, Object, Point, footprint_corners, within_a_single};
 
 use super::Transform;
 
@@ -86,7 +91,9 @@ pub fn Furnishings(
                 );
             let is_selected = selected == Some(i);
             // Selection tints the fill; overflow colors the outline — both can show
-            // on the same object (a selected piece that also doesn't fit).
+            // on the same object (a selected piece that also doesn't fit). Status is
+            // an independent axis: it shapes the dash pattern + opacity, so it still
+            // reads through a selection tint or an overflow outline.
             let mut class = String::from("furniture-item");
             if is_selected {
                 class.push_str(" furniture-item--selected");
@@ -94,6 +101,12 @@ pub fn Furnishings(
             if overflows {
                 class.push_str(" furniture-item--overflows");
             }
+            let (status_class, dash, fill_opacity) = match obj.status {
+                ItemStatus::existing => (" furniture-item--existing", "6,3", "0.55"),
+                ItemStatus::r#virtual => (" furniture-item--virtual", "3,3", "0.3"),
+                _ => ("", "none", "0.7"),
+            };
+            class.push_str(status_class);
             let fill = if is_selected { "#7ea9d4" } else { "#a8927a" };
             let (stroke, stroke_w) = if overflows {
                 ("#d4351c", "2.5")
@@ -140,9 +153,10 @@ pub fn Furnishings(
                         width=w_px
                         height=d_px
                         fill=fill
-                        fill-opacity="0.7"
+                        fill-opacity=fill_opacity
                         stroke=stroke
                         stroke-width=stroke_w
+                        stroke-dasharray=dash
                     />
                     {handle}
                 </g>
