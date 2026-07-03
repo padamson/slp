@@ -9,9 +9,9 @@
 
 use leptos::prelude::*;
 use slp_core::{
-    CatalogItem, Commit, Coord, Corner, Deck, DeckLevel, House, ItemStatus, Object, Plan, Point,
-    StepRun, Tool, commit_kind, dragged_center, free_corner, heading, nearest_wall, object_at,
-    opening_from_nodes, snap_node, take_off,
+    CatalogItem, Commit, Coord, Corner, Deck, DeckLevel, FootprintShape, House, ItemStatus, Object,
+    Plan, Point, StepRun, Tool, commit_kind, dragged_center, free_corner, heading, nearest_wall,
+    object_at, opening_from_nodes, snap_node, take_off,
 };
 
 use super::{
@@ -649,12 +649,25 @@ fn starter_catalog() -> Vec<CatalogItem> {
         c.unit_price = Some(price);
         c
     };
+    // A round object (fire pit): a circular footprint of diameter `width_ft`.
+    let round = |id: &str, name: &str, category: &str, diameter: f64, h: f64, price: f64| {
+        let mut c = CatalogItem::new(id.to_string());
+        c.name = Some(name.to_string());
+        c.category = Some(category.to_string());
+        c.shape = FootprintShape::circle;
+        c.width_ft = Some(diameter);
+        c.depth_ft = Some(diameter);
+        c.height_ft = Some(h);
+        c.unit_price = Some(price);
+        c
+    };
     vec![
         furniture("lounge-chair", "Lounge chair", 2.5, 3.0, 2.5, 199.0),
         furniture("outdoor-sofa", "Outdoor sofa", 7.0, 3.0, 2.5, 899.0),
         furniture("dining-table", "Dining table", 4.0, 6.0, 2.5, 649.0),
         furniture("side-table", "Side table", 1.5, 1.5, 1.5, 89.0),
         furniture("patio-umbrella", "Patio umbrella", 9.0, 9.0, 8.0, 149.0),
+        round("fire-pit", "Fire pit", "fire-pit", 3.0, 1.5, 349.0),
     ]
 }
 

@@ -1,7 +1,7 @@
 //! dokime component tests for `Furnishings` (placed-object footprints).
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, Coord, ItemStatus, Object};
+use slp_core::{CatalogItem, Coord, FootprintShape, ItemStatus, Object};
 
 use super::{Furnishings, Transform};
 
@@ -17,6 +17,12 @@ fn item(id: &str, w_ft: Option<f64>, d_ft: Option<f64>) -> CatalogItem {
     let mut c = CatalogItem::new(id.to_string());
     c.width_ft = w_ft;
     c.depth_ft = d_ft;
+    c
+}
+
+fn round_item(id: &str, diameter: f64) -> CatalogItem {
+    let mut c = item(id, Some(diameter), Some(diameter));
+    c.shape = FootprintShape::circle;
     c
 }
 
@@ -39,6 +45,36 @@ fn renders_a_footprint_to_scale() {
         html.contains("translate(50,150)"),
         "centered at the object's position"
     );
+}
+
+#[test]
+fn a_round_item_renders_a_circle_not_a_rect() {
+    // A ⌀4 ft fire pit at (5,5): 10 px/ft → a circle of radius 20 px centered
+    // at sx(5)=50, sy(5)=150.
+    let catalog = vec![round_item("fire-pit", 4.0)];
+    let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(html.contains("<circle"), "the footprint is a circle");
+    assert!(!html.contains("<rect"), "no rectangle for a round item");
+    assert!(html.contains(r#"r="20""#), "4 ft diameter → 20 px radius");
+    assert!(
+        html.contains("translate(50,150)"),
+        "centered at the object's position"
+    );
+}
+
+#[test]
+fn an_existing_round_item_is_a_double_ring() {
+    let catalog = vec![round_item("fire-pit", 4.0)];
+    let mut obj = Object::new("fire-pit".to_string(), 5.0, 5.0);
+    obj.status = ItemStatus::existing;
+    let objects = vec![obj];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    // Existing → a second, inset ring; still circles, never rects.
+    assert_eq!(dokime::count(&html, "<circle"), 2, "a double ring");
+    assert!(!html.contains("<rect"));
 }
 
 #[test]

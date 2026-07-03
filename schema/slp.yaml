@@ -38,13 +38,15 @@ classes:
   CatalogItem:
     description: |-
       A purchasable product the user has added to the plan's catalog. Objects
-      reference it by `id`. The footprint (`width_ft`/`depth_ft`) and `height_ft`
-      drive the 2D render and the future 3D view; `unit_price` drives cost.
+      reference it by `id`. The footprint (`shape` + `width_ft`/`depth_ft`) and
+      `height_ft` drive the 2D render and the future 3D view; `unit_price` drives
+      cost.
     slots:
       - id
       - name
       - category
       - unit_price
+      - shape
       - width_ft
       - depth_ft
       - height_ft
@@ -197,12 +199,19 @@ slots:
   unit_price:
     range: double
     description: Price per item, in dollars.
+  shape:
+    range: FootprintShape
+    ifabsent: FootprintShape(rectangle)
+    description: |-
+      The item's 2D footprint shape, defaulting to rectangle when absent. A
+      `circle` (fire pit, round table) uses `width_ft` as its diameter and
+      ignores `depth_ft`.
   width_ft:
     range: double
-    description: Footprint width, in feet.
+    description: Footprint width, in feet (a circle's diameter).
   depth_ft:
     range: double
-    description: Footprint depth, in feet.
+    description: Footprint depth, in feet (unused for a circle).
   height_ft:
     range: double
     description: Item height, in feet (for the future 3D view).
@@ -292,6 +301,14 @@ enums:
         description: A doorway.
       window:
         description: A window.
+
+  FootprintShape:
+    description: The 2D footprint shape of a catalog item.
+    permissible_values:
+      rectangle:
+        description: A `width_ft` × `depth_ft` rectangle (the default).
+      circle:
+        description: A circle of diameter `width_ft` (fire pits, round tables).
 
   ItemStatus:
     description: |-

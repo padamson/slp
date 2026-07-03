@@ -6,7 +6,7 @@
 //! otherwise turned with the drag handle on the object itself.
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, Corner, ItemStatus, Object};
+use slp_core::{CatalogItem, Corner, FootprintShape, ItemStatus, Object};
 
 use super::Toggle;
 
@@ -62,9 +62,16 @@ pub fn ObjectInspector(
         .as_ref()
         .and_then(|i| i.category.clone())
         .unwrap_or_else(dash);
+    // A circle shows its diameter (⌀); a rectangle shows width × depth.
     let footprint = item
         .as_ref()
-        .and_then(|i| Some(format!("{} × {} ft", i.width_ft?, i.depth_ft?)))
+        .and_then(|i| {
+            if i.shape == FootprintShape::circle {
+                Some(format!("⌀ {} ft", i.width_ft?))
+            } else {
+                Some(format!("{} × {} ft", i.width_ft?, i.depth_ft?))
+            }
+        })
         .unwrap_or_else(dash);
     let height = item
         .as_ref()

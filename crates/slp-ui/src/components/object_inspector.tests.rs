@@ -2,7 +2,7 @@
 //! reset controls is exercised end-to-end in slp-e2e; dokime renders markup.)
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, Corner, ItemStatus, Object};
+use slp_core::{CatalogItem, Corner, FootprintShape, ItemStatus, Object};
 
 use super::ObjectInspector;
 
@@ -90,4 +90,29 @@ fn falls_back_when_the_catalog_item_is_missing() {
     );
     assert!(html.contains("—"), "missing metadata fields show a dash");
     assert!(html.contains(r#"data-corner="se""#), "the chosen corner");
+}
+
+#[test]
+fn a_round_item_shows_its_diameter() {
+    let mut fire_pit = CatalogItem::new("fire-pit".to_string());
+    fire_pit.name = Some("Fire pit".to_string());
+    fire_pit.shape = FootprintShape::circle;
+    fire_pit.width_ft = Some(3.0);
+    fire_pit.depth_ft = Some(3.0);
+    let obj = Object::new("fire-pit".to_string(), 5.0, 5.0);
+    let html = dokime::render(move || {
+        view! {
+            <ObjectInspector
+                object=obj
+                item=Some(fire_pit)
+                corner=Corner::Nw
+                on_status=Callback::new(|_| {})
+                on_virtual=Callback::new(|_| {})
+                on_reset_rotation=Callback::new(|()| {})
+                on_delete=Callback::new(|()| {})
+            />
+        }
+    });
+    assert!(html.contains("⌀ 3 ft"), "a circle shows its diameter");
+    assert!(!html.contains("×"), "not a width × depth for a round item");
 }

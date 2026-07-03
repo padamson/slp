@@ -16,8 +16,8 @@ pub mod wall;
 
 pub use corner::{Corner, free_corner};
 pub use generated::slp::{
-    CatalogItem, Coord, Deck, DeckLevel, House, ItemStatus, Object, Opening, OpeningKind, Plan,
-    StepRun,
+    CatalogItem, Coord, Deck, DeckLevel, FootprintShape, House, ItemStatus, Object, Opening,
+    OpeningKind, Plan, StepRun,
 };
 pub use geom::{
     Point, area, footprint_corners, heading, point_in_polygon, polyline_length, within_a_single,

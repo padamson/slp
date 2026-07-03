@@ -21,7 +21,9 @@
 use std::collections::HashMap;
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, Coord, Object, Point, footprint_corners, within_a_single};
+use slp_core::{
+    CatalogItem, Coord, FootprintShape, Object, Point, footprint_corners, within_a_single,
+};
 
 use super::Transform;
 use crate::style::{
@@ -32,6 +34,15 @@ use crate::style::{
 /// Fallback footprint side (ft) when a catalog item carries no dimensions, so a
 /// placed object is still visible and selectable.
 const DEFAULT_FT: f64 = 1.0;
+
+/// A resolved catalog footprint: its size in feet and whether it's a circle
+/// (rendered as a `<circle>` of diameter `w_ft`) rather than a rectangle.
+#[derive(Clone, Copy)]
+struct Footprint {
+    w_ft: f64,
+    d_ft: f64,
+    circle: bool,
+}
 /// Rotation-handle geometry (viewBox px): gap from the footprint's north edge to
 /// the handle, and the handle's radius.
 const HANDLE_GAP_PX: f64 = 12.0;
@@ -66,16 +77,20 @@ pub fn Furnishings(
     // `(x, y)` and rotated `rot` degrees clockwise from north — the canvas draws
     // north up and SVG `rotate(+a)` turns clockwise in screen space, so the
     // schema's clockwise-from-north angle maps straight to `rotate(rot)`.
-    let dims: HashMap<String, (f64, f64)> = catalog
+    let dims: HashMap<String, Footprint> = catalog
         .into_iter()
         .map(|c| {
-            (
-                c.id,
-                (
-                    c.width_ft.unwrap_or(DEFAULT_FT),
-                    c.depth_ft.unwrap_or(DEFAULT_FT),
-                ),
-            )
+            let circle = c.shape == FootprintShape::circle;
+            let w_ft = c.width_ft.unwrap_or(DEFAULT_FT);
+            // A circle uses its diameter (`width_ft`) for both axes, so its
+            // bounding square — used by the fit-check and hit-test — is correct
+            // regardless of `depth_ft`.
+            let d_ft = if circle {
+                w_ft
+            } else {
+                c.depth_ft.unwrap_or(DEFAULT_FT)
+            };
+            (c.id, Footprint { w_ft, d_ft, circle })
         })
         .collect();
     // Surface polygons in world points, once. Empty → skip the fit check.
@@ -87,11 +102,11 @@ pub fn Furnishings(
         .into_iter()
         .enumerate()
         .filter_map(|(i, obj)| {
-            let &(w_ft, d_ft) = dims.get(&obj.catalog_ref)?;
+            let &fp = dims.get(&obj.catalog_ref)?;
             let rot = obj.rot.unwrap_or(0.0);
             let overflows = !surface_polys.is_empty()
                 && !within_a_single(
-                    &footprint_corners(obj.x, obj.y, w_ft, d_ft, rot),
+                    &footprint_corners(obj.x, obj.y, fp.w_ft, fp.d_ft, rot),
                     &surface_polys,
                 );
             let is_selected = selected == Some(i);
@@ -99,7 +114,7 @@ pub fn Furnishings(
                 t,
                 obj,
                 i,
-                (w_ft, d_ft),
+                fp,
                 is_selected,
                 overflows,
                 on_handle_press,
@@ -120,17 +135,22 @@ pub fn Furnishings(
 /// Edition 2024's RPIT lifetime-capture rules mean a `&Object` here would tie
 /// the returned `impl IntoView` to `obj`'s borrow, which the caller can't
 /// satisfy (the object is a short-lived local in the iterator closure above).
-#[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
+#[allow(
+    clippy::too_many_arguments,
+    clippy::needless_pass_by_value,
+    clippy::too_many_lines
+)]
 fn object_view(
     t: Transform,
     obj: Object,
     i: usize,
-    (w_ft, d_ft): (f64, f64),
+    fp: Footprint,
     is_selected: bool,
     overflows: bool,
     on_handle_press: Option<Callback<()>>,
     on_object_press: Option<Callback<usize>>,
 ) -> impl IntoView {
+    let Footprint { w_ft, d_ft, circle } = fp;
     let rot = obj.rot.unwrap_or(0.0);
     // Selection tints the fill; overflow colors the outline — both can show on
     // the same object (a selected piece that also doesn't fit). Status/virtual
@@ -165,22 +185,70 @@ fn object_view(
         single_stroke_w
     };
     let (w_px, d_px) = (w_ft * t.px_ft, d_ft * t.px_ft);
+    let r_px = w_px / 2.0; // circle radius (diameter = w_ft, so d_px == w_px)
     let transform = format!("translate({},{}) rotate({})", t.sx(obj.x), t.sy(obj.y), rot);
-    // An `existing` item draws a second, inset stroke — a double outline reads
-    // as "already owned" without needing a legend.
-    let inner_outline = style.double.then(|| {
-        let gap = DOUBLE_LINE_GAP_PX;
+    // The footprint itself — a circle (fire pits, round tables) or a rectangle.
+    let footprint = if circle {
         view! {
-            <rect
-                x=-w_px / 2.0 + gap
-                y=-d_px / 2.0 + gap
-                width=w_px - 2.0 * gap
-                height=d_px - 2.0 * gap
-                fill="none"
+            <circle
+                cx="0"
+                cy="0"
+                r=r_px
+                fill=fill
+                fill-opacity=style.fill_opacity
                 stroke=stroke
                 stroke-width=stroke_w
                 stroke-dasharray=style.dash
             />
+        }
+        .into_any()
+    } else {
+        view! {
+            <rect
+                x=-w_px / 2.0
+                y=-d_px / 2.0
+                width=w_px
+                height=d_px
+                fill=fill
+                fill-opacity=style.fill_opacity
+                stroke=stroke
+                stroke-width=stroke_w
+                stroke-dasharray=style.dash
+            />
+        }
+        .into_any()
+    };
+    // An `existing` item draws a second, inset stroke — a double outline reads
+    // as "already owned" without needing a legend.
+    let inner_outline = style.double.then(|| {
+        let gap = DOUBLE_LINE_GAP_PX;
+        if circle {
+            view! {
+                <circle
+                    cx="0"
+                    cy="0"
+                    r=r_px - gap
+                    fill="none"
+                    stroke=stroke
+                    stroke-width=stroke_w
+                    stroke-dasharray=style.dash
+                />
+            }
+            .into_any()
+        } else {
+            view! {
+                <rect
+                    x=-w_px / 2.0 + gap
+                    y=-d_px / 2.0 + gap
+                    width=w_px - 2.0 * gap
+                    height=d_px - 2.0 * gap
+                    fill="none"
+                    stroke=stroke
+                    stroke-width=stroke_w
+                    stroke-dasharray=style.dash
+                />
+            }
+            .into_any()
         }
     });
     // The rotation handle rides inside the rotated group (local north is -y),
@@ -213,17 +281,7 @@ fn object_view(
                 }
             }
         >
-            <rect
-                x=-w_px / 2.0
-                y=-d_px / 2.0
-                width=w_px
-                height=d_px
-                fill=fill
-                fill-opacity=style.fill_opacity
-                stroke=stroke
-                stroke-width=stroke_w
-                stroke-dasharray=style.dash
-            />
+            {footprint}
             {inner_outline}
             {handle}
         </g>

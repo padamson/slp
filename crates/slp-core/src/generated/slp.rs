@@ -6,6 +6,16 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(non_camel_case_types, non_snake_case, dead_code, clippy::all)]
 
+/// The 2D footprint shape of a catalog item.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub enum FootprintShape {
+    /// A circle of diameter `width_ft` (fire pits, round tables).
+    circle,
+    /// A `width_ft` × `depth_ft` rectangle (the default).
+    rectangle,
+}
+
 /// Whether a real item is already owned/built (existing) or still to be
 /// bought/built (planned). Used by `Object` (where `planned` counts toward
 /// cost, `existing` doesn't) and by structures (`House`/`DeckLevel`, where
@@ -32,14 +42,15 @@ pub enum OpeningKind {
 }
 
 /// A purchasable product the user has added to the plan's catalog. Objects
-/// reference it by `id`. The footprint (`width_ft`/`depth_ft`) and `height_ft`
-/// drive the 2D render and the future 3D view; `unit_price` drives cost.
-#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+/// reference it by `id`. The footprint (`shape` + `width_ft`/`depth_ft`) and
+/// `height_ft` drive the 2D render and the future 3D view; `unit_price` drives
+/// cost.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CatalogItem {
     /// Catalog category, e.g. "furniture".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
-    /// Footprint depth, in feet.
+    /// Footprint depth, in feet (unused for a circle).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depth_ft: Option<f64>,
     /// Item height, in feet (for the future 3D view).
@@ -50,13 +61,20 @@ pub struct CatalogItem {
     /// Human-readable name for this plan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// The item's 2D footprint shape, defaulting to rectangle when absent. A
+    /// `circle` (fire pit, round table) uses `width_ft` as its diameter and
+    /// ignores `depth_ft`.
+    #[serde(default = "default_catalog_item_shape")]
+    pub shape: FootprintShape,
     /// Price per item, in dollars.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit_price: Option<f64>,
-    /// Footprint width, in feet.
+    /// Footprint width, in feet (a circle's diameter).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub width_ft: Option<f64>,
 }
+
+fn default_catalog_item_shape() -> FootprintShape { FootprintShape::rectangle }
 
 impl CatalogItem {
     pub fn new(id: String) -> Self {
@@ -66,6 +84,7 @@ impl CatalogItem {
             height_ft: None,
             id,
             name: None,
+            shape: FootprintShape::rectangle,
             unit_price: None,
             width_ft: None,
         }
