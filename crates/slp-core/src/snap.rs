@@ -15,6 +15,17 @@ pub fn snap_to_grid(p: &Coord, step: f64) -> Coord {
     Coord::new((p.x / step).round() * step, (p.y / step).round() * step)
 }
 
+/// New center for a dragged object: the cursor plus the grab offset `(gx, gy)` —
+/// the vector from the cursor to the object's center captured when the drag
+/// began, so the object tracks the cursor without jumping its center under the
+/// pointer — snapped to the grid when `step > 0` (a non-positive `step` leaves
+/// the position free).
+#[must_use]
+pub fn dragged_center(cursor: &Coord, grab: (f64, f64), step: f64) -> Coord {
+    let (gx, gy) = grab;
+    snap_to_grid(&Coord::new(cursor.x + gx, cursor.y + gy), step)
+}
+
 /// Constrain the edge from `prev` to `p` to be horizontal or vertical —
 /// whichever is closer — so walls and walkways stay parallel to the grid. The
 /// larger of the two deltas wins (ties go horizontal).
@@ -52,6 +63,27 @@ mod tests {
         let p = Coord::new(1.4, 2.6);
         assert_eq!(snap_to_grid(&p, 0.0), p);
         assert_eq!(snap_to_grid(&p, -1.0), p);
+    }
+
+    #[test]
+    fn dragged_center_applies_the_grab_offset() {
+        // Free (step 0): center = cursor + grab, each axis using its own offset.
+        assert_eq!(
+            dragged_center(&Coord::new(10.0, 20.0), (2.0, -3.0), 0.0),
+            Coord::new(12.0, 17.0)
+        );
+    }
+
+    #[test]
+    fn dragged_center_snaps_to_the_grid_when_step_positive() {
+        let cursor = Coord::new(10.4, 20.6);
+        // step > 0 rounds the offset center to the grid.
+        assert_eq!(
+            dragged_center(&cursor, (0.0, 0.0), 1.0),
+            Coord::new(10.0, 21.0)
+        );
+        // step 0 leaves it free — the grab-offset center, unrounded.
+        assert_eq!(dragged_center(&cursor, (0.0, 0.0), 0.0), cursor);
     }
 
     #[test]

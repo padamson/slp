@@ -45,7 +45,7 @@ cross-cutting machinery folded into that point in the sequence.
 | A1 | Yard at the dimensions I set | [A1](A1-yard-to-scale.md) | ✅ done |
 | H1 | Draw the house outline + place doors & windows (saved in the plan) | [H1](H1-draw-house.md) | ✅ done |
 | H2 | Draw the deck (footprint, stairs, railing); flag existing | [H2](H2-draw-deck.md) | ✅ footprint (stairs/railing later) |
-| F1 | *Enabler:* select / move / reshape / delete | _doc pending_ | backlog |
+| F1 | *Enabler:* select / move / reshape / delete | [F1](F1-select-move-delete.md) | 🚧 object move + delete done; geometry select/move/reshape next |
 | G1 | *Enabler:* save/load `.slp.json` | _doc pending_ | backlog |
 | M1–M3 | *Enabler:* materials/catalog + cost engine (folded into E1) | [E1](E1-place-furniture.md) | ✅ cost engine (headless) |
 | E1 | Place deck furniture (look + cost) | [E1](E1-place-furniture.md) | ✅ place + estimate + select/inspect/rotate + e2e |

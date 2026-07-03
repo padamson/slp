@@ -10,8 +10,8 @@
 use leptos::prelude::*;
 use slp_core::{
     CatalogItem, Commit, Coord, Corner, Deck, DeckLevel, House, Object, Plan, Point, StepRun, Tool,
-    commit_kind, free_corner, heading, nearest_wall, object_at, opening_from_nodes, snap_node,
-    take_off,
+    commit_kind, dragged_center, free_corner, heading, nearest_wall, object_at, opening_from_nodes,
+    snap_node, take_off,
 };
 
 use super::{
@@ -40,6 +40,16 @@ const INSPECTOR_MARGIN_PX: f64 = 10.0;
 /// `localStorage` key for the persisted plan (only used in the browser build).
 #[cfg(feature = "csr")]
 const STORAGE_KEY: &str = "slp:plan";
+
+/// An in-progress move: which object is being dragged, and the offset (feet)
+/// from the cursor to the object's center at grab time, so the object follows
+/// the cursor without snapping its center under the pointer.
+#[derive(Clone, Copy)]
+struct Drag {
+    index: usize,
+    grab_x: f64,
+    grab_y: f64,
+}
 
 #[component]
 pub fn Planner() -> impl IntoView {
@@ -95,6 +105,10 @@ fn planner_body() -> impl IntoView {
     let metrics = RwSignal::new(CanvasMetrics::default());
     // True while dragging the selected object's rotation handle.
     let rotating = RwSignal::new(false);
+    // The in-progress object move (its body is held), if any.
+    let dragging = RwSignal::new(None::<Drag>);
+    // The last cursor position in feet, used to grab a moved object at its offset.
+    let hover_at = RwSignal::new(None::<Coord>);
     // The elevation (ft) the next deck level is drawn at.
     let elevation = RwSignal::new(1.0_f64);
     // Placement engine state: the active tool, the nodes placed this gesture,
@@ -175,9 +189,27 @@ fn planner_body() -> impl IntoView {
         )
     };
 
-    // Pointer move → rotate the selected object toward the cursor while its handle
-    // is held, otherwise preview the next node.
+    // Pointer move → drag the held object, rotate toward the cursor while the
+    // handle is held, otherwise preview the next node.
     let on_hover = Callback::new(move |raw: Coord| {
+        hover_at.set(Some(raw.clone()));
+        // Moving a held object: place its center at the cursor plus the grab
+        // offset, snapping to the foot grid when grid-snap is on.
+        if let Some(d) = dragging.get_untracked() {
+            let step = if grid_snap.get_untracked() {
+                GRID_STEP
+            } else {
+                0.0
+            };
+            let c = dragged_center(&raw, (d.grab_x, d.grab_y), step);
+            objects.update(|v| {
+                if let Some(o) = v.get_mut(d.index) {
+                    o.x = c.x;
+                    o.y = c.y;
+                }
+            });
+            return;
+        }
         if rotating.get_untracked() {
             if let Some(i) = selected.get_untracked() {
                 objects.update(|v| {
@@ -199,7 +231,12 @@ fn planner_body() -> impl IntoView {
 
     // Pointer release → commit a node (or close / finish the object).
     let on_commit = Callback::new(move |raw: Coord| {
-        // Releasing after a rotate-handle drag just ends the gesture.
+        // Releasing after an object move or a rotate-handle drag just ends the
+        // gesture (the object is already at its new position / angle).
+        if dragging.get_untracked().is_some() {
+            dragging.set(None);
+            return;
+        }
         if rotating.get_untracked() {
             rotating.set(false);
             return;
@@ -271,6 +308,55 @@ fn planner_body() -> impl IntoView {
     });
 
     let on_leave = Callback::new(move |()| preview.set(None));
+
+    // Press an object's body → select it and start a move drag, grabbing it at
+    // the offset from the cursor to its center so it doesn't jump under the
+    // pointer. Ignored while a drawing tool is armed — that click is a placement.
+    let on_object_press = Callback::new(move |i: usize| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        selected.set(Some(i));
+        let (grab_x, grab_y) = match (hover_at.get_untracked(), objects.get_untracked().get(i)) {
+            (Some(c), Some(o)) => (o.x - c.x, o.y - c.y),
+            _ => (0.0, 0.0),
+        };
+        dragging.set(Some(Drag {
+            index: i,
+            grab_x,
+            grab_y,
+        }));
+    });
+
+    // Remove the selected object and clear the selection.
+    let delete_selected = Callback::new(move |()| {
+        if let Some(i) = selected.get_untracked() {
+            objects.update(|v| {
+                if i < v.len() {
+                    v.remove(i);
+                }
+            });
+            selected.set(None);
+        }
+    });
+
+    // Delete / Backspace removes the selected object — but not while a text field
+    // or picker is focused, so it can't eat a keypress meant for editing.
+    #[cfg(feature = "csr")]
+    Effect::new(move |_| {
+        let handle =
+            window_event_listener(leptos::ev::keydown, move |ev: leptos::ev::KeyboardEvent| {
+                if selected.get_untracked().is_none() || is_editing_field() {
+                    return;
+                }
+                let key = ev.key();
+                if key == "Delete" || key == "Backspace" {
+                    ev.prevent_default();
+                    delete_selected.run(());
+                }
+            });
+        on_cleanup(move || handle.remove());
+    });
 
     // Arm a tool (or toggle it off). Starting the house clears the old one;
     // starting an opening keeps the house.
@@ -393,6 +479,7 @@ fn planner_body() -> impl IntoView {
                             on_leave=on_leave
                             on_metrics=Callback::new(move |m| metrics.set(m))
                             on_handle_press=Callback::new(move |()| rotating.set(true))
+                            on_object_press=on_object_press
                         />
                     }
                 }}
@@ -470,6 +557,7 @@ fn planner_body() -> impl IntoView {
                                             });
                                     }
                                 })
+                                on_delete=delete_selected
                             />
                         },
                     )
@@ -554,6 +642,21 @@ fn starter_catalog() -> Vec<CatalogItem> {
 #[cfg(feature = "csr")]
 fn storage() -> Option<web_sys::Storage> {
     web_sys::window()?.local_storage().ok()?
+}
+
+/// Whether the keyboard focus is in a text field / picker, so global shortcuts
+/// (Delete/Backspace) don't hijack a keypress meant for editing.
+#[cfg(feature = "csr")]
+fn is_editing_field() -> bool {
+    web_sys::window()
+        .and_then(|w| w.document())
+        .and_then(|d| d.active_element())
+        .is_some_and(|el| {
+            matches!(
+                el.tag_name().to_uppercase().as_str(),
+                "INPUT" | "SELECT" | "TEXTAREA"
+            )
+        })
 }
 
 /// The persisted plan, if any. `None` off the browser (ssr / tests).

@@ -30,6 +30,7 @@ fn shows_metadata_status_and_reset() {
                 corner=Corner::Nw
                 on_status=Callback::new(|_| {})
                 on_reset_rotation=Callback::new(|()| {})
+                on_delete=Callback::new(|()| {})
             />
         }
     });
@@ -46,6 +47,10 @@ fn shows_metadata_status_and_reset() {
     assert!(
         html.contains(r#"data-testid="status-existing""#),
         "status buttons"
+    );
+    assert!(
+        html.contains(r#"data-testid="delete-object""#),
+        "remove button"
     );
     assert!(
         html.contains(r#"data-corner="nw""#),
@@ -69,6 +74,7 @@ fn falls_back_when_the_catalog_item_is_missing() {
                 corner=Corner::Se
                 on_status=Callback::new(|_| {})
                 on_reset_rotation=Callback::new(|()| {})
+                on_delete=Callback::new(|()| {})
             />
         }
     });

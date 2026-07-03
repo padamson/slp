@@ -24,6 +24,6 @@ pub use geom::{
 };
 pub use pick::object_at;
 pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node, step_outward, step_run};
-pub use snap::{snap_ortho, snap_to_grid};
+pub use snap::{dragged_center, snap_ortho, snap_to_grid};
 pub use takeoff::{BillOfMaterials, LineItem, take_off};
 pub use wall::{nearest_wall, opening_segment, point_along, project_onto};

@@ -32,7 +32,10 @@
         touch-action: none;
         user-select: none;
       }
-      /* Rotation handle on the selected object — grab to turn it. */
+      /* Placed objects — grab the body to move it, the handle to rotate it. */
+      .furniture-item {
+        cursor: move;
+      }
       .rotate-handle {
         cursor: grab;
       }
@@ -214,6 +217,21 @@
         background: #2b6cb0;
         color: #fff;
         border-color: #2b6cb0;
+      }
+      .inspector-delete {
+        margin-top: 8px;
+        width: 100%;
+        font: inherit;
+        font-size: 12px;
+        padding: 4px 8px;
+        border: 1px solid #e0b4ac;
+        border-radius: 7px;
+        background: #fff;
+        color: #a5352a;
+        cursor: pointer;
+      }
+      .inspector-delete:hover {
+        background: #fbecea;
       }
       /* The canvas is a plain block flex item so the SVG fills it predictably,
          instead of the SVG being sized by its own intrinsic aspect ratio. */

@@ -62,6 +62,9 @@ pub fn Yard(
     /// The selected object's rotation handle was pressed — start a rotate drag.
     #[prop(optional)]
     on_handle_press: Option<Callback<()>>,
+    /// An object body was pressed (by index) — select it and start a move drag.
+    #[prop(optional)]
+    on_object_press: Option<Callback<usize>>,
 ) -> impl IntoView {
     let t = Transform { px_ft, pad, yard_d };
     let w_px = t.sx(yard_w) + pad;
@@ -148,6 +151,7 @@ pub fn Yard(
                         surfaces=surfaces
                         selected=selected.get()
                         on_handle_press=on_handle_press
+                        on_object_press=on_object_press
                     />
                 }
             }}

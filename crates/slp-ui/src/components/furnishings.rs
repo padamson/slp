@@ -45,6 +45,10 @@ pub fn Furnishings(
     /// The rotation handle was pressed — start a rotate gesture.
     #[prop(default = None)]
     on_handle_press: Option<Callback<()>>,
+    /// An object's body was pressed (by `objects` index) — select it and start a
+    /// move gesture.
+    #[prop(default = None)]
+    on_object_press: Option<Callback<usize>>,
 ) -> impl IntoView {
     // Resolve each catalog id to its footprint (consuming the catalog). One pass
     // instead of a linear scan per object; the object's `rot`/position handle the
@@ -121,7 +125,15 @@ pub fn Furnishings(
                 }
             });
             Some(view! {
-                <g class=class transform=transform>
+                <g
+                    class=class
+                    transform=transform
+                    on:mousedown=move |_ev: leptos::ev::MouseEvent| {
+                        if let Some(cb) = on_object_press {
+                            cb.run(i);
+                        }
+                    }
+                >
                     <rect
                         x=-w_px / 2.0
                         y=-d_px / 2.0

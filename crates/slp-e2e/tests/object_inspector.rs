@@ -14,62 +14,9 @@
 mod common;
 
 use anyhow::{Context, Result};
-use common::{dist_dir, serve};
+use common::{YARD_D, click_ft, dist_dir, draw_central_deck, measure_ppf, place, serve};
 use playwright_rs::protocol::Playwright;
-use playwright_rs::{BoundingBox, ClickOptions, Locator, Position, expect};
-
-/// Default yard: 70 ft wide × 30 ft deep, grid flush to the canvas.
-const YARD_W: f64 = 70.0;
-const YARD_D: f64 = 30.0;
-
-/// Click the yard at world feet `(fx, fy)` — origin south-west, north is up.
-/// `ppf` is the rendered pixels-per-foot (grid spans the full canvas width).
-async fn click_ft(yard: &Locator, ppf: f64, fx: f64, fy: f64) -> Result<()> {
-    // `force`: the placement/preview overlay redraws under the cursor while
-    // playwright hovers to the point, so the default "stable" check never
-    // settles — force dispatches the click at the exact position regardless.
-    let opts = ClickOptions::builder()
-        .position(Position {
-            x: fx * ppf,
-            y: (YARD_D - fy) * ppf,
-        })
-        .force(true)
-        .build();
-    yard.click(Some(opts)).await.context("click the yard at feet")?;
-    Ok(())
-}
-
-/// Arm the furniture tool (one-shot: it disarms after a placement).
-async fn arm_furniture(page: &playwright_rs::Page) -> Result<()> {
-    page.locator("[data-testid='place-furniture']")
-        .await
-        .click(None)
-        .await
-        .context("arm the furniture tool")?;
-    Ok(())
-}
-
-/// Place a furniture item at world feet `(fx, fy)`, then wait for the one-shot
-/// tool to disarm — so a following click selects rather than places.
-async fn place(page: &playwright_rs::Page, yard: &Locator, ppf: f64, fx: f64, fy: f64) -> Result<()> {
-    arm_furniture(page).await?;
-    click_ft(yard, ppf, fx, fy).await?;
-    expect(page.locator("[data-testid='hint']").await)
-        .to_have_text("Pick a tool to draw.")
-        .await
-        .context("furniture tool disarms after placing")?;
-    Ok(())
-}
-
-/// The yard's rendered pixels-per-foot (grid spans the full canvas width).
-async fn measure_ppf(yard: &Locator) -> Result<f64> {
-    let BoundingBox { width, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
-    Ok(width / YARD_W)
-}
+use playwright_rs::{BoundingBox, expect};
 
 /// Assert the inspector is showing in `corner` (`nw`/`sw`/`ne`/`se`).
 async fn assert_corner(page: &playwright_rs::Page, corner: &str) -> Result<()> {
@@ -102,22 +49,7 @@ async fn inspector_floats_in_the_first_empty_corner() -> Result<()> {
     // seeded), so this ppf is right for the deck.
     let ppf = measure_ppf(&yard).await?;
 
-    // Draw a small central deck (corners well away from every yard corner). This
-    // seeds the furniture catalog and auto-selects the first item.
-    page.locator("[data-testid='draw-deck']")
-        .await
-        .click(None)
-        .await
-        .context("arm the deck tool")?;
-    let deck = [(28.0, 12.0), (42.0, 12.0), (42.0, 18.0), (28.0, 18.0)];
-    for (fx, fy) in deck {
-        click_ft(&yard, ppf, fx, fy).await?;
-    }
-    click_ft(&yard, ppf, deck[0].0, deck[0].1).await?; // snap-close
-    expect(page.locator("[data-testid='yard'] .deck polygon").await)
-        .to_have_count(1)
-        .await
-        .context("the deck is drawn (and the catalog is seeded)")?;
+    draw_central_deck(&page, &yard, ppf).await?;
 
     // Seeding the catalog made the estimate panel appear, shrinking the canvas —
     // re-measure so furniture clicks land in the (now narrower) yard.
@@ -173,21 +105,7 @@ async fn dragging_the_handle_rotates_the_object() -> Result<()> {
     let yard = page.locator("[data-testid='yard']").await;
     let ppf = measure_ppf(&yard).await?;
 
-    // Draw a central deck to seed the catalog.
-    page.locator("[data-testid='draw-deck']")
-        .await
-        .click(None)
-        .await
-        .context("arm the deck tool")?;
-    let deck = [(28.0, 12.0), (42.0, 12.0), (42.0, 18.0), (28.0, 18.0)];
-    for (fx, fy) in deck {
-        click_ft(&yard, ppf, fx, fy).await?;
-    }
-    click_ft(&yard, ppf, deck[0].0, deck[0].1).await?; // snap-close
-    expect(page.locator("[data-testid='yard'] .deck polygon").await)
-        .to_have_count(1)
-        .await
-        .context("the deck is drawn")?;
+    draw_central_deck(&page, &yard, ppf).await?;
 
     // Re-measure after the estimate panel appears, and grab the yard's screen box.
     let ppf = measure_ppf(&yard).await?;

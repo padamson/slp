@@ -33,6 +33,8 @@ pub fn ObjectInspector(
     on_status: Callback<ItemStatus>,
     /// Reset the object's rotation to 0°.
     on_reset_rotation: Callback<()>,
+    /// Remove the object from the plan.
+    on_delete: Callback<()>,
 ) -> impl IntoView {
     let dash = || "—".to_string();
     let Object {
@@ -116,6 +118,13 @@ pub fn ObjectInspector(
                 {status_btn(ItemStatus::existing, "Existing", "status-existing")}
                 {status_btn(ItemStatus::r#virtual, "Virtual", "status-virtual")}
             </div>
+            <button
+                class="inspector-delete"
+                data-testid="delete-object"
+                on:click=move |_| on_delete.run(())
+            >
+                "Remove"
+            </button>
         </aside>
     }
 }

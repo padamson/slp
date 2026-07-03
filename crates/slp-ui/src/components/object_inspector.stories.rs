@@ -29,6 +29,7 @@ pub fn stories() -> Vec<Story> {
                     style="top: 10px; left: 10px;"
                     on_status=Callback::new(move |s| status.set(s))
                     on_reset_rotation=Callback::new(|()| {})
+                    on_delete=Callback::new(|()| {})
                 />
             </div>
         }
