@@ -34,6 +34,19 @@ sightlines) — for **any** house, since it's drawn and saved, not baked in.
   - [x] place a door or window by clicking **two points on a wall** (the span
         between them); the second node is constrained to the first node's wall
   - [x] they are saved in the `Plan` and survive a reload
+- **H1.3 — snap granularity (off / 1 ft / 1 in)** *(refinement)*
+  - [ ] the boolean "Snap to grid" toggle becomes a **3-way selector**: **off**
+        (free), **1 ft** (today's behavior, the default), or **1 in** (fine) —
+        applies canvas-wide to every drawing tool *and* object placement
+  - [ ] the snap step threads through as a signal (`snap_to_grid(&p, step)` in
+        `slp-core` already takes an arbitrary step; `step ≤ 0` is already a
+        no-op for the *off* case — no core change, just wiring + the selector)
+  - [ ] the **visual** grid stays at 1 ft (a 1-inch grid would be unreadably
+        dense) — only *snapping* gets finer; the selector changes where nodes
+        land, not the drawn gridlines
+  - [ ] dokime: the selector renders its three options with the current one
+        marked; e2e: switching to *off* lets a node land off-grid, *1 in* snaps
+        to the nearest inch
 
 ## Notes / refs
 
