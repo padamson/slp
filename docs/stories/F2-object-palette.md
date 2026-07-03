@@ -18,21 +18,27 @@ clunky.
 
 ## Vertical slices
 
-- **F2.0 — object palette (click-to-place)**
-  - [ ] a **palette** replaces the catalog dropdown + the "Place furniture"
+- **F2.0 — object palette (click-to-place)** ✅ *done*
+  - [x] a **palette** replaces the catalog dropdown + the "Place furniture"
         button: catalog items as compact tiles **grouped by `category`**
         (Furniture, Fire pits, …), each showing the item's name, price, and a
         **mini-icon drawn from `style.rs`** (a small square or circle in the
         item's shape, so the tile matches the canvas)
-  - [ ] clicking a tile **arms** placement of that item (the tile highlights);
-        clicking the armed tile again — or Esc — cancels without placing
-        (matches how the House/Deck tool buttons already toggle)
-  - [ ] rename `Tool::Furniture` → `Tool::Object` in `slp-core` (it places any
+  - [x] clicking a tile **arms** placement of that item (the tile highlights);
+        clicking the armed tile again cancels without placing (matches how the
+        House/Deck tool buttons already toggle; Esc-to-cancel arrives with the
+        F2.1 modifiers, which add the keydown handler)
+  - [x] rename `Tool::Furniture` → `Tool::Object` in `slp-core` (it places any
         category now), updating the placement engine + call sites
-  - [ ] dokime: the palette renders a tile per catalog item, grouped, with the
-        armed tile flagged; e2e: click a tile → click canvas → the object is
+  - [x] dokime: the palette renders a tile per catalog item, grouped, with the
+        armed tile flagged; e2e: arm a tile → click canvas → the object is
         placed and the estimate updates (folds in D2.0's deferred fire-pit e2e:
-        place the fire pit from the palette → a round footprint renders)
+        place the fire pit from the palette → a round footprint renders + the
+        inspector shows its diameter)
+  - [x] *(incidental fix)* the canvas metrics now re-measure via a
+        `ResizeObserver` on the yard, not just on window resize — the palette +
+        estimate appearing reflow the canvas, which previously left the object
+        inspector positioned against a stale top, floating over the toolbar
 - **F2.1 — placement modifiers (Shift = sticky, Option = virtual)**
   - [ ] **Shift held** makes placement sticky: after a drop, the tool stays
         armed while Shift is down, so Shift-click… places a row; releasing Shift

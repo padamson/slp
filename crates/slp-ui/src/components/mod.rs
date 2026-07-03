@@ -2,7 +2,6 @@
 //! `<name>.rs` + `<name>.stories.rs` (`stories` feature) + `<name>.tests.rs`
 //! (`cfg(test)`). Dotted file names use `#[path]` (not valid module idents).
 
-mod catalog_picker;
 mod deck;
 mod door;
 mod estimate_panel;
@@ -12,6 +11,7 @@ mod house;
 mod legend;
 mod number_field;
 mod object_inspector;
+mod object_palette;
 mod placement;
 mod planner;
 mod scale_bar;
@@ -24,7 +24,6 @@ mod window;
 mod yard;
 mod yard_controls;
 
-pub use catalog_picker::CatalogPicker;
 pub use deck::Deck;
 pub use door::Door;
 pub use estimate_panel::EstimatePanel;
@@ -34,6 +33,7 @@ pub use house::House;
 pub use legend::Legend;
 pub use number_field::NumberField;
 pub use object_inspector::ObjectInspector;
+pub use object_palette::ObjectPalette;
 pub use placement::Placement;
 pub use planner::Planner;
 pub use scale_bar::{DEFAULT_LENGTH_FT, ScaleBar};
@@ -106,9 +106,6 @@ pub struct CanvasMetrics {
 }
 
 #[cfg(feature = "stories")]
-#[path = "catalog_picker.stories.rs"]
-mod catalog_picker_stories;
-#[cfg(feature = "stories")]
 #[path = "deck.stories.rs"]
 mod deck_stories;
 #[cfg(feature = "stories")]
@@ -135,6 +132,9 @@ mod number_field_stories;
 #[cfg(feature = "stories")]
 #[path = "object_inspector.stories.rs"]
 mod object_inspector_stories;
+#[cfg(feature = "stories")]
+#[path = "object_palette.stories.rs"]
+mod object_palette_stories;
 #[cfg(feature = "stories")]
 #[path = "placement.stories.rs"]
 mod placement_stories;
@@ -181,6 +181,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(furnishings_stories::stories());
     s.extend(estimate_panel_stories::stories());
     s.extend(object_inspector_stories::stories());
+    s.extend(object_palette_stories::stories());
     s.extend(steps_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
@@ -193,15 +194,11 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(tool_button_stories::stories());
     s.extend(toggle_stories::stories());
     s.extend(number_field_stories::stories());
-    s.extend(catalog_picker_stories::stories());
     s.extend(tool_group_stories::stories());
     s.extend(yard_controls_stories::stories());
     s
 }
 
-#[cfg(test)]
-#[path = "catalog_picker.tests.rs"]
-mod catalog_picker_tests;
 #[cfg(test)]
 #[path = "deck.tests.rs"]
 mod deck_tests;
@@ -229,6 +226,9 @@ mod number_field_tests;
 #[cfg(test)]
 #[path = "object_inspector.tests.rs"]
 mod object_inspector_tests;
+#[cfg(test)]
+#[path = "object_palette.tests.rs"]
+mod object_palette_tests;
 #[cfg(test)]
 #[path = "placement.tests.rs"]
 mod placement_tests;

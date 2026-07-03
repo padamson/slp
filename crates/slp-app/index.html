@@ -120,21 +120,61 @@
         font-size: 12px;
         color: #8a8275;
       }
-      /* Catalog picker select, in the toolbar. */
-      .tools .catalog-picker {
+      /* Object palette: click-to-place tiles, grouped by category, along a bar
+         below the drawing tools. */
+      .object-palette {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        padding: 4px 22px 8px;
+        align-items: flex-start;
+      }
+      .palette-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .palette-group-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #8a8275;
+      }
+      .palette-tiles {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .palette-tile {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        font-size: 13px;
-        color: #6b6557;
-      }
-      .tools .catalog-picker select {
+        gap: 6px;
         font: inherit;
-        font-size: 13px;
-        padding: 3px 6px;
+        font-size: 12px;
+        padding: 4px 9px;
         border: 1px solid #e3dccb;
-        border-radius: 7px;
+        border-radius: 8px;
         background: #fff;
+        color: inherit;
+        cursor: pointer;
+      }
+      .palette-tile:hover {
+        background: #efe9dc;
+      }
+      .palette-tile.armed {
+        background: #5c6b4f;
+        color: #fff;
+        border-color: #5c6b4f;
+      }
+      .palette-icon {
+        flex: 0 0 auto;
+      }
+      .palette-price {
+        color: #8a8275;
+      }
+      .palette-tile.armed .palette-price {
+        color: #e6ecdd;
       }
       /* Canvas + estimate, side by side — the estimate wraps below the canvas
          when the window is too narrow to keep the canvas at a usable width. */

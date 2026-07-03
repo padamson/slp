@@ -35,8 +35,9 @@ pub enum Tool {
     /// A run of steps: a two-node span on an edge, running outward to grade.
     Steps,
     /// A catalog object placed at a single point: one click drops it at that
-    /// position (the object's center).
-    Furniture,
+    /// position (the object's center). Any category — furniture, fire pit,
+    /// tree, grill — is placed the same way.
+    Object,
 }
 
 impl Tool {
@@ -46,7 +47,7 @@ impl Tool {
         match self {
             Tool::Door => Some(OpeningKind::door),
             Tool::Window => Some(OpeningKind::window),
-            Tool::House | Tool::Deck | Tool::Steps | Tool::Furniture => None,
+            Tool::House | Tool::Deck | Tool::Steps | Tool::Object => None,
         }
     }
 
@@ -63,11 +64,11 @@ impl Tool {
         matches!(self, Tool::Door | Tool::Window | Tool::Steps)
     }
 
-    /// Whether this tool drops an object at a single clicked point (furniture
-    /// and, later, point objects like trees or a fire pit).
+    /// Whether this tool drops an object at a single clicked point (furniture,
+    /// fire pit, tree, grill — any catalog object).
     #[must_use]
     pub fn is_point(self) -> bool {
-        matches!(self, Tool::Furniture)
+        matches!(self, Tool::Object)
     }
 }
 
@@ -138,7 +139,7 @@ pub fn snap_node(
             }
             p
         }
-        Tool::Furniture => {
+        Tool::Object => {
             if grid {
                 snap_to_grid(raw, grid_step)
             } else {
@@ -188,7 +189,7 @@ pub fn commit_kind(tool: Tool, placed: &[Coord], next: &Coord) -> Commit {
             }
         }
         // A single click is the whole gesture: drop the object and finish.
-        Tool::Furniture => Commit::FinishWith,
+        Tool::Object => Commit::FinishWith,
     }
 }
 
@@ -381,14 +382,14 @@ mod tests {
         assert_eq!(Tool::Door.opening_kind(), Some(OpeningKind::door));
         assert_eq!(Tool::Window.opening_kind(), Some(OpeningKind::window));
         assert_eq!(Tool::House.opening_kind(), None);
-        assert_eq!(Tool::Furniture.opening_kind(), None);
+        assert_eq!(Tool::Object.opening_kind(), None);
         assert!(Tool::House.is_outline() && Tool::Deck.is_outline());
         assert!(!Tool::Door.is_outline() && !Tool::Steps.is_outline());
         assert!(Tool::Door.is_span() && Tool::Window.is_span() && Tool::Steps.is_span());
         assert!(!Tool::House.is_span() && !Tool::Deck.is_span());
-        // Furniture is a point placement — neither an outline nor a span.
-        assert!(Tool::Furniture.is_point());
-        assert!(!Tool::Furniture.is_outline() && !Tool::Furniture.is_span());
+        // An object is a point placement — neither an outline nor a span.
+        assert!(Tool::Object.is_point());
+        assert!(!Tool::Object.is_outline() && !Tool::Object.is_span());
         assert!(!Tool::House.is_point() && !Tool::Door.is_point());
     }
 
@@ -397,13 +398,13 @@ mod tests {
         // One click drops the object; commit finishes immediately, with no prior
         // nodes needed.
         assert_eq!(
-            commit_kind(Tool::Furniture, &[], &Coord::new(5.0, 5.0)),
+            commit_kind(Tool::Object, &[], &Coord::new(5.0, 5.0)),
             Commit::FinishWith
         );
         // Grid on: the drop point rounds to whole feet.
         assert_eq!(
             snap_node(
-                Tool::Furniture,
+                Tool::Object,
                 &[],
                 &[],
                 &Coord::new(5.4, 7.6),
@@ -417,7 +418,7 @@ mod tests {
         // a point placement has no previous node to align to).
         assert_eq!(
             snap_node(
-                Tool::Furniture,
+                Tool::Object,
                 &[],
                 &[],
                 &Coord::new(5.4, 7.6),

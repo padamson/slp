@@ -15,7 +15,7 @@ use slp_core::{
 };
 
 use super::{
-    CanvasMetrics, CatalogPicker, EstimatePanel, NumberField, ObjectInspector, Toggle, ToolButton,
+    CanvasMetrics, EstimatePanel, NumberField, ObjectInspector, ObjectPalette, Toggle, ToolButton,
     ToolGroup, Yard, YardControls,
 };
 
@@ -278,8 +278,8 @@ fn planner_body() -> impl IntoView {
                 }
                 reset(tool, placed, preview);
             }
-            Commit::FinishWith if tl == Tool::Furniture => {
-                // Drop the selected catalog item at the clicked point.
+            Commit::FinishWith if tl == Tool::Object => {
+                // Drop the armed catalog item at the clicked point.
                 let id = selected_id.get_untracked();
                 if !id.is_empty() {
                     objects.update(|v| v.push(Object::new(id, next.x, next.y)));
@@ -388,6 +388,28 @@ fn planner_body() -> impl IntoView {
     // One callback the tool buttons share; per-button derivations live in tool_btn.
     let pick = Callback::new(pick_tool);
 
+    // The armed catalog item id, if the object tool is active — drives which
+    // palette tile highlights.
+    let armed =
+        Signal::derive(move || (tool.get() == Some(Tool::Object)).then(|| selected_id.get()));
+
+    // Click a palette tile → arm that item for placement (click the armed tile
+    // again to disarm). Arming the object tool clears any current selection and
+    // the in-progress placement, like picking a drawing tool.
+    let pick_object = Callback::new(move |id: String| {
+        let already_armed =
+            tool.get_untracked() == Some(Tool::Object) && selected_id.get_untracked() == id;
+        if already_armed {
+            reset(tool, placed, preview);
+            return;
+        }
+        selected_id.set(id);
+        placed.set(Vec::new());
+        preview.set(None);
+        selected.set(None);
+        tool.set(Some(Tool::Object));
+    });
+
     // The live bill of materials for the placed objects — recomputed whenever the
     // objects or catalog change, so the estimate panel reacts as furniture is
     // placed or removed.
@@ -422,30 +444,6 @@ fn planner_body() -> impl IntoView {
                     step=0.5
                 />
             </ToolGroup>
-            // The furniture group appears once there's a catalog (seeded when a
-            // deck is drawn).
-            {move || {
-                (!catalog.get().is_empty())
-                    .then(|| {
-                        view! {
-                            <ToolGroup label="Furniture">
-                                {tool_btn(
-                                    tool,
-                                    pick,
-                                    Tool::Furniture,
-                                    "Place furniture",
-                                    "place-furniture",
-                                )}
-                                <CatalogPicker
-                                    testid="catalog-picker"
-                                    catalog=catalog
-                                    selected=Signal::derive(move || selected_id.get())
-                                    on_pick=Callback::new(move |id| selected_id.set(id))
-                                />
-                            </ToolGroup>
-                        }
-                    })
-            }}
             <ToolGroup label="Snap">
                 <Toggle
                     label="Snap to grid"
@@ -461,6 +459,12 @@ fn planner_body() -> impl IntoView {
                 />
             </ToolGroup>
         </div>
+        // The object palette appears once there's a catalog (seeded when a deck
+        // is drawn): click a tile to arm it, then click the canvas to place.
+        {move || {
+            (!catalog.get().is_empty())
+                .then(|| view! { <ObjectPalette catalog=catalog armed=armed on_pick=pick_object /> })
+        }}
         <p class="hint" data-testid="hint">{move || hint(tool.get())}</p>
         <div class="stage">
             <div class="canvas">
@@ -631,7 +635,7 @@ fn hint(tool: Option<Tool>) -> &'static str {
         Some(Tool::Door) => "Click two points on a wall to place the door.",
         Some(Tool::Window) => "Click two points on a wall to place the window.",
         Some(Tool::Steps) => "Click two points on a deck edge to add steps.",
-        Some(Tool::Furniture) => "Click to place the selected item on the plan.",
+        Some(Tool::Object) => "Click to place the armed item; click its tile again to cancel.",
     }
 }
 

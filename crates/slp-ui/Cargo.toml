@@ -28,15 +28,19 @@ web-sys = { version = "0.3", optional = true, features = [
     "DomRect",
     "MouseEvent",
     "EventTarget",
+    "ResizeObserver",
 ] }
 # Cast a click's currentTarget to an Element (csr only).
 wasm-bindgen = { version = "0.2", optional = true }
+# Wrap non-Send JS handles (ResizeObserver) for leptos's Send+Sync cleanup;
+# harmless on wasm's single thread (csr only).
+send_wrapper = { version = "0.6", optional = true }
 
 [dev-dependencies]
 dokime = { path = "../dokime" }
 
 [features]
-csr = ["leptos/csr", "dep:web-sys", "dep:wasm-bindgen"]
+csr = ["leptos/csr", "dep:web-sys", "dep:wasm-bindgen", "dep:send_wrapper"]
 ssr = ["leptos/ssr"]
 hydrate = ["leptos/hydrate"]
 # Compiles the colocated `*.stories.rs` files (slp-ui components as theoria

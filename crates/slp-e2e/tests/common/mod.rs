@@ -61,25 +61,40 @@ pub async fn click_ft(yard: &Locator, ppf: f64, fx: f64, fy: f64) -> Result<()> 
     Ok(())
 }
 
-/// Arm the furniture tool (one-shot: it disarms after a placement).
-pub async fn arm_furniture(page: &Page) -> Result<()> {
-    page.locator("[data-testid='place-furniture']")
+/// Arm an object for placement by clicking its palette tile. `id` is the
+/// catalog id (e.g. `lounge-chair`, `fire-pit`).
+pub async fn arm_object(page: &Page, id: &str) -> Result<()> {
+    page.locator(&format!("[data-testid='palette-{id}']"))
         .await
         .click(None)
         .await
-        .context("arm the furniture tool")?;
+        .with_context(|| format!("arm the {id} tile"))?;
     Ok(())
 }
 
-/// Place a furniture item at world feet `(fx, fy)`, then wait for the one-shot
-/// tool to disarm — so a following click selects rather than places.
+/// Place the `lounge-chair` (the default first catalog item) at world feet
+/// `(fx, fy)`, then wait for the one-shot tool to disarm — so a following click
+/// selects rather than places.
 pub async fn place(page: &Page, yard: &Locator, ppf: f64, fx: f64, fy: f64) -> Result<()> {
-    arm_furniture(page).await?;
+    place_object(page, yard, ppf, "lounge-chair", fx, fy).await
+}
+
+/// Place catalog item `id` at world feet `(fx, fy)`: arm its palette tile,
+/// click the canvas, and wait for the one-shot tool to disarm.
+pub async fn place_object(
+    page: &Page,
+    yard: &Locator,
+    ppf: f64,
+    id: &str,
+    fx: f64,
+    fy: f64,
+) -> Result<()> {
+    arm_object(page, id).await?;
     click_ft(yard, ppf, fx, fy).await?;
     expect(page.locator("[data-testid='hint']").await)
         .to_have_text("Pick a tool to draw.")
         .await
-        .context("furniture tool disarms after placing")?;
+        .context("object tool disarms after placing")?;
     Ok(())
 }
 

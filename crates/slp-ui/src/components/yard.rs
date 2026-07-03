@@ -61,7 +61,8 @@ pub fn Yard(
     /// Pointer left the stage — clear the preview.
     #[prop(optional)]
     on_leave: Option<Callback<()>>,
-    /// Report the canvas's rendered geometry, measured on mount + window resize.
+    /// Report the canvas's rendered geometry, measured on mount and on every
+    /// reflow (a `ResizeObserver` on the yard — see the effect below).
     #[prop(optional)]
     on_metrics: Option<Callback<CanvasMetrics>>,
     /// The selected object's rotation handle was pressed — start a rotate drag.
@@ -104,20 +105,42 @@ pub fn Yard(
         }
     };
 
-    // Measure the rendered canvas once it's laid out, and on every window resize,
-    // reporting it upward so consumers position against one measured value.
+    // Measure the rendered canvas once it's laid out, and whenever it reflows,
+    // reporting it upward so consumers position against one measured value. A
+    // `ResizeObserver` on the `#yard` element fires *after* the browser lays out
+    // — so a reflow that moves or resizes the canvas (the estimate panel and the
+    // object palette appearing when the catalog seeds, a window resize) yields a
+    // current top/width, which a plain resize listener would miss.
     #[cfg(feature = "csr")]
     if let Some(cb) = on_metrics {
+        use wasm_bindgen::JsCast;
+        use wasm_bindgen::closure::Closure;
+
         let emit = move || {
             if let Some(m) = measure_canvas(w_px, px_ft) {
                 cb.run(m);
             }
         };
         Effect::new(move |_| {
-            emit();
-            let handle =
-                leptos::prelude::window_event_listener(leptos::ev::resize, move |_| emit());
-            on_cleanup(move || handle.remove());
+            emit(); // initial measurement on mount
+            let observer = web_sys::window()
+                .and_then(|w| w.document())
+                .and_then(|d| d.get_element_by_id("yard"))
+                .and_then(|el| {
+                    let closure = Closure::<dyn FnMut()>::new(emit);
+                    let obs =
+                        web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref()).ok()?;
+                    obs.observe(&el);
+                    // Keep the closure alive alongside the observer. The JS
+                    // handles aren't `Send`/`Sync`, so wrap them for `on_cleanup`
+                    // (harmless on wasm's single thread).
+                    Some(send_wrapper::SendWrapper::new((obs, closure)))
+                });
+            on_cleanup(move || {
+                if let Some(guard) = observer {
+                    guard.take().0.disconnect();
+                }
+            });
         });
     }
     #[cfg(not(feature = "csr"))]

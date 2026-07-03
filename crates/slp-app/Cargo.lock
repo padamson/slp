@@ -1382,6 +1382,7 @@ name = "slp-ui"
 version = "0.1.0"
 dependencies = [
  "leptos",
+ "send_wrapper",
  "serde_json",
  "slp-core",
  "wasm-bindgen",
