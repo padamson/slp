@@ -8,6 +8,7 @@ use leptos::prelude::*;
 use slp_core::{Coord, StepRun, step_outward, step_run};
 
 use super::Transform;
+use crate::style::DECK_STROKE;
 
 #[component]
 pub fn Steps(t: Transform, run: StepRun, away_from: Coord) -> impl IntoView {
@@ -49,7 +50,7 @@ fn steps_view(t: Transform, run: StepRun, away_from: Coord) -> impl IntoView {
                     y1=t.sy(near.y)
                     x2=t.sx(far.x)
                     y2=t.sy(far.y)
-                    stroke="#8a6f4f"
+                    stroke=DECK_STROKE
                     stroke-width="1"
                 />
             }
@@ -61,7 +62,7 @@ fn steps_view(t: Transform, run: StepRun, away_from: Coord) -> impl IntoView {
                 points=points
                 fill="#d8c3a5"
                 fill-opacity="0.7"
-                stroke="#8a6f4f"
+                stroke=DECK_STROKE
                 stroke-width="1.5"
             />
             {treads}

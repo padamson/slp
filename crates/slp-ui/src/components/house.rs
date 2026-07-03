@@ -9,6 +9,7 @@ use leptos::prelude::*;
 use slp_core::{Coord, Opening};
 
 use super::{Transform, Wall};
+use crate::style::{HOUSE_FILL, HOUSE_FILL_OPACITY, HOUSE_STROKE};
 
 #[component]
 pub fn House(
@@ -30,7 +31,7 @@ fn render_house(t: Transform, corners: Vec<Coord>, openings: Vec<Opening>) -> im
         let markers = corners
             .iter()
             .map(|c| {
-                view! { <circle class="house-corner" cx=t.sx(c.x) cy=t.sy(c.y) r="3" fill="#8a7f6a" /> }
+                view! { <circle class="house-corner" cx=t.sx(c.x) cy=t.sy(c.y) r="3" fill=HOUSE_STROKE /> }
             })
             .collect::<Vec<_>>();
 
@@ -42,7 +43,7 @@ fn render_house(t: Transform, corners: Vec<Coord>, openings: Vec<Opening>) -> im
                 .map(|c| format!("{},{}", t.sx(c.x), t.sy(c.y)))
                 .collect::<Vec<_>>()
                 .join(" ");
-            view! { <polygon points=points fill="#d8d2c4" fill-opacity="0.6" stroke="none" /> }
+            view! { <polygon points=points fill=HOUSE_FILL fill-opacity=HOUSE_FILL_OPACITY stroke="none" /> }
         });
 
         // One Wall per edge. While drawing it's an open chain; once there are

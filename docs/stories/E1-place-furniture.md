@@ -61,6 +61,47 @@ product, since the catalog and placements are saved in the plan, not hardcoded.
         a selected or overflowing existing/virtual object stays legible
   - [x] dokime tests per status; e2e: toggle an object's status in the
         inspector and assert its canvas markup changes accordingly
+- **E1.5 — a legend for the plan's visual conventions** ✅ *done (superseded by
+  E1.6 — the legend's icons will be redrawn under the real/virtual ×
+  planned/existing model, but the shared-style architecture stands)*
+  - [x] a **shared style module** (`slp-ui/src/style.rs`) is the single source
+        of truth for each plan entity's color, fill, and outline —
+        `Furnishings`, `House`, `Deck`, `Wall`, `Steps` and the new `Legend`
+        all read from it, so a style change (e.g. the existing/virtual dash
+        pattern) updates the canvas and the legend together, from one edit
+  - [x] a **Legend** renders along the bottom strip, starting to the right of
+        the scale bar: one small icon + label per entity — House, Deck,
+        Furniture (planned / existing / virtual), Selected, Doesn't fit —
+        so color, fill (solid vs. ghost), outline (solid vs. dashed), and
+        corner style (square footprint vs. node-marked outline) are all
+        readable at a glance without selecting anything
+  - [x] dokime tests assert each entry's icon matches its live canvas styling
+        (same source, so this mostly guards the wiring, not the values)
+  - [x] e2e: the legend renders, one entry per convention, and sits to the
+        right of the scale bar's rendered end
+- **E1.6 — real/virtual × planned/existing (domain model rework)**
+  - [ ] schema: `ItemStatus` narrows to `{planned, existing}` (drop the
+        `virtual` value); `Object` gains `is_virtual: bool` (default `false`) —
+        virtual is an orthogonal "what-if ghost" flag, not a third status
+  - [ ] schema: `House` and `DeckLevel` gain the same (real-only) `ItemStatus`,
+        so a structure can be flagged **planned** (an addition you intend to
+        build) vs. **existing** (already there) — no virtual variant, since a
+        structure is always real; cost math for structures stays a future
+        slice (no per-sqft pricing exists yet — the flag just carries now)
+  - [ ] `takeoff::take_off`: virtual objects are always excluded (never a real
+        purchase); among real objects, only `planned` counts — same net
+        behavior as today, derived from two fields instead of one enum
+  - [ ] canvas + legend line-style vocabulary (color = what it is, line =
+        status): **solid** = real, **dashed** = virtual; **single** thin line =
+        planned, **double** thin line = existing — so existing-real = double
+        solid, planned-real = single solid, planned-virtual = single dashed,
+        existing-virtual = double dashed; structures render real-only (single
+        or double solid, never dashed)
+  - [ ] inspector UI: the current single 3-way planned/existing/virtual button
+        row becomes two independent controls — an existing/planned toggle and
+        a real/virtual toggle
+  - [ ] dokime + e2e updated for the new controls and line styles; mutation
+        tests re-run over the changed `slp-core` schema/take-off logic
 
 ## Notes / refs
 

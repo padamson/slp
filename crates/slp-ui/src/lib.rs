@@ -19,6 +19,7 @@
 )]
 
 mod components;
+mod style;
 
 pub use components::{Grid, Planner, ScaleBar, Transform, Yard, YardControls};
 

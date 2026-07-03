@@ -20,9 +20,13 @@
 use std::collections::HashMap;
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, Coord, ItemStatus, Object, Point, footprint_corners, within_a_single};
+use slp_core::{CatalogItem, Coord, Object, Point, footprint_corners, within_a_single};
 
 use super::Transform;
+use crate::style::{
+    FURNITURE_FILL, FURNITURE_STROKE, OVERFLOW_STROKE, SELECTED_FILL, SELECTED_STROKE,
+    furniture_style,
+};
 
 /// Fallback footprint side (ft) when a catalog item carries no dimensions, so a
 /// placed object is still visible and selectable.
@@ -101,19 +105,15 @@ pub fn Furnishings(
             if overflows {
                 class.push_str(" furniture-item--overflows");
             }
-            let (status_class, dash, fill_opacity) = match obj.status {
-                ItemStatus::existing => (" furniture-item--existing", "6,3", "0.55"),
-                ItemStatus::r#virtual => (" furniture-item--virtual", "3,3", "0.3"),
-                _ => ("", "none", "0.7"),
-            };
-            class.push_str(status_class);
-            let fill = if is_selected { "#7ea9d4" } else { "#a8927a" };
+            let status = furniture_style(&obj.status);
+            class.push_str(status.class);
+            let fill = if is_selected { SELECTED_FILL } else { FURNITURE_FILL };
             let (stroke, stroke_w) = if overflows {
-                ("#d4351c", "2.5")
+                (OVERFLOW_STROKE, "2.5")
             } else if is_selected {
-                ("#2b6cb0", "2")
+                (SELECTED_STROKE, "2")
             } else {
-                ("#5a4a3a", "1.5")
+                (FURNITURE_STROKE, "1.5")
             };
             let (w_px, d_px) = (w_ft * t.px_ft, d_ft * t.px_ft);
             let transform = format!("translate({},{}) rotate({})", t.sx(obj.x), t.sy(obj.y), rot);
@@ -132,8 +132,8 @@ pub fn Furnishings(
                             }
                         }
                     >
-                        <line x1="0" y1="0" x2="0" y2=-stem stroke="#2b6cb0" stroke-width="1" />
-                        <circle cx="0" cy=-stem r=HANDLE_R fill="#2b6cb0" />
+                        <line x1="0" y1="0" x2="0" y2=-stem stroke=SELECTED_STROKE stroke-width="1" />
+                        <circle cx="0" cy=-stem r=HANDLE_R fill=SELECTED_STROKE />
                     </g>
                 }
             });
@@ -153,10 +153,10 @@ pub fn Furnishings(
                         width=w_px
                         height=d_px
                         fill=fill
-                        fill-opacity=fill_opacity
+                        fill-opacity=status.fill_opacity
                         stroke=stroke
                         stroke-width=stroke_w
-                        stroke-dasharray=dash
+                        stroke-dasharray=status.dash
                     />
                     {handle}
                 </g>

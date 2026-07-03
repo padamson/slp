@@ -9,6 +9,7 @@ mod estimate_panel;
 mod furnishings;
 mod grid;
 mod house;
+mod legend;
 mod number_field;
 mod object_inspector;
 mod placement;
@@ -30,11 +31,12 @@ pub use estimate_panel::EstimatePanel;
 pub use furnishings::Furnishings;
 pub use grid::Grid;
 pub use house::House;
+pub use legend::Legend;
 pub use number_field::NumberField;
 pub use object_inspector::ObjectInspector;
 pub use placement::Placement;
 pub use planner::Planner;
-pub use scale_bar::ScaleBar;
+pub use scale_bar::{DEFAULT_LENGTH_FT, ScaleBar};
 pub use steps::Steps;
 pub use toggle::Toggle;
 pub use tool_button::ToolButton;
@@ -125,6 +127,9 @@ mod grid_stories;
 #[path = "house.stories.rs"]
 mod house_stories;
 #[cfg(feature = "stories")]
+#[path = "legend.stories.rs"]
+mod legend_stories;
+#[cfg(feature = "stories")]
 #[path = "number_field.stories.rs"]
 mod number_field_stories;
 #[cfg(feature = "stories")]
@@ -183,6 +188,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(wall_stories::stories());
     s.extend(grid_stories::stories());
     s.extend(scale_bar_stories::stories());
+    s.extend(legend_stories::stories());
     // Reusable controls.
     s.extend(tool_button_stories::stories());
     s.extend(toggle_stories::stories());
@@ -214,6 +220,9 @@ mod grid_tests;
 #[cfg(test)]
 #[path = "house.tests.rs"]
 mod house_tests;
+#[cfg(test)]
+#[path = "legend.tests.rs"]
+mod legend_tests;
 #[cfg(test)]
 #[path = "number_field.tests.rs"]
 mod number_field_tests;

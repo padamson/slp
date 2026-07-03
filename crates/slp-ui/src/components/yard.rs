@@ -8,11 +8,16 @@
 use leptos::prelude::*;
 use slp_core::{CatalogItem, Coord, DeckLevel, Object, Opening, StepRun};
 
-use super::{CanvasMetrics, Deck, Furnishings, Grid, House, Placement, ScaleBar, Transform};
+use super::{
+    CanvasMetrics, DEFAULT_LENGTH_FT, Deck, Furnishings, Grid, House, Legend, Placement, ScaleBar,
+    Transform,
+};
 
-/// Fixed strip (px) reserved below the grid for the scale bar, independent of
-/// the grid padding so the grid can sit flush to the canvas box.
+/// Fixed strip (px) reserved below the grid for the scale bar + legend,
+/// independent of the grid padding so the grid can sit flush to the canvas box.
 const SCALE_BAR_ROOM: f64 = 30.0;
+/// Gap (px) between the scale bar's rendered end and the legend's first icon.
+const LEGEND_GAP_PX: f64 = 16.0;
 
 #[component]
 pub fn Yard(
@@ -79,6 +84,9 @@ pub fn Yard(
     let ground_w = yard_w * px_ft;
     let ground_h = yard_d * px_ft;
     let baseline_y = h_px - 16.0;
+    // The legend starts right after the scale bar's rendered end, along the
+    // same bottom strip.
+    let legend_start_x = t.sx(0.0) + DEFAULT_LENGTH_FT * px_ft + LEGEND_GAP_PX;
 
     let hover = move |ev: leptos::ev::MouseEvent| {
         if let (Some(cb), Some(at)) = (on_hover, pick_feet(&ev, t, w_px)) {
@@ -127,6 +135,7 @@ pub fn Yard(
             on:mouseleave=leave
         >
             <rect
+                class="ground"
                 x=ground_x
                 y=ground_y
                 width=ground_w
@@ -157,6 +166,7 @@ pub fn Yard(
             }}
             {move || view! { <Placement t=t placed=placed.get() preview=preview.get() /> }}
             <ScaleBar t=t baseline_y=baseline_y />
+            <Legend start_x=legend_start_x baseline_y=baseline_y />
         </svg>
     }
 }

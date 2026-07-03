@@ -8,6 +8,7 @@ use leptos::prelude::*;
 use slp_core::{Coord, DeckLevel, StepRun};
 
 use super::{Steps, Transform};
+use crate::style::{DECK_FILL, DECK_FILL_OPACITY, DECK_STROKE};
 
 #[component]
 pub fn Deck(
@@ -60,7 +61,7 @@ fn level_view(t: Transform, lvl: DeckLevel) -> impl IntoView {
         .join(" ");
     let markers = corners
         .iter()
-        .map(|c| view! { <circle class="deck-corner" cx=t.sx(c.x) cy=t.sy(c.y) r="3" fill="#8a6f4f" /> })
+        .map(|c| view! { <circle class="deck-corner" cx=t.sx(c.x) cy=t.sy(c.y) r="3" fill=DECK_STROKE /> })
         .collect::<Vec<_>>();
     let n = f64::from(u32::try_from(corners.len()).unwrap_or(1).max(1));
     let cx = corners.iter().map(|c| t.sx(c.x)).sum::<f64>() / n;
@@ -70,9 +71,9 @@ fn level_view(t: Transform, lvl: DeckLevel) -> impl IntoView {
         <g class="deck-level">
             <polygon
                 points=points
-                fill="#c8a97e"
-                fill-opacity="0.55"
-                stroke="#8a6f4f"
+                fill=DECK_FILL
+                fill-opacity=DECK_FILL_OPACITY
+                stroke=DECK_STROKE
                 stroke-width="2"
             />
             {markers}

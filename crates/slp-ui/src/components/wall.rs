@@ -7,6 +7,7 @@ use leptos::prelude::*;
 use slp_core::{Coord, Opening, OpeningKind, opening_segment};
 
 use super::{Door, Transform, Window};
+use crate::style::HOUSE_STROKE;
 
 #[component]
 pub fn Wall(t: Transform, start: Coord, end: Coord, openings: Vec<Opening>) -> impl IntoView {
@@ -25,7 +26,7 @@ pub fn Wall(t: Transform, start: Coord, end: Coord, openings: Vec<Opening>) -> i
         .collect::<Vec<_>>();
     view! {
         <g class="wall">
-            <line class="wall-edge" x1=ex1 y1=ey1 x2=ex2 y2=ey2 stroke="#8a7f6a" stroke-width="2" />
+            <line class="wall-edge" x1=ex1 y1=ey1 x2=ex2 y2=ey2 stroke=HOUSE_STROKE stroke-width="2" />
             {marks}
         </g>
     }

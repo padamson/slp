@@ -58,8 +58,9 @@ async fn walking_skeleton_boots_and_renders_yard() -> Result<()> {
         .await
         .context("the scale bar renders (yard is drawn to scale)")?;
 
-    // The ground rect is present...
-    expect(page.locator("[data-testid='yard'] rect").await)
+    // The ground rect is present... (`.ground`, not just `rect` — the legend's
+    // icons are `<rect>`s too, so an unqualified selector is ambiguous).
+    expect(page.locator("[data-testid='yard'] rect.ground").await)
         .to_be_visible()
         .await
         .context("the ground rect is rendered")?;

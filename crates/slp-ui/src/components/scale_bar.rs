@@ -4,10 +4,14 @@ use leptos::prelude::*;
 
 use super::Transform;
 
+/// Default bar length (ft). Exported so `Yard` can position the `Legend`
+/// relative to the bar's actual rendered end without duplicating the value.
+pub const DEFAULT_LENGTH_FT: f64 = 10.0;
+
 #[component]
 pub fn ScaleBar(
     t: Transform,
-    #[prop(default = 10.0)] length_ft: f64,
+    #[prop(default = DEFAULT_LENGTH_FT)] length_ft: f64,
     baseline_y: f64,
 ) -> impl IntoView {
     let x0 = t.sx(0.0);
