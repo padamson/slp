@@ -5,6 +5,7 @@
 //! it can be unit- and mutation-tested fast on the native target, independent of
 //! the UI — keeping the math separate from the DOM.
 
+pub mod clearance;
 pub mod corner;
 pub mod generated;
 pub mod geom;
@@ -14,6 +15,7 @@ pub mod snap;
 pub mod takeoff;
 pub mod wall;
 
+pub use clearance::{circle_overlaps_circle, circle_overlaps_polygon, circle_overlaps_segment};
 pub use corner::{Corner, free_corner};
 pub use generated::slp::{
     CatalogItem, Coord, Deck, DeckLevel, FootprintShape, House, ItemStatus, Object, Opening,

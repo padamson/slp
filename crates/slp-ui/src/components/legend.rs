@@ -12,9 +12,9 @@ use leptos::prelude::*;
 use slp_core::ItemStatus;
 
 use crate::style::{
-    DECK_FILL, DECK_FILL_OPACITY, DECK_STROKE, DOUBLE_LINE_GAP_PX, DOUBLE_LINE_STROKE_W,
-    FURNITURE_FILL, FURNITURE_STROKE, HOUSE_FILL, HOUSE_FILL_OPACITY, HOUSE_STROKE,
-    OVERFLOW_STROKE, SELECTED_FILL, SELECTED_STROKE, furniture_style,
+    CLEARANCE_STROKE, DECK_FILL, DECK_FILL_OPACITY, DECK_STROKE, DOUBLE_LINE_GAP_PX,
+    DOUBLE_LINE_STROKE_W, FURNITURE_FILL, FURNITURE_STROKE, HOUSE_FILL, HOUSE_FILL_OPACITY,
+    HOUSE_STROKE, OVERFLOW_STROKE, SELECTED_FILL, SELECTED_STROKE, furniture_style,
 };
 
 /// Icon footprint (screen px — fixed chrome, not drawn to the world scale).
@@ -24,13 +24,15 @@ const ICON_H: f64 = 9.0;
 const SLOT_W: f64 = 84.0;
 
 /// An entry's outline treatment: a **node**-marked outline (house, deck — a
-/// user-drawn shape whose corners are individually draggable points) or a
-/// plain **square** footprint (furniture and its selected/overflow
-/// modifiers), each either a single or double stroke and solid or dashed.
+/// user-drawn shape whose corners are individually draggable points), a plain
+/// **square** footprint (furniture and its selected/overflow modifiers), each
+/// either a single or double stroke and solid or dashed, or a **ring** (an
+/// unfilled dashed circle — a safety clearance zone, not a footprint at all).
 #[derive(Clone, Copy)]
 enum Outline {
     Node,
     Square { dash: &'static str, double: bool },
+    Ring,
 }
 
 #[derive(Clone, Copy)]
@@ -122,6 +124,15 @@ pub fn Legend(
                 double: false,
             },
         },
+        Entry {
+            testid: "clearance",
+            label: "Keep-clear zone",
+            fill: "none",
+            fill_opacity: "1",
+            stroke: CLEARANCE_STROKE,
+            stroke_width: "1.5",
+            outline: Outline::Ring,
+        },
     ];
 
     let items = entries
@@ -143,19 +154,38 @@ fn legend_item(x: f64, baseline_y: f64, entry: Entry) -> impl IntoView {
     let dash = match entry.outline {
         Outline::Node => "none",
         Outline::Square { dash, .. } => dash,
+        Outline::Ring => "5,3", // matches Furnishings's clearance-ring dash
     };
-    let icon = view! {
-        <rect
-            x=x
-            y=top
-            width=ICON_W
-            height=ICON_H
-            fill=entry.fill
-            fill-opacity=entry.fill_opacity
-            stroke=entry.stroke
-            stroke-width=entry.stroke_width
-            stroke-dasharray=dash
-        />
+    // A ring is an unfilled dashed circle (a keep-clear zone, not a
+    // footprint); everything else is the plain rect icon.
+    let icon = if matches!(entry.outline, Outline::Ring) {
+        view! {
+            <circle
+                cx=x + ICON_W / 2.0
+                cy=top + ICON_H / 2.0
+                r=ICON_H / 2.0
+                fill="none"
+                stroke=entry.stroke
+                stroke-width=entry.stroke_width
+                stroke-dasharray=dash
+            />
+        }
+        .into_any()
+    } else {
+        view! {
+            <rect
+                x=x
+                y=top
+                width=ICON_W
+                height=ICON_H
+                fill=entry.fill
+                fill-opacity=entry.fill_opacity
+                stroke=entry.stroke
+                stroke-width=entry.stroke_width
+                stroke-dasharray=dash
+            />
+        }
+        .into_any()
     };
     // A node outline gets a corner dot at each of the icon's 4 vertices — the
     // contrast with the plain square icon (no dots) is the point.

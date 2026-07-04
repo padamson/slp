@@ -728,7 +728,17 @@ fn starter_catalog() -> Vec<CatalogItem> {
         furniture("dining-table", "Dining table", 4.0, 6.0, 2.5, 649.0),
         furniture("side-table", "Side table", 1.5, 1.5, 1.5, 89.0),
         furniture("patio-umbrella", "Patio umbrella", 9.0, 9.0, 8.0, 149.0),
-        round("fire-pit", "Fire pit", "fire-pit", 3.0, 1.5, 349.0),
+        {
+            let diameter = 3.0;
+            let mut fire_pit = round("fire-pit", "Fire pit", "fire-pit", diameter, 1.5, 349.0);
+            // Default keep-clear guideline: clearance_ft = the fire pit's own
+            // radius, so the total stay-out zone (radius + clearance) is 2x
+            // its radius — a reasonable baseline, editable per fire pit once
+            // catalog authoring lands (a bigger or more sensitive unit might
+            // need a wider zone).
+            fire_pit.clearance_ft = Some(diameter / 2.0);
+            fire_pit
+        },
     ]
 }
 

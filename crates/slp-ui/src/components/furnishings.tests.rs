@@ -26,6 +26,12 @@ fn round_item(id: &str, diameter: f64) -> CatalogItem {
     c
 }
 
+fn fire_pit(diameter: f64, clearance_ft: f64) -> CatalogItem {
+    let mut c = round_item("fire-pit", diameter);
+    c.clearance_ft = Some(clearance_ft);
+    c
+}
+
 #[test]
 fn renders_a_footprint_to_scale() {
     // A 3 ft × 1.5 ft item at (5,5): 10 px/ft → a 30 × 15 px rectangle centered
@@ -75,6 +81,100 @@ fn an_existing_round_item_is_a_double_ring() {
     // Existing → a second, inset ring; still circles, never rects.
     assert_eq!(dokime::count(&html, "<circle"), 2, "a double ring");
     assert!(!html.contains("<rect"));
+}
+
+#[test]
+fn a_round_item_with_no_clearance_shows_no_ring() {
+    let catalog = vec![round_item("fire-pit", 4.0)]; // no clearance_ft
+    let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        !html.contains(r#"data-testid="clearance-ring""#),
+        "no ring without a clearance guideline"
+    );
+}
+
+#[test]
+fn an_isolated_fire_pit_shows_a_quiet_dashed_ring() {
+    // ⌀4 ft (radius 2 ft) + 3 ft clearance = 5 ft ring radius = 50 px.
+    let catalog = vec![fire_pit(4.0, 3.0)];
+    let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        html.contains(r#"data-testid="clearance-ring""#),
+        "the ring renders"
+    );
+    assert!(html.contains(r#"r="50""#), "radius + clearance in px");
+    assert!(
+        html.contains(r##"stroke="#8a8275""##),
+        "quiet color — nothing intrudes"
+    );
+    assert!(
+        !html.contains("furniture-item--intrudes"),
+        "no intrusion class"
+    );
+}
+
+#[test]
+fn a_nearby_object_turns_the_ring_red() {
+    let catalog = vec![fire_pit(4.0, 3.0), item("chair", Some(2.0), Some(2.0))];
+    let objects = vec![
+        Object::new("fire-pit".to_string(), 5.0, 5.0),
+        Object::new("chair".to_string(), 7.0, 5.0), // 2 ft away — inside the 5 ft ring
+    ];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        html.contains("furniture-item--intrudes"),
+        "the fire pit is flagged as intruded"
+    );
+    assert!(
+        html.contains(r##"stroke="#d4351c""##),
+        "the ring turns the overflow-red color"
+    );
+}
+
+#[test]
+fn a_distant_object_does_not_turn_the_ring_red() {
+    let catalog = vec![fire_pit(4.0, 3.0), item("chair", Some(2.0), Some(2.0))];
+    let objects = vec![
+        Object::new("fire-pit".to_string(), 5.0, 5.0),
+        Object::new("chair".to_string(), 20.0, 5.0), // far outside the ring
+    ];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(!html.contains("furniture-item--intrudes"));
+    assert!(html.contains(r##"stroke="#8a8275""##));
+}
+
+#[test]
+fn a_nearby_structure_edge_turns_the_ring_red() {
+    let catalog = vec![fire_pit(4.0, 3.0)];
+    let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
+    // A wall-like outline with an edge at x=9 — 4 ft from the fire pit's
+    // center, inside the 5 ft clearance ring.
+    let wall = vec![
+        Coord::new(9.0, 0.0),
+        Coord::new(9.0, 20.0),
+        Coord::new(15.0, 20.0),
+        Coord::new(15.0, 0.0),
+    ];
+    let html = dokime::render(move || {
+        view! {
+            <Furnishings
+                t=t()
+                objects=objects
+                catalog=catalog
+                structure_outlines=vec![wall]
+            />
+        }
+    });
+    assert!(
+        html.contains("furniture-item--intrudes"),
+        "a nearby structure edge also counts as an intrusion"
+    );
 }
 
 #[test]

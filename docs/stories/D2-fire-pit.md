@@ -15,7 +15,7 @@ safe distance from combustibles before I buy.
 
 ## Vertical slices
 
-- **D2.0 — round catalog objects + a fire pit** *(enabler + first round object)* ✅ *done (placement e2e deferred to the palette slice, F2)*
+- **D2.0 — round catalog objects + a fire pit** *(enabler + first round object)* ✅ *done*
   - [x] schema: `CatalogItem` gains a `shape` (`rectangle` default | `circle`);
         a `circle` uses `width_ft` as its **diameter**
   - [x] `Furnishings` renders a circular footprint (a `<circle>`) for round
@@ -31,21 +31,25 @@ safe distance from combustibles before I buy.
         not `W × D`
   - [x] dokime: a circular item renders a `<circle>`, not a `<rect>` (+ an
         existing round item is a double ring); the inspector shows `⌀ N ft`
-  - [ ] e2e: place the fire pit → a round footprint renders + the estimate
-        updates — *deferred to F2 so it drives the new palette flow, not the
-        dropdown+button about to be replaced*
-- **D2.1 — safety clearance ring** *(the fire-pit value-add)*
-  - [ ] schema: `CatalogItem` gains `clearance_ft` — the recommended clear
+  - [x] e2e: place the fire pit from the palette → a round footprint renders +
+        the estimate updates (landed with F2.0, which drives placement now)
+- **D2.1 — safety clearance ring** *(the fire-pit value-add)* ✅ *done*
+  - [x] schema: `CatalogItem` gains `clearance_ft` — the recommended clear
         radius *beyond* the footprint edge (a fire-pit product/guideline value)
-  - [ ] a fire pit draws a dashed **clearance ring** at `radius + clearance_ft`,
-        so the keep-clear zone is visible to scale
-  - [ ] `slp-core`: a headless intrusion check — any *other* object's footprint
-        (or a structure edge) overlapping the ring is flagged; unit + mutation
-        tested
-  - [ ] intruding objects/edges are highlighted (or the ring turns red), so an
-        unsafe layout is obvious at a glance; e2e covers a clear vs. an intruded
-        layout
-  - [ ] a legend entry for the clearance ring
+  - [x] a fire pit draws a dashed **clearance ring** at `radius + clearance_ft`,
+        so the keep-clear zone is visible to scale — always shown, not just
+        when selected, since it's a safety check
+  - [x] `slp-core` (`clearance.rs`): a headless intrusion check —
+        `circle_overlaps_circle`/`_segment`/`_polygon` — any *other* object's
+        footprint or a structure edge (house **and** deck) overlapping the ring
+        is flagged; unit + mutation tested (0 missed)
+  - [x] the ring turns red the instant something intrudes (reusing the
+        overflow-red convention); the intruding object/edge itself isn't
+        separately highlighted — the ring alone carries the signal
+  - [x] a legend entry for the clearance ring (a dashed, unfilled ring icon —
+        the first legend entry that isn't a filled shape)
+  - [x] e2e covers a clear layout, then a nearby object, a nearby deck edge,
+        and a nearby house wall each independently tripping the ring red
 
 ## Notes / refs
 
@@ -58,9 +62,14 @@ safe distance from combustibles before I buy.
   circle, so a round item is treated as its bounding square. Conservative (it
   can read "doesn't fit" in a tight corner where the circle actually clears);
   acceptable for v1, revisited only if it matters in practice.
-- **Clearance is a guideline, carried per catalog item.** Real fire pits cite a
-  clearance (commonly ~10 ft from structures, ~3 ft from furniture). We carry a
-  single recommended `clearance_ft` on the catalog item now; a from-what-kind
-  distinction (structure vs. furniture) is a later refinement if needed.
+- **Nothing is allowed inside the stay-out zone, full stop.** The clearance
+  check treats a deck edge exactly like a house wall or another object's
+  footprint — even the deck the fire pit is standing on. A fire pit on a deck
+  too shallow for its own keep-clear zone genuinely should read as unsafe; that
+  surprised us in testing but is the intended behavior, not a bug to work around.
+- **Default clearance = the fire pit's own radius** (so the total stay-out
+  radius is 2x its radius) — a starting guideline, not a fixed constant:
+  `clearance_ft` is a plain per-catalog-item field, so a specific fire pit
+  product can carry any value once catalog authoring lands.
 - **Reuses the shared style module** (`slp-ui/src/style.rs`) for the ring/fill
   so the canvas and legend stay in sync (same pattern as E1.5/E1.6).

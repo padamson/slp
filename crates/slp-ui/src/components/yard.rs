@@ -183,12 +183,21 @@ pub fn Yard(
                 // Deck levels are the surfaces furniture should sit within (paver
                 // areas join them when that slice lands).
                 let surfaces = deck.get().into_iter().map(|l| l.corners).collect::<Vec<_>>();
+                // Structure edges a clearance ring shouldn't overlap: the house
+                // outline plus each deck level's own outline — nothing is
+                // allowed inside a keep-clear zone, full stop, including the
+                // edge of the deck the fire pit itself is standing on (`surfaces`
+                // already has the same corners, but that prop means something
+                // different — containment, not edge-proximity).
+                let mut structure_outlines = vec![house.get()];
+                structure_outlines.extend(surfaces.iter().cloned());
                 view! {
                     <Furnishings
                         t=t
                         objects=objects.get()
                         catalog=catalog.get()
                         surfaces=surfaces
+                        structure_outlines=structure_outlines
                         selected=selected.get()
                         on_handle_press=on_handle_press
                         on_object_press=on_object_press

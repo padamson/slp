@@ -93,16 +93,19 @@ impl Transform {
 /// placed (or previewed) object is still visible and selectable.
 const DEFAULT_FOOTPRINT_FT: f64 = 1.0;
 
-/// A resolved catalog footprint: its size in feet and whether it's a circle
-/// (rendered as a `<circle>` of diameter `w_ft`) rather than a rectangle.
-/// Shared by `Furnishings` (committed objects) and `Placement` (the armed
-/// item's preview ghost), so both resolve a catalog item's footprint the same
-/// way.
+/// A resolved catalog footprint: its size in feet, whether it's a circle
+/// (rendered as a `<circle>` of diameter `w_ft`) rather than a rectangle, and
+/// its recommended safety clearance, if any. Shared by `Furnishings`
+/// (committed objects) and `Placement` (the armed item's preview ghost), so
+/// both resolve a catalog item's footprint the same way.
 #[derive(Clone, Copy)]
 pub struct Footprint {
     pub w_ft: f64,
     pub d_ft: f64,
     pub circle: bool,
+    /// Recommended clear radius (ft) beyond the footprint edge (e.g. a fire
+    /// pit's keep-clear zone). Only meaningful for a `circle` footprint.
+    pub clearance_ft: Option<f64>,
 }
 
 impl Footprint {
@@ -119,7 +122,12 @@ impl Footprint {
         } else {
             item.depth_ft.unwrap_or(DEFAULT_FOOTPRINT_FT)
         };
-        Self { w_ft, d_ft, circle }
+        Self {
+            w_ft,
+            d_ft,
+            circle,
+            clearance_ft: item.clearance_ft,
+        }
     }
 }
 

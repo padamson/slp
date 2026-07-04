@@ -45,6 +45,12 @@ pub const SELECTED_STROKE: &str = "#2b6cb0";
 /// both selection and status.
 pub const OVERFLOW_STROKE: &str = "#d4351c";
 
+/// A safety clearance ring (e.g. a fire pit's keep-clear zone) when nothing
+/// intrudes on it — a quiet, dashed reminder. When something *does* intrude
+/// (another object's footprint or a structure edge), the ring switches to
+/// [`OVERFLOW_STROKE`] — the same loud red used for "doesn't fit its surface".
+pub const CLEARANCE_STROKE: &str = "#8a8275";
+
 /// Group opacity for the placement preview ghost — faint, so it reads as "not
 /// committed yet" without needing its own status/virtual styling (the armed
 /// item's eventual look isn't known until the modifiers held at the click).

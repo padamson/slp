@@ -44,12 +44,18 @@ pub enum OpeningKind {
 /// A purchasable product the user has added to the plan's catalog. Objects
 /// reference it by `id`. The footprint (`shape` + `width_ft`/`depth_ft`) and
 /// `height_ft` drive the 2D render and the future 3D view; `unit_price` drives
-/// cost.
+/// cost. `clearance_ft`, when present, is a recommended clear radius *beyond*
+/// the footprint edge (e.g. a fire pit's keep-clear zone from combustibles).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CatalogItem {
     /// Catalog category, e.g. "furniture".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
+    /// Recommended clear radius, in feet, beyond the footprint edge (e.g. a fire
+    /// pit's keep-clear distance from combustibles). Absent means no clearance
+    /// check applies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clearance_ft: Option<f64>,
     /// Footprint depth, in feet (unused for a circle).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depth_ft: Option<f64>,
@@ -80,6 +86,7 @@ impl CatalogItem {
     pub fn new(id: String) -> Self {
         Self {
             category: None,
+            clearance_ft: None,
             depth_ft: None,
             height_ft: None,
             id,

@@ -40,7 +40,8 @@ classes:
       A purchasable product the user has added to the plan's catalog. Objects
       reference it by `id`. The footprint (`shape` + `width_ft`/`depth_ft`) and
       `height_ft` drive the 2D render and the future 3D view; `unit_price` drives
-      cost.
+      cost. `clearance_ft`, when present, is a recommended clear radius *beyond*
+      the footprint edge (e.g. a fire pit's keep-clear zone from combustibles).
     slots:
       - id
       - name
@@ -50,6 +51,7 @@ classes:
       - width_ft
       - depth_ft
       - height_ft
+      - clearance_ft
     slot_usage:
       id:
         required: true
@@ -215,6 +217,12 @@ slots:
   height_ft:
     range: double
     description: Item height, in feet (for the future 3D view).
+  clearance_ft:
+    range: double
+    description: |-
+      Recommended clear radius, in feet, beyond the footprint edge (e.g. a fire
+      pit's keep-clear distance from combustibles). Absent means no clearance
+      check applies.
   catalog_ref:
     description: Id of the catalog item this object places.
   rot:

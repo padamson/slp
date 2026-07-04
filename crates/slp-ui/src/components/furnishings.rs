@@ -17,16 +17,25 @@
 //! footprint is not fully inside a single surface — it overhangs an edge, sits
 //! off every surface, or straddles two — is outlined in red, so it's easy to see
 //! at a glance what doesn't fit.
+//!
+//! A round item with a `clearance_ft` (a fire pit's keep-clear guideline) draws
+//! a dashed **clearance ring** at `radius + clearance_ft`. The ring turns red
+//! when another object's footprint or a `structure_outlines` edge (house/deck)
+//! intrudes on it — always visible, not just when selected, since it's a
+//! safety check.
 
 use std::collections::HashMap;
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, Coord, Object, Point, footprint_corners, within_a_single};
+use slp_core::{
+    CatalogItem, Coord, Object, Point, circle_overlaps_circle, circle_overlaps_polygon,
+    footprint_corners, within_a_single,
+};
 
 use super::{Footprint, Transform};
 use crate::style::{
-    DOUBLE_LINE_GAP_PX, DOUBLE_LINE_STROKE_W, FURNITURE_FILL, FURNITURE_STROKE, OVERFLOW_STROKE,
-    SELECTED_FILL, SELECTED_STROKE, furniture_style,
+    CLEARANCE_STROKE, DOUBLE_LINE_GAP_PX, DOUBLE_LINE_STROKE_W, FURNITURE_FILL, FURNITURE_STROKE,
+    OVERFLOW_STROKE, SELECTED_FILL, SELECTED_STROKE, furniture_style,
 };
 
 /// Rotation-handle geometry (viewBox px): gap from the footprint's north edge to
@@ -45,6 +54,11 @@ pub fn Furnishings(
     /// object not fully inside a single one is highlighted. Empty = no check.
     #[prop(optional)]
     surfaces: Vec<Vec<Coord>>,
+    /// Structure outlines (house, deck levels) whose *edges* count as a
+    /// clearance-ring intrusion — a keep-clear zone shouldn't overlap a wall or
+    /// deck edge either. Empty = no structures to check against.
+    #[prop(optional)]
+    structure_outlines: Vec<Vec<Coord>>,
     /// The index (into `objects`) of the currently selected object, if any — it
     /// renders with a selection tint and a rotation handle.
     #[prop(default = None)]
@@ -73,11 +87,21 @@ pub fn Furnishings(
         .into_iter()
         .map(|poly| poly.into_iter().map(|c| Point::new(c.x, c.y)).collect())
         .collect();
-    let items = objects
+    let structure_polys: Vec<Vec<Point>> = structure_outlines
         .into_iter()
+        .map(|poly| poly.into_iter().map(|c| Point::new(c.x, c.y)).collect())
+        .collect();
+    // Resolve every object's footprint up front (keeping the object alongside
+    // it): the clearance-ring check needs random access to every *other*
+    // object, not just the ones already visited in a single streaming pass.
+    let resolved: Vec<(Object, Footprint)> = objects
+        .into_iter()
+        .filter_map(|obj| dims.get(&obj.catalog_ref).map(|&fp| (obj, fp)))
+        .collect();
+    let items = resolved
+        .iter()
         .enumerate()
-        .filter_map(|(i, obj)| {
-            let &fp = dims.get(&obj.catalog_ref)?;
+        .map(|(i, (obj, fp))| {
             let rot = obj.rot.unwrap_or(0.0);
             let overflows = !surface_polys.is_empty()
                 && !within_a_single(
@@ -85,21 +109,72 @@ pub fn Furnishings(
                     &surface_polys,
                 );
             let is_selected = selected == Some(i);
-            Some(object_view(
+            let intrudes = fp
+                .clearance_ft
+                .filter(|_| fp.circle)
+                .is_some_and(|clearance| {
+                    clearance_intrudes(
+                        i,
+                        obj,
+                        fp.w_ft / 2.0 + clearance,
+                        &resolved,
+                        &structure_polys,
+                    )
+                });
+            object_view(
                 t,
-                obj,
+                obj.clone(),
                 i,
-                fp,
+                *fp,
                 is_selected,
                 overflows,
+                intrudes,
                 on_handle_press,
                 on_object_press,
-            ))
+            )
         })
         .collect::<Vec<_>>();
     (!items.is_empty()).then(|| {
         view! { <g class="furnishings">{items}</g> }
     })
+}
+
+/// Whether object `i`'s clearance disk (`center`, `radius`) overlaps any
+/// *other* placed object's footprint, or any structure outline's edge.
+fn clearance_intrudes(
+    i: usize,
+    obj: &Object,
+    radius: f64,
+    resolved: &[(Object, Footprint)],
+    structure_polys: &[Vec<Point>],
+) -> bool {
+    let center = Point::new(obj.x, obj.y);
+    let other_object_intrudes = resolved.iter().enumerate().any(|(j, (other, other_fp))| {
+        if i == j {
+            return false;
+        }
+        if other_fp.circle {
+            circle_overlaps_circle(
+                center,
+                radius,
+                Point::new(other.x, other.y),
+                other_fp.w_ft / 2.0,
+            )
+        } else {
+            let corners = footprint_corners(
+                other.x,
+                other.y,
+                other_fp.w_ft,
+                other_fp.d_ft,
+                other.rot.unwrap_or(0.0),
+            );
+            circle_overlaps_polygon(center, radius, &corners)
+        }
+    });
+    other_object_intrudes
+        || structure_polys
+            .iter()
+            .any(|poly| circle_overlaps_polygon(center, radius, poly))
 }
 
 /// One object's footprint: its fill/outline (driven by selection, overflow,
@@ -122,10 +197,16 @@ fn object_view(
     fp: Footprint,
     is_selected: bool,
     overflows: bool,
+    intrudes: bool,
     on_handle_press: Option<Callback<()>>,
     on_object_press: Option<Callback<usize>>,
 ) -> impl IntoView {
-    let Footprint { w_ft, d_ft, circle } = fp;
+    let Footprint {
+        w_ft,
+        d_ft,
+        circle,
+        clearance_ft,
+    } = fp;
     let rot = obj.rot.unwrap_or(0.0);
     // Selection tints the fill; overflow colors the outline — both can show on
     // the same object (a selected piece that also doesn't fit). Status/virtual
@@ -137,6 +218,9 @@ fn object_view(
     }
     if overflows {
         class.push_str(" furniture-item--overflows");
+    }
+    if intrudes {
+        class.push_str(" furniture-item--intrudes");
     }
     let style = furniture_style(&obj.status, obj.is_virtual);
     class.push_str(style.class);
@@ -246,6 +330,29 @@ fn object_view(
             </g>
         }
     });
+    // A round item's safety keep-clear zone (a fire pit's clearance guideline)
+    // — always visible, not just when selected, since it's a safety check. It
+    // turns red the instant something intrudes on it.
+    let clearance_ring = clearance_ft.filter(|_| circle).map(|clearance_ft| {
+        let ring_stroke = if intrudes {
+            OVERFLOW_STROKE
+        } else {
+            CLEARANCE_STROKE
+        };
+        view! {
+            <circle
+                class="clearance-ring"
+                data-testid="clearance-ring"
+                cx="0"
+                cy="0"
+                r=r_px + clearance_ft * t.px_ft
+                fill="none"
+                stroke=ring_stroke
+                stroke-width="1.5"
+                stroke-dasharray="5,3"
+            />
+        }
+    });
     view! {
         <g
             class=class
@@ -258,6 +365,7 @@ fn object_view(
         >
             {footprint}
             {inner_outline}
+            {clearance_ring}
             {handle}
         </g>
     }

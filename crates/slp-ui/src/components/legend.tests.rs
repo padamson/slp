@@ -16,6 +16,7 @@ fn renders_one_item_per_visual_convention() {
         "legend-item-existing-virtual",
         "legend-item-selected",
         "legend-item-overflow",
+        "legend-item-clearance",
     ] {
         assert!(
             html.contains(&format!(r#"data-testid="{testid}""#)),
@@ -24,16 +25,32 @@ fn renders_one_item_per_visual_convention() {
     }
     assert!(html.contains("House"), "labels are readable text");
     assert!(html.contains("Doesn't fit"), "labels are readable text");
+    assert!(html.contains("Keep-clear zone"), "labels are readable text");
 }
 
 #[test]
 fn house_and_deck_icons_carry_node_corner_markers() {
-    // House/deck are user-drawn outlines: their icon has 4 corner dots.
+    // House/deck are user-drawn outlines: their icon has 4 corner dots. Plus
+    // one more `<circle>` for the clearance-ring icon itself.
     let html = dokime::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
     assert_eq!(
         dokime::count(&html, "<circle"),
-        8,
-        "4 corner dots each for the house and deck icons"
+        9,
+        "4 corner dots each for house/deck, + the ring icon"
+    );
+}
+
+#[test]
+fn the_clearance_entry_is_an_unfilled_dashed_ring() {
+    let html = dokime::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
+    assert!(
+        html.contains(r#"data-testid="legend-item-clearance""#),
+        "the clearance entry renders"
+    );
+    assert!(html.contains(r#"stroke-dasharray="5,3""#), "dashed ring");
+    assert!(
+        html.contains(r##"stroke="#8a8275""##),
+        "the quiet clearance color, not overflow-red"
     );
 }
 
