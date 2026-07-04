@@ -9,8 +9,8 @@ use leptos::prelude::*;
 use slp_core::{CatalogItem, Coord, DeckLevel, Object, Opening, StepRun};
 
 use super::{
-    CanvasMetrics, DEFAULT_LENGTH_FT, Deck, Furnishings, Grid, House, Legend, Modifiers, Placement,
-    ScaleBar, Transform,
+    CanvasMetrics, DEFAULT_LENGTH_FT, Deck, Footprint, Furnishings, Grid, House, Legend, Modifiers,
+    Placement, ScaleBar, Transform,
 };
 
 /// Fixed strip (px) reserved below the grid for the scale bar + legend,
@@ -19,6 +19,9 @@ const SCALE_BAR_ROOM: f64 = 30.0;
 /// Gap (px) between the scale bar's rendered end and the legend's first icon.
 const LEGEND_GAP_PX: f64 = 16.0;
 
+// A composition root with many props (one per drawing/placement concern); the
+// line count is dominated by their doc comments, not logic.
+#[allow(clippy::too_many_lines)]
 #[component]
 pub fn Yard(
     yard_w: f64,
@@ -52,6 +55,10 @@ pub fn Yard(
     /// The previewed next node under the cursor (snapped).
     #[prop(optional, into)]
     preview: Signal<Option<Coord>>,
+    /// The armed catalog item's footprint, if the object tool is active — the
+    /// placement preview draws this shape instead of a plain node marker.
+    #[prop(optional, into)]
+    object_footprint: Signal<Option<Footprint>>,
     /// Mouse moved over the stage — preview the next node at this point (feet).
     #[prop(optional)]
     on_hover: Option<Callback<Coord>>,
@@ -188,7 +195,16 @@ pub fn Yard(
                     />
                 }
             }}
-            {move || view! { <Placement t=t placed=placed.get() preview=preview.get() /> }}
+            {move || {
+                view! {
+                    <Placement
+                        t=t
+                        placed=placed.get()
+                        preview=preview.get()
+                        object_footprint=object_footprint.get()
+                    />
+                }
+            }}
             <ScaleBar t=t baseline_y=baseline_y />
             <Legend start_x=legend_start_x baseline_y=baseline_y />
         </svg>

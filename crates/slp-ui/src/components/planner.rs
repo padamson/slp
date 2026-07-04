@@ -15,8 +15,8 @@ use slp_core::{
 };
 
 use super::{
-    CanvasMetrics, EstimatePanel, Modifiers, NumberField, ObjectInspector, ObjectPalette, Toggle,
-    ToolButton, ToolGroup, Yard, YardControls,
+    CanvasMetrics, EstimatePanel, Footprint, Modifiers, NumberField, ObjectInspector,
+    ObjectPalette, Toggle, ToolButton, ToolGroup, Yard, YardControls,
 };
 
 /// Pixels per foot in the SVG user space.
@@ -436,6 +436,13 @@ fn planner_body() -> impl IntoView {
     let armed =
         Signal::derive(move || (tool.get() == Some(Tool::Object)).then(|| selected_id.get()));
 
+    // The armed item's footprint, if any — drives the placement preview ghost
+    // (a shape-aware outline instead of a plain node marker).
+    let armed_footprint = Signal::derive(move || {
+        let id = armed.get()?;
+        catalog.get().iter().find(|c| c.id == id).map(Footprint::of)
+    });
+
     // Click a palette tile → arm that item for placement (click the armed tile
     // again to disarm). Arming the object tool clears any current selection and
     // the in-progress placement, like picking a drawing tool.
@@ -531,6 +538,7 @@ fn planner_body() -> impl IntoView {
                             selected=selected
                             placed=placed
                             preview=preview
+                            object_footprint=armed_footprint
                             on_hover=on_hover
                             on_commit=on_commit
                             on_leave=on_leave

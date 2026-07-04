@@ -3,7 +3,7 @@
 use leptos::prelude::*;
 use slp_core::Coord;
 
-use super::{Placement, Transform};
+use super::{Footprint, Placement, Transform};
 
 fn t() -> Transform {
     Transform {
@@ -35,4 +35,68 @@ fn shows_nodes_a_chain_and_a_rubber_band_to_the_preview() {
         html.contains(r#"class="placement-band""#),
         "the rubber-band to the previewed node"
     );
+}
+
+#[test]
+fn no_object_footprint_shows_the_plain_hollow_node_marker() {
+    let html = dokime::render(move || {
+        view! { <Placement t=t() placed=Vec::new() preview=Some(Coord::new(4.0, 3.0)) /> }
+    });
+    assert!(
+        !html.contains(r#"class="placement-object-preview""#),
+        "no shape preview without an armed item"
+    );
+    // The plain marker is a hollow (fill="none") circle.
+    assert!(html.contains(r#"fill="none""#), "the plain hollow marker");
+}
+
+#[test]
+fn an_armed_round_item_previews_a_translucent_circle() {
+    // A ⌀4 ft fire pit: 10 px/ft → radius 20 px.
+    let fp = Footprint {
+        w_ft: 4.0,
+        d_ft: 4.0,
+        circle: true,
+    };
+    let html = dokime::render(move || {
+        view! {
+            <Placement
+                t=t()
+                placed=Vec::new()
+                preview=Some(Coord::new(4.0, 3.0))
+                object_footprint=Some(fp)
+            />
+        }
+    });
+    assert!(
+        html.contains(r#"class="placement-object-preview""#),
+        "the shape-aware preview wrapper"
+    );
+    assert!(html.contains("<circle"), "a round item previews a circle");
+    assert!(html.contains(r#"r="20""#), "4 ft diameter → 20 px radius");
+    assert!(html.contains(r#"opacity="0.5""#), "faint (~50%) preview");
+}
+
+#[test]
+fn an_armed_rect_item_previews_a_translucent_rect() {
+    // A 3×1.5 ft chair: 10 px/ft → 30 × 15 px.
+    let fp = Footprint {
+        w_ft: 3.0,
+        d_ft: 1.5,
+        circle: false,
+    };
+    let html = dokime::render(move || {
+        view! {
+            <Placement
+                t=t()
+                placed=Vec::new()
+                preview=Some(Coord::new(4.0, 3.0))
+                object_footprint=Some(fp)
+            />
+        }
+    });
+    assert!(html.contains("<rect"), "a rectangular item previews a rect");
+    assert!(html.contains(r#"width="30""#), "3 ft → 30 px wide");
+    assert!(html.contains(r#"height="15""#), "1.5 ft → 15 px deep");
+    assert!(html.contains(r#"opacity="0.5""#), "faint (~50%) preview");
 }

@@ -67,17 +67,26 @@ clunky.
     several actions, use `page.keyboard().down()/.up()` (real, persistent
     browser key state) with `page.mouse().click()` (which reflects ambient
     key state, unlike a `force: true` `Locator::click`, which doesn't).
-- **F2.2 — placement preview ghost**
-  - [ ] while an item is armed, a **faint (~50% transparent) outline of the
+- **F2.2 — placement preview ghost** ✅ *done*
+  - [x] while an item is armed, a **faint (~50% transparent) outline of the
         object's footprint** — the actual shape (rect or circle), to scale and
         at the snapped position — follows the cursor, so you see *what* and
         *exactly where* it'll land, not just a center dot
-  - [ ] the ghost reuses the shape + `style.rs` rendering (so a round item
-        previews as a circle) and reflects the armed item's status/virtual state
-        if that's cheap; falls back to the plain center-node preview when no
+  - [x] the ghost reuses the shape (a new shared `Footprint` — moved out of
+        `Furnishings` so `Placement` resolves a catalog item's footprint the
+        same way) and a fixed faint group opacity (`PREVIEW_OPACITY` in
+        `style.rs`); falls back to the plain center-node marker when no
         catalog item is armed (house/deck/steps drawing is unchanged)
-  - [ ] dokime: an armed round item previews a translucent `<circle>` at the
-        cursor; e2e sanity that the preview tracks the pointer
+  - [x] dokime: an armed round item previews a translucent `<circle>`, a
+        rectangular item a `<rect>`, both at the right scale; no shape preview
+        without an armed item. e2e: hovering with nothing armed shows no shape
+        preview; arming the (round) fire pit shows a circular preview that
+        moves to a new `cx` when the pointer moves
+  - **Deferred, not done:** reflecting the armed item's eventual status/virtual
+    look live during hover (e.g. dashed while Option is held) — that needs
+    modifiers threaded through `on_hover` too (currently only `on_commit`
+    reads them), a bigger change for a preview-only nicety. The preview always
+    shows the plain real/planned look regardless of hover-time modifier state.
 
 ## Notes / refs
 

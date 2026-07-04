@@ -89,6 +89,40 @@ impl Transform {
     }
 }
 
+/// Fallback footprint side (ft) when a catalog item carries no dimensions, so a
+/// placed (or previewed) object is still visible and selectable.
+const DEFAULT_FOOTPRINT_FT: f64 = 1.0;
+
+/// A resolved catalog footprint: its size in feet and whether it's a circle
+/// (rendered as a `<circle>` of diameter `w_ft`) rather than a rectangle.
+/// Shared by `Furnishings` (committed objects) and `Placement` (the armed
+/// item's preview ghost), so both resolve a catalog item's footprint the same
+/// way.
+#[derive(Clone, Copy)]
+pub struct Footprint {
+    pub w_ft: f64,
+    pub d_ft: f64,
+    pub circle: bool,
+}
+
+impl Footprint {
+    /// Resolve a catalog item's footprint: a circle uses its diameter
+    /// (`width_ft`) for both axes (so its bounding square — used by the
+    /// fit-check and hit-test — is correct regardless of `depth_ft`); a
+    /// missing dimension falls back to [`DEFAULT_FOOTPRINT_FT`].
+    #[must_use]
+    pub fn of(item: &slp_core::CatalogItem) -> Self {
+        let circle = item.shape == slp_core::FootprintShape::circle;
+        let w_ft = item.width_ft.unwrap_or(DEFAULT_FOOTPRINT_FT);
+        let d_ft = if circle {
+            w_ft
+        } else {
+            item.depth_ft.unwrap_or(DEFAULT_FOOTPRINT_FT)
+        };
+        Self { w_ft, d_ft, circle }
+    }
+}
+
 /// The canvas's rendered geometry, measured once per resize so consumers (the
 /// object inspector's placement, the corner probe, …) read one shared value
 /// instead of each re-measuring the DOM. Screen-space, so it lives in the UI —

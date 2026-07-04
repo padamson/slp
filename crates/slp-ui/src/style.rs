@@ -45,6 +45,11 @@ pub const SELECTED_STROKE: &str = "#2b6cb0";
 /// both selection and status.
 pub const OVERFLOW_STROKE: &str = "#d4351c";
 
+/// Group opacity for the placement preview ghost — faint, so it reads as "not
+/// committed yet" without needing its own status/virtual styling (the armed
+/// item's eventual look isn't known until the modifiers held at the click).
+pub const PREVIEW_OPACITY: &str = "0.5";
+
 /// Gap (px) between a double outline's two nested strokes — small, so the pair
 /// reads as one closely-spaced "double rule".
 pub const DOUBLE_LINE_GAP_PX: f64 = 1.6;

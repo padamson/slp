@@ -21,28 +21,14 @@
 use std::collections::HashMap;
 
 use leptos::prelude::*;
-use slp_core::{
-    CatalogItem, Coord, FootprintShape, Object, Point, footprint_corners, within_a_single,
-};
+use slp_core::{CatalogItem, Coord, Object, Point, footprint_corners, within_a_single};
 
-use super::Transform;
+use super::{Footprint, Transform};
 use crate::style::{
     DOUBLE_LINE_GAP_PX, DOUBLE_LINE_STROKE_W, FURNITURE_FILL, FURNITURE_STROKE, OVERFLOW_STROKE,
     SELECTED_FILL, SELECTED_STROKE, furniture_style,
 };
 
-/// Fallback footprint side (ft) when a catalog item carries no dimensions, so a
-/// placed object is still visible and selectable.
-const DEFAULT_FT: f64 = 1.0;
-
-/// A resolved catalog footprint: its size in feet and whether it's a circle
-/// (rendered as a `<circle>` of diameter `w_ft`) rather than a rectangle.
-#[derive(Clone, Copy)]
-struct Footprint {
-    w_ft: f64,
-    d_ft: f64,
-    circle: bool,
-}
 /// Rotation-handle geometry (viewBox px): gap from the footprint's north edge to
 /// the handle, and the handle's radius.
 const HANDLE_GAP_PX: f64 = 12.0;
@@ -73,25 +59,14 @@ pub fn Furnishings(
 ) -> impl IntoView {
     // Resolve each catalog id to its footprint (consuming the catalog). One pass
     // instead of a linear scan per object; the object's `rot`/position handle the
-    // rest. Each object's footprint is a width × depth rectangle centered at its
-    // `(x, y)` and rotated `rot` degrees clockwise from north — the canvas draws
-    // north up and SVG `rotate(+a)` turns clockwise in screen space, so the
-    // schema's clockwise-from-north angle maps straight to `rotate(rot)`.
+    // rest. Each object's footprint is a width × depth rectangle (or a circle)
+    // centered at its `(x, y)` and rotated `rot` degrees clockwise from north —
+    // the canvas draws north up and SVG `rotate(+a)` turns clockwise in screen
+    // space, so the schema's clockwise-from-north angle maps straight to
+    // `rotate(rot)`.
     let dims: HashMap<String, Footprint> = catalog
         .into_iter()
-        .map(|c| {
-            let circle = c.shape == FootprintShape::circle;
-            let w_ft = c.width_ft.unwrap_or(DEFAULT_FT);
-            // A circle uses its diameter (`width_ft`) for both axes, so its
-            // bounding square — used by the fit-check and hit-test — is correct
-            // regardless of `depth_ft`.
-            let d_ft = if circle {
-                w_ft
-            } else {
-                c.depth_ft.unwrap_or(DEFAULT_FT)
-            };
-            (c.id, Footprint { w_ft, d_ft, circle })
-        })
+        .map(|c| (c.id.clone(), Footprint::of(&c)))
         .collect();
     // Surface polygons in world points, once. Empty → skip the fit check.
     let surface_polys: Vec<Vec<Point>> = surfaces
