@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use axum::Router;
+use playwright_rs::protocol::click::KeyboardModifier;
 use playwright_rs::{ClickOptions, Locator, Page, Position, expect};
 use tower_http::services::ServeDir;
 
@@ -47,6 +48,19 @@ pub async fn measure_ppf(yard: &Locator) -> Result<f64> {
 /// Click the yard at world feet `(fx, fy)` — origin south-west, north is up.
 /// `ppf` is the rendered pixels-per-foot.
 pub async fn click_ft(yard: &Locator, ppf: f64, fx: f64, fy: f64) -> Result<()> {
+    click_ft_with(yard, ppf, fx, fy, &[]).await
+}
+
+/// Click the yard at world feet `(fx, fy)` with keyboard modifiers held (e.g.
+/// `&[KeyboardModifier::Shift]` for a sticky placement, `&[KeyboardModifier::Alt]`
+/// for a virtual one).
+pub async fn click_ft_with(
+    yard: &Locator,
+    ppf: f64,
+    fx: f64,
+    fy: f64,
+    modifiers: &[KeyboardModifier],
+) -> Result<()> {
     // `force`: the placement/preview overlay redraws under the cursor while
     // playwright hovers to the point, so the default "stable" check never
     // settles — force dispatches the click at the exact position regardless.
@@ -56,8 +70,31 @@ pub async fn click_ft(yard: &Locator, ppf: f64, fx: f64, fy: f64) -> Result<()> 
             y: (YARD_D - fy) * ppf,
         })
         .force(true)
+        .modifiers(modifiers.to_vec())
         .build();
     yard.click(Some(opts)).await.context("click the yard at feet")?;
+    Ok(())
+}
+
+/// Click the yard at world feet `(fx, fy)` via low-level `Mouse` dispatch
+/// (not a `Locator::click`), so a modifier key held with
+/// `page.keyboard().down(...)` beforehand is correctly reflected on the
+/// resulting event. `Locator::click`'s own `.modifiers(...)` option is
+/// *transient* — Playwright presses the key, clicks, then explicitly restores
+/// (releases) it afterward, per its documented semantics — so it can't
+/// represent a key genuinely held across several clicks; this can.
+pub async fn mouse_click_ft(page: &Page, yard: &Locator, ppf: f64, fx: f64, fy: f64) -> Result<()> {
+    let bbox = yard
+        .bounding_box()
+        .await
+        .context("measure the yard")?
+        .context("yard has a bounding box")?;
+    let x = bbox.x + fx * ppf;
+    let y = bbox.y + (YARD_D - fy) * ppf;
+    page.mouse()
+        .click(x as i32, y as i32, None)
+        .await
+        .context("mouse click at feet")?;
     Ok(())
 }
 

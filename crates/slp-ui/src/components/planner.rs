@@ -15,8 +15,8 @@ use slp_core::{
 };
 
 use super::{
-    CanvasMetrics, EstimatePanel, NumberField, ObjectInspector, ObjectPalette, Toggle, ToolButton,
-    ToolGroup, Yard, YardControls,
+    CanvasMetrics, EstimatePanel, Modifiers, NumberField, ObjectInspector, ObjectPalette, Toggle,
+    ToolButton, ToolGroup, Yard, YardControls,
 };
 
 /// Pixels per foot in the SVG user space.
@@ -121,6 +121,9 @@ fn planner_body() -> impl IntoView {
     let tool = RwSignal::new(None::<Tool>);
     let placed = RwSignal::new(Vec::<Coord>::new());
     let preview = RwSignal::new(None::<Coord>);
+    // True once a Shift-held placement has kept the object tool armed for a
+    // "sticky" run; releasing Shift then ends the run (see the keyup effect).
+    let sticky_run = RwSignal::new(false);
     // Snapping (on by default): most walls are on the grid and axis-aligned.
     let grid_snap = RwSignal::new(true);
     let ortho = RwSignal::new(true);
@@ -236,7 +239,7 @@ fn planner_body() -> impl IntoView {
     });
 
     // Pointer release → commit a node (or close / finish the object).
-    let on_commit = Callback::new(move |raw: Coord| {
+    let on_commit = Callback::new(move |(raw, mods): (Coord, Modifiers)| {
         // Releasing after an object move or a rotate-handle drag just ends the
         // gesture (the object is already at its new position / angle).
         if dragging.get_untracked().is_some() {
@@ -276,15 +279,27 @@ fn planner_body() -> impl IntoView {
                 } else {
                     corners.set(pl);
                 }
-                reset(tool, placed, preview);
+                reset(tool, placed, preview, sticky_run);
             }
             Commit::FinishWith if tl == Tool::Object => {
-                // Drop the armed catalog item at the clicked point.
+                // Drop the armed catalog item at the clicked point. Option/Alt
+                // places it as a virtual what-if ghost instead of real.
                 let id = selected_id.get_untracked();
                 if !id.is_empty() {
-                    objects.update(|v| v.push(Object::new(id, next.x, next.y)));
+                    let mut obj = Object::new(id, next.x, next.y);
+                    obj.is_virtual = mods.alt;
+                    objects.update(|v| v.push(obj));
                 }
-                reset(tool, placed, preview);
+                // Shift keeps the tool armed for another placement (a "sticky"
+                // run); the keyup effect below ends the run when Shift is
+                // released. Otherwise this placement is one-shot, as before.
+                if mods.shift {
+                    placed.set(Vec::new());
+                    preview.set(None);
+                    sticky_run.set(true);
+                } else {
+                    reset(tool, placed, preview, sticky_run);
+                }
             }
             Commit::FinishWith if tl == Tool::Steps => {
                 // A step run on the deck edge nearest the first node; its drop is
@@ -302,7 +317,7 @@ fn planner_body() -> impl IntoView {
                         });
                     });
                 }
-                reset(tool, placed, preview);
+                reset(tool, placed, preview, sticky_run);
             }
             Commit::FinishWith => {
                 if let (Some(kind), Some(start)) = (tl.opening_kind(), pl.first())
@@ -311,7 +326,7 @@ fn planner_body() -> impl IntoView {
                 {
                     openings.update(|v| v.push(o));
                 }
-                reset(tool, placed, preview);
+                reset(tool, placed, preview, sticky_run);
             }
         }
     });
@@ -367,11 +382,39 @@ fn planner_body() -> impl IntoView {
         on_cleanup(move || handle.remove());
     });
 
+    // Releasing Shift ends an in-progress sticky placement run (see the
+    // Object commit branch below) — the object tool disarms the instant the
+    // key comes up, with no Esc needed.
+    #[cfg(feature = "csr")]
+    Effect::new(move |_| {
+        let handle =
+            window_event_listener(leptos::ev::keyup, move |ev: leptos::ev::KeyboardEvent| {
+                if ev.key() == "Shift" && sticky_run.get_untracked() {
+                    sticky_run.set(false);
+                    reset(tool, placed, preview, sticky_run);
+                }
+            });
+        on_cleanup(move || handle.remove());
+    });
+
+    // Escape cancels the armed tool (a palette tile or a drawing tool) without
+    // placing anything — the keyboard equivalent of clicking it again.
+    #[cfg(feature = "csr")]
+    Effect::new(move |_| {
+        let handle =
+            window_event_listener(leptos::ev::keydown, move |ev: leptos::ev::KeyboardEvent| {
+                if ev.key() == "Escape" && tool.get_untracked().is_some() && !is_editing_field() {
+                    reset(tool, placed, preview, sticky_run);
+                }
+            });
+        on_cleanup(move || handle.remove());
+    });
+
     // Arm a tool (or toggle it off). Starting the house clears the old one;
     // starting an opening keeps the house.
     let pick_tool = move |t: Tool| {
         if tool.get_untracked() == Some(t) {
-            reset(tool, placed, preview);
+            reset(tool, placed, preview, sticky_run);
             return;
         }
         // Redrawing the house replaces it; decks are additive (multi-level).
@@ -400,13 +443,14 @@ fn planner_body() -> impl IntoView {
         let already_armed =
             tool.get_untracked() == Some(Tool::Object) && selected_id.get_untracked() == id;
         if already_armed {
-            reset(tool, placed, preview);
+            reset(tool, placed, preview, sticky_run);
             return;
         }
         selected_id.set(id);
         placed.set(Vec::new());
         preview.set(None);
         selected.set(None);
+        sticky_run.set(false);
         tool.set(Some(Tool::Object));
     });
 
@@ -620,10 +664,12 @@ fn reset(
     tool: RwSignal<Option<Tool>>,
     placed: RwSignal<Vec<Coord>>,
     preview: RwSignal<Option<Coord>>,
+    sticky_run: RwSignal<bool>,
 ) {
     placed.set(Vec::new());
     preview.set(None);
     tool.set(None);
+    sticky_run.set(false);
 }
 
 /// The status hint for the active tool.
@@ -635,7 +681,10 @@ fn hint(tool: Option<Tool>) -> &'static str {
         Some(Tool::Door) => "Click two points on a wall to place the door.",
         Some(Tool::Window) => "Click two points on a wall to place the window.",
         Some(Tool::Steps) => "Click two points on a deck edge to add steps.",
-        Some(Tool::Object) => "Click to place the armed item; click its tile again to cancel.",
+        Some(Tool::Object) => {
+            "Click to place the armed item (its tile again, or Esc, to cancel) \
+             · hold Shift to place several · ⌥/Alt to place a what-if ghost."
+        }
     }
 }
 

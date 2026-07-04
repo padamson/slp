@@ -9,8 +9,8 @@ use leptos::prelude::*;
 use slp_core::{CatalogItem, Coord, DeckLevel, Object, Opening, StepRun};
 
 use super::{
-    CanvasMetrics, DEFAULT_LENGTH_FT, Deck, Furnishings, Grid, House, Legend, Placement, ScaleBar,
-    Transform,
+    CanvasMetrics, DEFAULT_LENGTH_FT, Deck, Furnishings, Grid, House, Legend, Modifiers, Placement,
+    ScaleBar, Transform,
 };
 
 /// Fixed strip (px) reserved below the grid for the scale bar + legend,
@@ -55,9 +55,10 @@ pub fn Yard(
     /// Mouse moved over the stage — preview the next node at this point (feet).
     #[prop(optional)]
     on_hover: Option<Callback<Coord>>,
-    /// Mouse released on the stage — commit a node at this point (feet).
+    /// Mouse released on the stage — commit a node at this point (feet), with
+    /// the modifier keys held at release.
     #[prop(optional)]
-    on_commit: Option<Callback<Coord>>,
+    on_commit: Option<Callback<(Coord, Modifiers)>>,
     /// Pointer left the stage — clear the preview.
     #[prop(optional)]
     on_leave: Option<Callback<()>>,
@@ -96,7 +97,7 @@ pub fn Yard(
     };
     let commit = move |ev: leptos::ev::MouseEvent| {
         if let (Some(cb), Some(at)) = (on_commit, pick_feet(&ev, t, w_px)) {
-            cb.run(at);
+            cb.run((at, modifiers_of(&ev)));
         }
     };
     let leave = move |_ev: leptos::ev::MouseEvent| {
@@ -211,6 +212,21 @@ fn pick_feet(ev: &leptos::ev::MouseEvent, t: Transform, w_px: f64) -> Option<Coo
     let ux = (f64::from(ev.client_x()) - rect.left()) * scale;
     let uy = (f64::from(ev.client_y()) - rect.top()) * scale;
     Some(Coord::new(t.wx(ux), t.wy(uy)))
+}
+
+/// Read the Shift/Option(Alt) keys held at a click. Browser-only — always
+/// `Default` (both `false`) under ssr / in tests, matching [`pick_feet`].
+#[cfg(feature = "csr")]
+fn modifiers_of(ev: &leptos::ev::MouseEvent) -> Modifiers {
+    Modifiers {
+        shift: ev.shift_key(),
+        alt: ev.alt_key(),
+    }
+}
+
+#[cfg(not(feature = "csr"))]
+fn modifiers_of(_ev: &leptos::ev::MouseEvent) -> Modifiers {
+    Modifiers::default()
 }
 
 #[cfg(not(feature = "csr"))]

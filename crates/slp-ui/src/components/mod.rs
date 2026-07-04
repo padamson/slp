@@ -105,6 +105,16 @@ pub struct CanvasMetrics {
     pub strip_px: f64,
 }
 
+/// Pointer modifiers read at commit time (a mouse-up), not tracked separately,
+/// to avoid a race with keys held mid-gesture: **Shift** keeps the object tool
+/// armed after this placement (a "sticky" run); **Option/Alt** places the
+/// object as `virtual` (a what-if ghost) instead of real.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct Modifiers {
+    pub shift: bool,
+    pub alt: bool,
+}
+
 #[cfg(feature = "stories")]
 #[path = "deck.stories.rs"]
 mod deck_stories;

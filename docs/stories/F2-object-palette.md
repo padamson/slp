@@ -39,19 +39,34 @@ clunky.
         `ResizeObserver` on the yard, not just on window resize — the palette +
         estimate appearing reflow the canvas, which previously left the object
         inspector positioned against a stale top, floating over the toolbar
-- **F2.1 — placement modifiers (Shift = sticky, Option = virtual)**
-  - [ ] **Shift held** makes placement sticky: after a drop, the tool stays
+- **F2.1 — placement modifiers (Shift = sticky, Option = virtual)** ✅ *done*
+  - [x] **Shift held** makes placement sticky: after a drop, the tool stays
         armed while Shift is down, so Shift-click… places a row; releasing Shift
         (a keyup) ends the run and disarms. A plain click places one and disarms.
-  - [ ] **Option/Alt-click** places the object as a **virtual** what-if ghost
+  - [x] **Option/Alt-click** places the object as a **virtual** what-if ghost
         (dashed, per E1.6) instead of a real one; composes with Shift
         (Shift+Option = a row of ghosts). Reads `shiftKey`/`altKey` off the
-        pointer event — one path, Option on macOS / Alt elsewhere.
-  - [ ] the hint line spells the modifiers out while armed (e.g. *"Click to
-        place Fire pit · Shift = place several · ⌥ = what-if ghost · Esc"*),
-        since modifier keys are otherwise invisible
-  - [ ] e2e: Shift-click places several without re-arming; Option-click places a
-        virtual object (carries `furniture-item--virtual`)
+        pointer event (threaded through `Yard`'s `on_commit` as a `Modifiers`
+        struct) — one path, Option on macOS / Alt elsewhere.
+  - [x] **Escape cancels** the armed tool without placing (the promised
+        keyboard equivalent of clicking the armed tile again — lands here
+        alongside the other keyboard handling)
+  - [x] the hint line spells the modifiers out while armed ("Click to place the
+        armed item (its tile again, or Esc, to cancel) · hold Shift to place
+        several · ⌥/Alt to place a what-if ghost.")
+  - [x] e2e: Shift-click places several without re-arming, releasing Shift ends
+        the run, Option-click places a virtual object, Shift+Option places a
+        row of ghosts, Escape cancels without placing
+  - **Note on testing held modifiers:** `Locator::click`'s `.modifiers()` option
+    is *transient* — Playwright presses the key, clicks, then explicitly
+    restores (releases) it afterward, which fires a real `keyup` on the page.
+    That's indistinguishable from a genuinely released key, so it correctly
+    (if confusingly, the first time) triggers our own Shift-release listener
+    after every single such click. Not a Playwright defect — it's documented
+    behavior for a *single-action* modifier. For a key truly *held* across
+    several actions, use `page.keyboard().down()/.up()` (real, persistent
+    browser key state) with `page.mouse().click()` (which reflects ambient
+    key state, unlike a `force: true` `Locator::click`, which doesn't).
 - **F2.2 — placement preview ghost**
   - [ ] while an item is armed, a **faint (~50% transparent) outline of the
         object's footprint** — the actual shape (rect or circle), to scale and
