@@ -6,11 +6,11 @@
 //! from screen pixels to world feet.
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, Coord, DeckLevel, Object, Opening, StepRun};
+use slp_core::{CatalogItem, Coord, DeckLevel, Object, Opening, Shape, StepRun};
 
 use super::{
     CanvasMetrics, DEFAULT_LENGTH_FT, Deck, Footprint, Furnishings, Grid, House, Legend, Modifiers,
-    Placement, ScaleBar, Transform,
+    Placement, ScaleBar, Shapes, Transform,
 };
 
 /// Fixed strip (px) reserved below the grid for the scale bar + legend,
@@ -37,6 +37,9 @@ pub fn Yard(
     /// Step runs on the deck's edges.
     #[prop(optional, into)]
     steps: Signal<Vec<StepRun>>,
+    /// Drawn areas (paver patios, mulch beds, …).
+    #[prop(optional, into)]
+    shapes: Signal<Vec<Shape>>,
     /// Committed doors/windows on the house walls.
     #[prop(optional, into)]
     openings: Signal<Vec<Opening>>,
@@ -186,6 +189,7 @@ pub fn Yard(
             // Reactive overlays: only these subtrees update as the plan / gesture
             // change, so the <svg> stays put during a pointer gesture.
             {move || view! { <Deck t=t levels=deck.get() steps=steps.get() /> }}
+            {move || view! { <Shapes t=t shapes=shapes.get() /> }}
             {move || view! { <House t=t corners=house.get() openings=openings.get() /> }}
             {move || {
                 // Deck levels are the surfaces furniture should sit within (paver

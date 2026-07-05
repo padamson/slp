@@ -28,6 +28,9 @@ pub enum Tool {
     House,
     /// The deck footprint: a closed outline of corners, drawn like the house.
     Deck,
+    /// A drawn area (paver patio, mulch bed, …): a closed outline of corners,
+    /// drawn exactly like the house/deck.
+    Shape,
     /// A door: a two-node span on a wall.
     Door,
     /// A window: a two-node span on a wall.
@@ -47,14 +50,14 @@ impl Tool {
         match self {
             Tool::Door => Some(OpeningKind::door),
             Tool::Window => Some(OpeningKind::window),
-            Tool::House | Tool::Deck | Tool::Steps | Tool::Object => None,
+            Tool::House | Tool::Deck | Tool::Shape | Tool::Steps | Tool::Object => None,
         }
     }
 
-    /// Whether this tool draws a closed outline (house / deck footprint).
+    /// Whether this tool draws a closed outline (house / deck / shape footprint).
     #[must_use]
     pub fn is_outline(self) -> bool {
-        matches!(self, Tool::House | Tool::Deck)
+        matches!(self, Tool::House | Tool::Deck | Tool::Shape)
     }
 
     /// Whether this tool places a two-node span on an existing edge
@@ -128,7 +131,7 @@ pub fn snap_node(
     grid_step: f64,
 ) -> Coord {
     match tool {
-        Tool::House | Tool::Deck => {
+        Tool::House | Tool::Deck | Tool::Shape => {
             let mut p = if grid {
                 snap_to_grid(raw, grid_step)
             } else {
@@ -170,7 +173,7 @@ fn snap_to_wall(corners: &[Coord], placed: &[Coord], raw: &Coord) -> Coord {
 #[must_use]
 pub fn commit_kind(tool: Tool, placed: &[Coord], next: &Coord) -> Commit {
     match tool {
-        Tool::House | Tool::Deck => {
+        Tool::House | Tool::Deck | Tool::Shape => {
             let near_start = placed
                 .first()
                 .is_some_and(|c| (c.x - next.x).hypot(c.y - next.y) <= CLOSE_FT);
@@ -378,15 +381,45 @@ mod tests {
     }
 
     #[test]
+    fn shape_draws_like_the_house_outline() {
+        // Same grid/ortho snap and close-on-first-corner behaviour as the
+        // house/deck — a drawn area (paver, mulch bed, …) is closed the same way.
+        let prev = [Coord::new(2.0, 2.0)];
+        assert_eq!(
+            snap_node(
+                Tool::Shape,
+                &[],
+                &prev,
+                &Coord::new(10.4, 2.6),
+                true,
+                true,
+                1.0
+            ),
+            Coord::new(10.0, 2.0)
+        );
+        let three = [
+            Coord::new(0.0, 0.0),
+            Coord::new(8.0, 0.0),
+            Coord::new(8.0, 6.0),
+        ];
+        assert_eq!(
+            commit_kind(Tool::Shape, &three, &Coord::new(0.3, 0.3)),
+            Commit::Finish
+        );
+        assert_eq!(Tool::Shape.opening_kind(), None);
+        assert!(Tool::Shape.is_outline());
+    }
+
+    #[test]
     fn tool_classification() {
         assert_eq!(Tool::Door.opening_kind(), Some(OpeningKind::door));
         assert_eq!(Tool::Window.opening_kind(), Some(OpeningKind::window));
         assert_eq!(Tool::House.opening_kind(), None);
         assert_eq!(Tool::Object.opening_kind(), None);
-        assert!(Tool::House.is_outline() && Tool::Deck.is_outline());
+        assert!(Tool::House.is_outline() && Tool::Deck.is_outline() && Tool::Shape.is_outline());
         assert!(!Tool::Door.is_outline() && !Tool::Steps.is_outline());
         assert!(Tool::Door.is_span() && Tool::Window.is_span() && Tool::Steps.is_span());
-        assert!(!Tool::House.is_span() && !Tool::Deck.is_span());
+        assert!(!Tool::House.is_span() && !Tool::Deck.is_span() && !Tool::Shape.is_span());
         // An object is a point placement — neither an outline nor a span.
         assert!(Tool::Object.is_point());
         assert!(!Tool::Object.is_outline() && !Tool::Object.is_span());

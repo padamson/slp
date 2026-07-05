@@ -298,6 +298,9 @@ pub struct Plan {
     /// Items placed on the plan (furniture and, later, other objects).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub objects: Vec<Object>,
+    /// Drawn areas on the plan (paver patios, mulch beds, …).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shapes: Vec<Shape>,
     /// Yard depth (north-south), in feet.
     pub yard_depth: f64,
     /// Yard width (east-west), in feet.
@@ -312,8 +315,32 @@ impl Plan {
             house: None,
             name: None,
             objects: Vec::new(),
+            shapes: Vec::new(),
             yard_depth,
             yard_width,
+        }
+    }
+}
+
+/// A drawn area (a paver patio, a mulch bed, …) — a closed outline of
+/// straight-edged nodes at a given elevation, the area equivalent of
+/// `Object`. Category/pricing (which catalog item it costs against) is
+/// added when a category actually needs it (e.g. pavers, mulch beds) —
+/// `Shape` on its own is just geometry: nodes + elevation.
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+pub struct Shape {
+    /// Ordered corner points of a closed outline (house wall or deck level).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub corners: Vec<Coord>,
+    /// Height in feet above grade.
+    pub elevation: f64,
+}
+
+impl Shape {
+    pub fn new(elevation: f64) -> Self {
+        Self {
+            corners: Vec::new(),
+            elevation,
         }
     }
 }

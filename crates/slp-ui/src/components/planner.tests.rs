@@ -14,15 +14,16 @@ fn renders_header_controls_tools_and_yard() {
     );
     assert_eq!(
         dokime::count(&html, "<input"),
-        5,
-        "two yard-size inputs + deck elevation + two snap toggles"
+        6,
+        "two yard-size inputs + deck elevation + shape elevation + two snap toggles"
     );
     assert!(
         html.contains(r#"data-testid="draw-house""#)
             && html.contains(r#"data-testid="draw-deck""#)
             && html.contains(r#"data-testid="add-door""#)
             && html.contains(r#"data-testid="add-window""#)
-            && html.contains(r#"data-testid="add-steps""#),
+            && html.contains(r#"data-testid="add-steps""#)
+            && html.contains(r#"data-testid="draw-shape""#),
         "the drawing-tool buttons render"
     );
     assert!(

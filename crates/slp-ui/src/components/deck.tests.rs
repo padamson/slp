@@ -39,6 +39,15 @@ fn renders_a_level_with_markers_and_elevation_label() {
 }
 
 #[test]
+fn a_negative_elevation_shows_a_single_minus_sign() {
+    // A below-grade level reads "-0.5 ft", not the doubled-up "+-0.5 ft" a
+    // naive `+{elevation}` format would produce.
+    let html = dokime::render(move || view! { <Deck t=t() levels=vec![square(-0.5)] /> });
+    assert!(html.contains("-0.5 ft"), "single minus sign");
+    assert!(!html.contains("+-"), "never a doubled sign");
+}
+
+#[test]
 fn renders_one_polygon_per_level() {
     let html =
         dokime::render(move || view! { <Deck t=t() levels=vec![square(0.5), square(2.0)] /> });

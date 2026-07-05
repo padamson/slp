@@ -68,7 +68,7 @@ fn level_view(t: Transform, lvl: DeckLevel) -> impl IntoView {
     let n = f64::from(u32::try_from(corners.len()).unwrap_or(1).max(1));
     let cx = corners.iter().map(|c| t.sx(c.x)).sum::<f64>() / n;
     let cy = corners.iter().map(|c| t.sy(c.y)).sum::<f64>() / n;
-    let label = format!("+{elevation:.1} ft");
+    let label = format!("{elevation:+.1} ft");
     view! {
         <g class="deck-level">
             <polygon

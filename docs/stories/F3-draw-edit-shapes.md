@@ -18,20 +18,28 @@ real curved shape I'm laying out, not just a boxy approximation.
 
 ## Vertical slices
 
-- **F3.0 — draw a straight-edged boundary**
-  - [ ] a shape tool drops boundary **nodes** on click, with a live preview edge
-        to the cursor; clicking the first node (or Enter) closes the boundary,
-        Esc cancels an in-progress draft
-  - [ ] a closed boundary persists as a `Shape` in the plan and renders as a
+- **F3.0 — draw a straight-edged boundary** ✅ *done*
+  - [x] a shape tool drops boundary **nodes** on click, with a live preview edge
+        to the cursor; clicking the first node closes the boundary (matches
+        House/Deck's own shipped behavior — Enter-to-close isn't implemented
+        for any outline tool yet, this doc's own aspiration included), Esc
+        cancels an in-progress draft (already tool-agnostic)
+  - [x] a closed boundary persists as a `Shape` in the plan and renders as a
         filled area; it survives a reload
-  - [ ] a `Shape` carries an **elevation** (feet above grade, default `0.0`),
+  - [x] a `Shape` carries an **elevation** (feet above grade, default `0.0`),
         editable the same way a deck level's already is — same field every
         area-like entity carries ([H1.4](H1-draw-house.md) adds it to `House`
-        too)
-  - [ ] `slp-core` reports the boundary's **area** (ft²) — the value later
-        stories cost against; unit + mutation tested
-  - [ ] dropped nodes snap to the grid (reusing the same snap as every other
+        too, not yet built)
+  - [x] `slp-core` reports the boundary's **area** (ft²) — the value later
+        stories cost against; `slp_core::geom::area` already existed
+        (unit+mutation tested) — reused as-is, no new core geometry needed
+  - [x] dropped nodes snap to the grid (reusing the same snap as every other
         drawing tool)
+  - [x] dokime: `Shapes` renders a polygon + corner markers + an area (and,
+        when non-zero, elevation) label, skips a degenerate (<3-corner) shape;
+        `slp-core`: `Tool::Shape` behaves exactly like `Tool::House`/
+        `Tool::Deck` (0 mutants missed on the changed `place.rs` logic); e2e:
+        draw a 4-corner area, close it, reload, confirm it persists
 
 - **F3.1 — edit the nodes of a boundary**
   - [ ] select a boundary node and drag to **move** it; the two edges meeting

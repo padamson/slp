@@ -31,6 +31,13 @@ pub const DECK_FILL: &str = "#c8a97e";
 pub const DECK_FILL_OPACITY: &str = "0.55";
 pub const DECK_STROKE: &str = "#8a6f4f";
 
+/// A drawn area's (paver, mulch bed, …) generic look, node corners — the
+/// category-specific fill (F3 is category-agnostic) lands with whichever
+/// story first needs it (e.g. B1/B4).
+pub const SHAPE_FILL: &str = "#c4c0a8";
+pub const SHAPE_FILL_OPACITY: &str = "0.5";
+pub const SHAPE_STROKE: &str = "#8a8568";
+
 /// Furniture footprints' base palette — square corners, no corner markers.
 /// Status/virtual (below), selection, and overflow are independent modifiers
 /// layered on top of this.

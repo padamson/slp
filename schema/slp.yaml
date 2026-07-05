@@ -29,6 +29,7 @@ classes:
       - deck
       - catalog
       - objects
+      - shapes
     slot_usage:
       yard_width:
         required: true
@@ -163,6 +164,20 @@ classes:
       width:
         required: true
 
+  Shape:
+    description: |-
+      A drawn area (a paver patio, a mulch bed, …) — a closed outline of
+      straight-edged nodes at a given elevation, the area equivalent of
+      `Object`. Category/pricing (which catalog item it costs against) is
+      added when a category actually needs it (e.g. pavers, mulch beds) —
+      `Shape` on its own is just geometry: nodes + elevation.
+    slots:
+      - corners
+      - elevation
+    slot_usage:
+      elevation:
+        required: true
+
   Coord:
     description: |-
       A point in the plan, in feet. The yard's south-west corner is the origin;
@@ -203,6 +218,11 @@ slots:
     multivalued: true
     inlined_as_list: true
     description: Items placed on the plan (furniture and, later, other objects).
+  shapes:
+    range: Shape
+    multivalued: true
+    inlined_as_list: true
+    description: Drawn areas on the plan (paver patios, mulch beds, …).
   id:
     description: Stable identifier for a catalog item.
   category:

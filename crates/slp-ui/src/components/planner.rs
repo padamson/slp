@@ -10,8 +10,8 @@
 use leptos::prelude::*;
 use slp_core::{
     CatalogItem, Commit, Coord, Corner, Deck, DeckLevel, FootprintShape, House, ItemStatus, Object,
-    Plan, Point, StepRun, Tool, commit_kind, dragged_center, free_corner, heading, nearest_wall,
-    object_at, opening_from_nodes, snap_node, take_off,
+    Plan, Point, Shape, StepRun, Tool, commit_kind, dragged_center, free_corner, heading,
+    nearest_wall, object_at, opening_from_nodes, snap_node, take_off,
 };
 
 use super::{
@@ -107,6 +107,8 @@ fn planner_body() -> impl IntoView {
         .unwrap_or_default();
     let deck = RwSignal::new(init_levels);
     let steps = RwSignal::new(init_steps);
+    // Drawn areas (paver patios, mulch beds, …).
+    let shapes = RwSignal::new(plan.shapes);
     // Placed objects + the catalog they reference. A tree (or a fire pit) goes
     // straight in the yard — no deck required — so the starter catalog is
     // seeded immediately when the loaded plan has none; a plan that already
@@ -137,6 +139,9 @@ fn planner_body() -> impl IntoView {
     let hover_at = RwSignal::new(None::<Coord>);
     // The elevation (ft) the next deck level is drawn at.
     let elevation = RwSignal::new(1.0_f64);
+    // The elevation (ft) the next drawn area is at — grade by default (a
+    // paver/mulch area usually sits flush with the yard, unlike a deck).
+    let shape_elevation = RwSignal::new(0.0_f64);
     // Placement engine state: the active tool, the nodes placed this gesture,
     // and the previewed next node under the cursor.
     let tool = RwSignal::new(None::<Tool>);
@@ -175,6 +180,7 @@ fn planner_body() -> impl IntoView {
             deck,
             catalog: catalog.get(),
             objects: objects.get(),
+            shapes: shapes.get(),
             ..Default::default()
         });
     });
@@ -301,7 +307,8 @@ fn planner_body() -> impl IntoView {
             Commit::Add => placed.update(|v| v.push(next)),
             Commit::Finish => {
                 // The placed nodes become a committed outline: a new deck level
-                // (decks are multi-level — additive) or the house outline.
+                // (decks are multi-level — additive), a new drawn area (also
+                // additive — a plan can have several), or the house outline.
                 if tl == Tool::Deck {
                     // `DeckLevel::new` sets `structure_status: existing` — a
                     // freshly-drawn level is presumed already-built, matching
@@ -311,6 +318,12 @@ fn planner_body() -> impl IntoView {
                         ..DeckLevel::new(elevation.get_untracked())
                     };
                     deck.update(|v| v.push(level));
+                } else if tl == Tool::Shape {
+                    let shape = Shape {
+                        corners: pl,
+                        elevation: shape_elevation.get_untracked(),
+                    };
+                    shapes.update(|v| v.push(shape));
                 } else {
                     corners.set(pl);
                 }
@@ -530,6 +543,16 @@ fn planner_body() -> impl IntoView {
                     step=0.5
                 />
             </ToolGroup>
+            <ToolGroup label="Area">
+                {tool_btn(tool, pick, Tool::Shape, "Draw area", "draw-shape")}
+                <NumberField
+                    label="Elev (ft)"
+                    testid="shape-elevation"
+                    value=shape_elevation
+                    on_input=Callback::new(move |v| shape_elevation.set(v))
+                    step=0.5
+                />
+            </ToolGroup>
             <ToolGroup label="Snap">
                 <Toggle
                     label="Snap to grid"
@@ -567,6 +590,7 @@ fn planner_body() -> impl IntoView {
                             house=corners
                             deck=deck
                             steps=steps
+                            shapes=shapes
                             openings=openings
                             objects=objects
                             catalog=catalog
@@ -747,6 +771,7 @@ fn hint(tool: Option<Tool>) -> &'static str {
         None => "Pick a tool to draw.",
         Some(Tool::House) => "Click corners; click the first corner to close the outline.",
         Some(Tool::Deck) => "Click corners; click the first corner to close the deck.",
+        Some(Tool::Shape) => "Click corners; click the first corner to close the area.",
         Some(Tool::Door) => "Click two points on a wall to place the door.",
         Some(Tool::Window) => "Click two points on a wall to place the window.",
         Some(Tool::Steps) => "Click two points on a deck edge to add steps.",

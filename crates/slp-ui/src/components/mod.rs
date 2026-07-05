@@ -15,6 +15,7 @@ mod object_palette;
 mod placement;
 mod planner;
 mod scale_bar;
+mod shapes;
 mod steps;
 mod toggle;
 mod tool_button;
@@ -37,6 +38,7 @@ pub use object_palette::ObjectPalette;
 pub use placement::Placement;
 pub use planner::Planner;
 pub use scale_bar::{DEFAULT_LENGTH_FT, ScaleBar};
+pub use shapes::Shapes;
 pub use steps::Steps;
 pub use toggle::Toggle;
 pub use tool_button::ToolButton;
@@ -209,6 +211,9 @@ mod planner_stories;
 #[path = "scale_bar.stories.rs"]
 mod scale_bar_stories;
 #[cfg(feature = "stories")]
+#[path = "shapes.stories.rs"]
+mod shapes_stories;
+#[cfg(feature = "stories")]
 #[path = "steps.stories.rs"]
 mod steps_stories;
 #[cfg(feature = "stories")]
@@ -247,6 +252,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(object_inspector_stories::stories());
     s.extend(object_palette_stories::stories());
     s.extend(steps_stories::stories());
+    s.extend(shapes_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
     s.extend(window_stories::stories());
@@ -302,6 +308,9 @@ mod planner_tests;
 #[cfg(test)]
 #[path = "scale_bar.tests.rs"]
 mod scale_bar_tests;
+#[cfg(test)]
+#[path = "shapes.tests.rs"]
+mod shapes_tests;
 #[cfg(test)]
 #[path = "steps.tests.rs"]
 mod steps_tests;
