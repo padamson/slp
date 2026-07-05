@@ -72,7 +72,9 @@ pub async fn click_ft_with(
         .force(true)
         .modifiers(modifiers.to_vec())
         .build();
-    yard.click(Some(opts)).await.context("click the yard at feet")?;
+    yard.click(Some(opts))
+        .await
+        .context("click the yard at feet")?;
     Ok(())
 }
 

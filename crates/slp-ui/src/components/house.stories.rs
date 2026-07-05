@@ -34,6 +34,24 @@ pub fn stories() -> Vec<Story> {
                 </svg>
             }
         }),
+        Story::new(
+            "Structures/House/A selected house shows node handles",
+            || {
+                let corners = vec![
+                    Coord::new(10.0, 6.0),
+                    Coord::new(34.0, 6.0),
+                    Coord::new(34.0, 18.0),
+                    Coord::new(22.0, 18.0),
+                    Coord::new(22.0, 24.0),
+                    Coord::new(10.0, 24.0),
+                ];
+                view! {
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 400" width="520">
+                        <House t=t() corners=corners selected=true />
+                    </svg>
+                }
+            },
+        ),
         Story::new("Structures/House/Doors & windows", || {
             // A rectangular house whose walls compose openings.
             // Opening::new(kind, offset, wall, width); walls are edges 0..4.

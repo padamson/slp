@@ -94,3 +94,28 @@ fn two_corners_draw_one_wall_not_a_closed_ring() {
         "an open 2-corner chain is one wall, not a closed 2-wall ring"
     );
 }
+
+fn square() -> Vec<Coord> {
+    vec![
+        Coord::new(0.0, 0.0),
+        Coord::new(4.0, 0.0),
+        Coord::new(4.0, 3.0),
+        Coord::new(0.0, 3.0),
+    ]
+}
+
+#[test]
+fn an_unselected_house_has_plain_corner_markers() {
+    let html = dokime::render(move || view! { <House t=t() corners=square() /> });
+    assert_eq!(dokime::count(&html, r#"class="house-corner""#), 4);
+    assert_eq!(dokime::count(&html, r#"data-testid="house-node""#), 0);
+    assert!(!html.contains("house--selected"));
+}
+
+#[test]
+fn a_selected_house_shows_interactive_node_handles_instead() {
+    let html = dokime::render(move || view! { <House t=t() corners=square() selected=true /> });
+    assert!(html.contains("house--selected"));
+    assert_eq!(dokime::count(&html, r#"class="house-corner""#), 0);
+    assert_eq!(dokime::count(&html, r#"data-testid="house-node""#), 4);
+}

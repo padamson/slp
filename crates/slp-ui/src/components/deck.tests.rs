@@ -128,3 +128,52 @@ fn skips_a_degenerate_level_with_too_few_corners() {
         "the degenerate level is skipped, not just malformed"
     );
 }
+
+#[test]
+fn an_unselected_level_has_plain_corner_markers() {
+    let html = dokime::render(move || view! { <Deck t=t() levels=vec![square(1.0)] /> });
+    assert_eq!(dokime::count(&html, r#"class="deck-corner""#), 4);
+    assert_eq!(dokime::count(&html, r#"data-testid="deck-node""#), 0);
+    assert!(!html.contains("deck-level--selected"));
+}
+
+#[test]
+fn a_selected_level_shows_interactive_node_handles_instead() {
+    let html =
+        dokime::render(move || view! { <Deck t=t() levels=vec![square(1.0)] selected=Some(0) /> });
+    assert!(html.contains("deck-level--selected"));
+    assert_eq!(dokime::count(&html, r#"class="deck-corner""#), 0);
+    assert_eq!(dokime::count(&html, r#"data-testid="deck-node""#), 4);
+}
+
+#[test]
+fn selection_addresses_the_original_index_not_the_paint_order() {
+    // Passed HIGH-then-LOW (paints low-first, per the sort): `selected=Some(0)`
+    // must select the HIGH level (its original index, index 0 as passed in),
+    // not whichever level paints first after the sort (which would be LOW).
+    let high = square(2.0);
+    let low = square(0.5);
+    let html = dokime::render(move || {
+        view! { <Deck t=t() levels=vec![high, low] selected=Some(0) /> }
+    });
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="deck-node""#),
+        4,
+        "exactly one level gets node handles"
+    );
+    // Paint order is low-then-high (lowest elevation first); each level's own
+    // markers+label render together, low's whole group finishing before
+    // high's starts. So the node handles fall *after* low's label and
+    // *before* high's only if the high level (original index 0) is the one
+    // selected — the reverse order would mean low (paint-order index 0) was
+    // selected instead, the bug this test pins.
+    let low_idx = html.find("+0.5 ft").expect("low label renders");
+    let high_idx = html.find("+2.0 ft").expect("high label renders");
+    let node_idx = html
+        .find(r#"data-testid="deck-node""#)
+        .expect("node handles render");
+    assert!(
+        low_idx < node_idx && node_idx < high_idx,
+        "the node handles belong to the high level (original index 0), not the low one"
+    );
+}

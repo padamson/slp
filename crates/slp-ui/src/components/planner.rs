@@ -118,10 +118,22 @@ fn planner_body() -> impl IntoView {
     let selected_nodes = RwSignal::new(Vec::<usize>::new());
     // The node (index into the selected shape's corners) being dragged, if any.
     let dragging_node = RwSignal::new(None::<usize>);
-    // True from a shape body's press to its matching release — consumed by
-    // `on_commit` so that same click doesn't also fall through to the
-    // empty-space case and immediately clear the selection just set.
-    let shape_press = RwSignal::new(false);
+    // Whether the house is selected — its corners become interactive (mirrors
+    // `selected_shape`, but there's only ever one house).
+    let house_selected = RwSignal::new(false);
+    // The house corner (index into `corners`) being dragged, if any.
+    let dragging_house_node = RwSignal::new(None::<usize>);
+    // The index (into `deck`'s levels, *before* Deck's own paint-order sort)
+    // of the selected level, if any.
+    let selected_deck = RwSignal::new(None::<usize>);
+    // The node (index into the selected level's corners) being dragged, if any.
+    let dragging_deck_node = RwSignal::new(None::<usize>);
+    // True from a shape/house/deck-level body's press (or the insert/cancel
+    // popup buttons) to its matching release — consumed by `on_commit` so
+    // that same click doesn't also fall through to the empty-space case and
+    // immediately clear the selection just set (none of these start a drag of
+    // their own the way an object press does).
+    let press_only = RwSignal::new(false);
     // Placed objects + the catalog they reference. A tree (or a fire pit) goes
     // straight in the yard — no deck required — so the starter catalog is
     // seeded immediately when the loaded plan has none; a plan that already
@@ -303,6 +315,43 @@ fn planner_body() -> impl IntoView {
             }
             return;
         }
+        // Dragging a selected house corner: moving it only changes wall
+        // geometry — each `Wall`/opening re-derives its position live from
+        // the corners + its wall index, so doors/windows just follow.
+        if let Some(i) = dragging_house_node.get_untracked() {
+            let at = if grid_snap.get_untracked() {
+                snap_to_grid(&raw, GRID_STEP)
+            } else {
+                raw.clone()
+            };
+            corners.update(|v| {
+                if let Some(c) = v.get_mut(i) {
+                    *c = at;
+                }
+            });
+            return;
+        }
+        // Dragging a selected deck level's node. Step runs store their own
+        // literal coordinates (captured at draw time, not wall-indexed like
+        // an opening), so moving a level's corner has no dependent geometry
+        // to re-derive.
+        if let Some(ni) = dragging_deck_node.get_untracked() {
+            if let Some(li) = selected_deck.get_untracked() {
+                let at = if grid_snap.get_untracked() {
+                    snap_to_grid(&raw, GRID_STEP)
+                } else {
+                    raw.clone()
+                };
+                deck.update(|v| {
+                    if let Some(lvl) = v.get_mut(li)
+                        && let Some(c) = lvl.corners.get_mut(ni)
+                    {
+                        *c = at;
+                    }
+                });
+            }
+            return;
+        }
         if let Some(tl) = tool.get_untracked() {
             preview.set(Some(snap(tl, &raw)));
         }
@@ -328,16 +377,25 @@ fn planner_body() -> impl IntoView {
             dragging_node.set(None);
             return;
         }
-        if shape_press.get_untracked() {
-            shape_press.set(false);
+        if dragging_house_node.get_untracked().is_some() {
+            dragging_house_node.set(None);
+            return;
+        }
+        if dragging_deck_node.get_untracked().is_some() {
+            dragging_deck_node.set(None);
+            return;
+        }
+        if press_only.get_untracked() {
+            press_only.set(false);
             return;
         }
         let Some(tl) = tool.get_untracked() else {
             // No tool armed: a click selects the object under the cursor, or
-            // clears the selection (object and shape/node alike) when it
-            // lands on empty space. A shape-body or node press is gated out
-            // above (`shape_press`/`dragging_node`), so this only runs for a
-            // click that didn't press either.
+            // clears every selection (object, shape/node, house, deck level)
+            // when it lands on empty space. A shape/house/deck-level body or
+            // node press is gated out above (`press_only`/the `dragging_*`
+            // flags), so this only runs for a click that didn't press any of
+            // them.
             selected.set(object_at(
                 Point::new(raw.x, raw.y),
                 &objects.get_untracked(),
@@ -345,6 +403,8 @@ fn planner_body() -> impl IntoView {
             ));
             selected_shape.set(None);
             selected_nodes.set(Vec::new());
+            house_selected.set(false);
+            selected_deck.set(None);
             return;
         };
         let next = snap(tl, &raw);
@@ -427,6 +487,18 @@ fn planner_body() -> impl IntoView {
 
     let on_leave = Callback::new(move |()| preview.set(None));
 
+    // Every "selected thing" (object, shape, house, deck level) is a separate
+    // signal rather than one `Selection` enum — but that means selecting one
+    // must clear all the others, so it's centralized here instead of repeated
+    // at every press site.
+    let clear_selection = move || {
+        selected.set(None);
+        selected_shape.set(None);
+        selected_nodes.set(Vec::new());
+        house_selected.set(false);
+        selected_deck.set(None);
+    };
+
     // Press an object's body → select it and start a move drag, grabbing it at
     // the offset from the cursor to its center so it doesn't jump under the
     // pointer. Ignored while a drawing tool is armed — that click is a placement.
@@ -434,9 +506,8 @@ fn planner_body() -> impl IntoView {
         if tool.get_untracked().is_some() {
             return;
         }
+        clear_selection();
         selected.set(Some(i));
-        selected_shape.set(None);
-        selected_nodes.set(Vec::new());
         let (grab_x, grab_y) = match (hover_at.get_untracked(), objects.get_untracked().get(i)) {
             (Some(c), Some(o)) => (o.x - c.x, o.y - c.y),
             _ => (0.0, 0.0),
@@ -451,16 +522,56 @@ fn planner_body() -> impl IntoView {
     // Press a shape's body → select it, resetting any node selection (a fresh
     // start on this shape). Ignored while a drawing tool is armed. Doesn't
     // start a drag — F3.1 only moves *nodes*, not a whole shape — so
-    // `shape_press` just gates `on_commit`'s empty-space fallback from
+    // `press_only` just gates `on_commit`'s empty-space fallback from
     // clearing the selection this same click just set.
     let on_shape_press = Callback::new(move |i: usize| {
         if tool.get_untracked().is_some() {
             return;
         }
-        selected.set(None);
+        clear_selection();
         selected_shape.set(Some(i));
-        selected_nodes.set(Vec::new());
-        shape_press.set(true);
+        press_only.set(true);
+    });
+
+    // Press the house's body → select it (same press-only, no-drag pattern as
+    // a shape body). Its corners then render as interactive node handles.
+    let on_house_press = Callback::new(move |()| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        clear_selection();
+        house_selected.set(true);
+        press_only.set(true);
+    });
+
+    // Press a selected house's node handle → start a move drag. Moving a
+    // corner only changes wall geometry; each `Wall`/opening re-derives its
+    // position live, so doors/windows just follow (see `house.rs`).
+    let on_house_node_press = Callback::new(move |i: usize| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        dragging_house_node.set(Some(i));
+    });
+
+    // Press a deck level's body (by its original index) → select that level.
+    let on_deck_level_press = Callback::new(move |i: usize| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        clear_selection();
+        selected_deck.set(Some(i));
+        press_only.set(true);
+    });
+
+    // Press the selected deck level's node handle → start a move drag. Step
+    // runs store their own literal coordinates (not wall-indexed like an
+    // opening), so there's no dependent geometry to re-derive.
+    let on_deck_node_press = Callback::new(move |ni: usize| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        dragging_deck_node.set(Some(ni));
     });
 
     // Press a selected shape's node → select it and start a move drag. A
@@ -491,7 +602,7 @@ fn planner_body() -> impl IntoView {
     let on_insert_node = Callback::new(move |()| {
         // Gates `on_commit`'s empty-space fallback, same as a shape body
         // press — this button has no drag of its own to consume the click.
-        shape_press.set(true);
+        press_only.set(true);
         if let (Some(si), [a, b]) = (
             selected_shape.get_untracked(),
             selected_nodes.get_untracked().as_slice(),
@@ -510,7 +621,7 @@ fn planner_body() -> impl IntoView {
 
     // The insert-between popup's "Cancel" button: just deselect both nodes.
     let on_cancel_nodes = Callback::new(move |()| {
-        shape_press.set(true);
+        press_only.set(true);
         selected_nodes.set(Vec::new());
     });
 
@@ -613,9 +724,7 @@ fn planner_body() -> impl IntoView {
         }
         placed.set(Vec::new());
         preview.set(None);
-        selected.set(None);
-        selected_shape.set(None);
-        selected_nodes.set(Vec::new());
+        clear_selection();
         tool.set(Some(t));
     };
 
@@ -647,9 +756,7 @@ fn planner_body() -> impl IntoView {
         selected_id.set(id);
         placed.set(Vec::new());
         preview.set(None);
-        selected.set(None);
-        selected_shape.set(None);
-        selected_nodes.set(Vec::new());
+        clear_selection();
         sticky_run.set(false);
         tool.set(Some(Tool::Object));
     });
@@ -733,7 +840,9 @@ fn planner_body() -> impl IntoView {
                             px_ft=PX_FT
                             pad=PAD
                             house=corners
+                            house_selected=house_selected
                             deck=deck
+                            selected_deck=selected_deck
                             steps=steps
                             shapes=shapes
                             selected_shape=selected_shape
@@ -761,6 +870,10 @@ fn planner_body() -> impl IntoView {
                             on_node_press=on_node_press
                             on_insert_node=on_insert_node
                             on_cancel_nodes=on_cancel_nodes
+                            on_house_press=on_house_press
+                            on_house_node_press=on_house_node_press
+                            on_deck_level_press=on_deck_level_press
+                            on_deck_node_press=on_deck_node_press
                         />
                     }
                 }}

@@ -31,9 +31,16 @@ pub fn Yard(
     /// The committed house outline corners (empty = no house).
     #[prop(optional, into)]
     house: Signal<Vec<Coord>>,
+    /// Whether the house is selected — its corners become interactive.
+    #[prop(optional, into)]
+    house_selected: Signal<bool>,
     /// The committed deck levels (empty = no deck).
     #[prop(optional, into)]
     deck: Signal<Vec<DeckLevel>>,
+    /// The selected level's original index (into `deck`, before its own
+    /// paint-order sort), if any.
+    #[prop(optional, into)]
+    selected_deck: Signal<Option<usize>>,
     /// Step runs on the deck's edges.
     #[prop(optional, into)]
     steps: Signal<Vec<StepRun>>,
@@ -109,6 +116,21 @@ pub fn Yard(
     /// The insert-between popup's "Cancel" button was pressed.
     #[prop(optional)]
     on_cancel_nodes: Option<Callback<()>>,
+    /// The house's body was pressed — select it.
+    #[prop(optional)]
+    on_house_press: Option<Callback<()>>,
+    /// A selected house's node handle was pressed (by corner index) — select
+    /// it and start a move drag.
+    #[prop(optional)]
+    on_house_node_press: Option<Callback<usize>>,
+    /// A deck level's filled body was pressed (by its original index) —
+    /// select it.
+    #[prop(optional)]
+    on_deck_level_press: Option<Callback<usize>>,
+    /// A selected deck level's node handle was pressed (by corner index) —
+    /// select it and start a move drag.
+    #[prop(optional)]
+    on_deck_node_press: Option<Callback<usize>>,
 ) -> impl IntoView {
     let t = Transform { px_ft, pad, yard_d };
     let w_px = t.sx(yard_w) + pad;
@@ -207,7 +229,18 @@ pub fn Yard(
             <Grid t=t yard_w=yard_w yard_d=yard_d />
             // Reactive overlays: only these subtrees update as the plan / gesture
             // change, so the <svg> stays put during a pointer gesture.
-            {move || view! { <Deck t=t levels=deck.get() steps=steps.get() /> }}
+            {move || {
+                view! {
+                    <Deck
+                        t=t
+                        levels=deck.get()
+                        steps=steps.get()
+                        selected=selected_deck.get()
+                        on_level_press=on_deck_level_press
+                        on_node_press=on_deck_node_press
+                    />
+                }
+            }}
             {move || {
                 view! {
                     <Shapes
@@ -222,7 +255,18 @@ pub fn Yard(
                     />
                 }
             }}
-            {move || view! { <House t=t corners=house.get() openings=openings.get() /> }}
+            {move || {
+                view! {
+                    <House
+                        t=t
+                        corners=house.get()
+                        openings=openings.get()
+                        selected=house_selected.get()
+                        on_house_press=on_house_press
+                        on_node_press=on_house_node_press
+                    />
+                }
+            }}
             {move || {
                 // Deck levels are the surfaces furniture should sit within (paver
                 // areas join them when that slice lands).

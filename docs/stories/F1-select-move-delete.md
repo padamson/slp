@@ -33,20 +33,31 @@ layout without redrawing — the same way I'd shuffle real furniture around a de
         (ignored while a text field / picker is focused, so it can't eat a keypress)
   - [x] e2e: place → select → Remove → the footprint is gone and the estimate
         line drops
-- **F1.2 — select & delete drawn outlines (deck levels, steps, house)**
-  - [ ] generalize selection from an object index to a `Selection` (object |
-        deck level | step run | house); hit-test the drawn polygons/outlines
-  - [ ] delete removes the corresponding geometry (a deck level, a step run, …)
+- **F1.2 — select drawn outlines (house, deck levels)** ✅ *partly done*
+  - [x] clicking a house or deck level's filled body selects it (mirrors how
+        clicking a drawn area or a tree selects it — no `Selection` enum;
+        each selectable thing is its own parallel signal, cleared by a shared
+        `clear_selection` helper so picking one always deselects the rest)
+  - [ ] step runs aren't yet selectable (no story has needed it yet)
+  - [ ] delete removes the corresponding geometry (a deck level, a step run,
+        the house) — not built; only node-level delete exists so far ([F3.1](F3-draw-edit-shapes.md))
 - **F1.3 — move a drawn outline**
   - [ ] drag a whole deck level or step run (translate all its vertices),
         grid-snapped, with the same press-to-grab gesture
-- **F1.4 — reshape (drag a vertex)**
-  - [ ] drag a single polygon vertex (deck / paver / house corner); dependent
-        geometry (openings on that wall, steps on that edge) re-derives
-  - [ ] node **insert**/**delete** on these existing outlines (not just move) —
-        see [F3.1](F3-draw-edit-shapes.md), which builds this for freeform
-        shapes first; F1.4 applies the same operations to deck/house/paver
-        outlines, sharing implementation rather than duplicating it
+- **F1.4 — reshape (drag a vertex)** ✅ *partly done*
+  - [x] drag a single house or deck-level corner (reuses the shape node-drag
+        gesture); dependent geometry re-derives live where it's a lookup, not
+        a stored reference — a house corner move just changes wall geometry,
+        and each `Wall`/opening already reads its position from the corners +
+        wall index every render, so doors/windows follow with no extra code.
+        A deck level's `StepRun`s store baked coordinates (captured at draw
+        time), so a level's corner move has no dependent geometry at all.
+  - [ ] node **insert**/**delete** on house/deck outlines — built for freeform
+        shapes ([F3.1](F3-draw-edit-shapes.md), reusable `slp-core::boundary`
+        primitives), **not yet wired to House or Deck**: a deck level could
+        reuse it as-is (no dependent geometry), but a house corner insert/
+        delete would renumber wall indices and could silently reassign an
+        opening to the wrong wall — needs its own design before it's safe
 
 ## Notes / refs
 
