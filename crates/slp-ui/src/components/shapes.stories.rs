@@ -50,5 +50,53 @@ pub fn stories() -> Vec<Story> {
                 </svg>
             }
         }),
+        Story::new(
+            "Structures/Shapes/A selected area shows node handles",
+            || {
+                let t = Transform {
+                    px_ft: 12.0,
+                    pad: 40.0,
+                    yard_d: 30.0,
+                };
+                let shape = Shape {
+                    corners: vec![
+                        Coord::new(8.0, 6.0),
+                        Coord::new(22.0, 6.0),
+                        Coord::new(22.0, 16.0),
+                        Coord::new(8.0, 16.0),
+                    ],
+                    elevation: 0.0,
+                };
+                view! {
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 400" width="460">
+                        <Shapes t=t shapes=vec![shape] selected=Some(0) />
+                    </svg>
+                }
+            },
+        ),
+        Story::new(
+            "Structures/Shapes/Two adjacent nodes selected shows the insert popup",
+            || {
+                let t = Transform {
+                    px_ft: 12.0,
+                    pad: 40.0,
+                    yard_d: 30.0,
+                };
+                let shape = Shape {
+                    corners: vec![
+                        Coord::new(8.0, 6.0),
+                        Coord::new(22.0, 6.0),
+                        Coord::new(22.0, 16.0),
+                        Coord::new(8.0, 16.0),
+                    ],
+                    elevation: 0.0,
+                };
+                view! {
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 400" width="460">
+                        <Shapes t=t shapes=vec![shape] selected=Some(0) selected_nodes=vec![0, 1] />
+                    </svg>
+                }
+            },
+        ),
     ]
 }

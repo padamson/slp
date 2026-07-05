@@ -82,3 +82,51 @@ fn skips_a_degenerate_shape_with_too_few_corners() {
         "a shape with under 3 corners has no area to render"
     );
 }
+
+#[test]
+fn an_unselected_shape_has_plain_corner_markers() {
+    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+    assert_eq!(dokime::count(&html, r#"class="shape-corner""#), 4);
+    assert_eq!(dokime::count(&html, r#"data-testid="shape-node""#), 0);
+    assert!(!html.contains(r#"class="shape shape--selected""#));
+}
+
+#[test]
+fn a_selected_shape_shows_interactive_node_handles_instead() {
+    let html = dokime::render(
+        move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> },
+    );
+    assert!(html.contains(r#"class="shape shape--selected""#));
+    assert_eq!(dokime::count(&html, r#"class="shape-corner""#), 0);
+    assert_eq!(dokime::count(&html, r#"data-testid="shape-node""#), 4);
+}
+
+#[test]
+fn only_the_selected_shape_gets_node_handles() {
+    let html = dokime::render(move || {
+        view! { <Shapes t=t() shapes=vec![square(0.0), square(2.0)] selected=Some(1) /> }
+    });
+    // One shape (index 0) stays plain; the other (index 1) gets node handles.
+    assert_eq!(dokime::count(&html, r#"class="shape-corner""#), 4);
+    assert_eq!(dokime::count(&html, r#"data-testid="shape-node""#), 4);
+}
+
+#[test]
+fn no_popup_with_fewer_than_two_selected_nodes() {
+    let html = dokime::render(move || {
+        view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) selected_nodes=vec![1] /> }
+    });
+    assert!(!html.contains("node-insert-popup"));
+}
+
+#[test]
+fn a_pair_of_selected_nodes_shows_the_insert_cancel_popup() {
+    let html = dokime::render(move || {
+        view! {
+            <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) selected_nodes=vec![0, 1] />
+        }
+    });
+    assert!(html.contains("node-insert-popup"));
+    assert!(html.contains(r#"data-testid="insert-node""#));
+    assert!(html.contains(r#"data-testid="cancel-node-select""#));
+}

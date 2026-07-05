@@ -41,16 +41,29 @@ real curved shape I'm laying out, not just a boxy approximation.
         `Tool::Deck` (0 mutants missed on the changed `place.rs` logic); e2e:
         draw a 4-corner area, close it, reload, confirm it persists
 
-- **F3.1 — edit the nodes of a boundary**
-  - [ ] select a boundary node and drag to **move** it; the two edges meeting
-        there follow, and any dependent readout (area) updates live
-  - [ ] select two adjacent nodes and **insert** a new node on the edge between
-        them (it lands on that edge; the edge's shape is preserved)
-  - [ ] select a node and **delete** it; its two neighbors reconnect directly
-  - [ ] a boundary can't be reduced below a drawable minimum (deleting the last
+- **F3.1 — edit the nodes of a boundary** ✅ *done*
+  - [x] select a boundary node and drag to **move** it; the two edges meeting
+        there follow, and any dependent readout (area) updates live — a shape
+        is selected by clicking its filled body (no dedicated tool/button;
+        mirrors how clicking a tree selects it and reveals its canopy/trunk
+        handles), and a selected shape's corners become interactive node
+        handles the same way
+  - [x] select two adjacent nodes and **insert** a new node on the edge between
+        them (it lands on that edge; the edge's shape is preserved) — press
+        one node, then an *adjacent* one, to arm a floating Insert/Cancel
+        popup near their midpoint; pressing a non-adjacent node (or a third,
+        once a pair is armed) resets the selection to just that node instead
+  - [x] select a node and **delete** it; its two neighbors reconnect directly
+        — Delete/Backspace with exactly one node selected (reuses the
+        existing object-delete keyboard handler's pattern)
+  - [x] a boundary can't be reduced below a drawable minimum (deleting the last
         node that would leave under 3 is refused, not left degenerate)
-  - [ ] e2e: draw a boundary, move a node and watch the area change, insert a
+  - [x] e2e: draw a boundary, move a node and watch the area change, insert a
         node, delete a node
+  - [x] `slp-core`: `are_adjacent`/`insert_node_between`/`delete_node` in the
+        new `boundary` module — entity-agnostic (operate on a plain
+        `&[Coord]`), so `House`/`DeckLevel` node editing can reuse them
+        unchanged when that lands; 0 mutants missed
 
 - **F3.2 — arc edges**
   - [ ] any boundary edge can be an **arc** (a circular bulge to one side)

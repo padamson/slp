@@ -10,8 +10,9 @@
 use leptos::prelude::*;
 use slp_core::{
     CatalogItem, Commit, Coord, Corner, Deck, DeckLevel, FootprintShape, House, ItemStatus, Object,
-    Plan, Point, Shape, StepRun, Tool, commit_kind, dragged_center, free_corner, heading,
-    nearest_wall, object_at, opening_from_nodes, snap_node, take_off,
+    Plan, Point, Shape, StepRun, Tool, are_adjacent, commit_kind, delete_node, dragged_center,
+    free_corner, heading, insert_node_between, nearest_wall, object_at, opening_from_nodes,
+    snap_node, snap_to_grid, take_off,
 };
 
 use super::{
@@ -109,6 +110,18 @@ fn planner_body() -> impl IntoView {
     let steps = RwSignal::new(init_steps);
     // Drawn areas (paver patios, mulch beds, …).
     let shapes = RwSignal::new(plan.shapes);
+    // The index (into `shapes`) of the selected drawn area, if any — its
+    // nodes become interactive (mirrors `selected` for objects).
+    let selected_shape = RwSignal::new(None::<usize>);
+    // Indices (into the selected shape's corners) of the selected nodes: 0, 1,
+    // or an adjacent pair (which arms the insert-between popup).
+    let selected_nodes = RwSignal::new(Vec::<usize>::new());
+    // The node (index into the selected shape's corners) being dragged, if any.
+    let dragging_node = RwSignal::new(None::<usize>);
+    // True from a shape body's press to its matching release — consumed by
+    // `on_commit` so that same click doesn't also fall through to the
+    // empty-space case and immediately clear the selection just set.
+    let shape_press = RwSignal::new(false);
     // Placed objects + the catalog they reference. A tree (or a fire pit) goes
     // straight in the yard — no deck required — so the starter catalog is
     // seeded immediately when the loaded plan has none; a plan that already
@@ -270,6 +283,26 @@ fn planner_body() -> impl IntoView {
             }
             return;
         }
+        // Dragging a selected shape's node: it follows the cursor directly
+        // (no grab offset — a node's position *is* the cursor), snapping to
+        // the foot grid when grid-snap is on, same as every other node.
+        if let Some(ni) = dragging_node.get_untracked() {
+            if let Some(si) = selected_shape.get_untracked() {
+                let at = if grid_snap.get_untracked() {
+                    snap_to_grid(&raw, GRID_STEP)
+                } else {
+                    raw.clone()
+                };
+                shapes.update(|v| {
+                    if let Some(s) = v.get_mut(si)
+                        && let Some(c) = s.corners.get_mut(ni)
+                    {
+                        *c = at;
+                    }
+                });
+            }
+            return;
+        }
         if let Some(tl) = tool.get_untracked() {
             preview.set(Some(snap(tl, &raw)));
         }
@@ -291,14 +324,27 @@ fn planner_body() -> impl IntoView {
             resizing.set(None);
             return;
         }
+        if dragging_node.get_untracked().is_some() {
+            dragging_node.set(None);
+            return;
+        }
+        if shape_press.get_untracked() {
+            shape_press.set(false);
+            return;
+        }
         let Some(tl) = tool.get_untracked() else {
             // No tool armed: a click selects the object under the cursor, or
-            // clears the selection when it lands on empty space.
+            // clears the selection (object and shape/node alike) when it
+            // lands on empty space. A shape-body or node press is gated out
+            // above (`shape_press`/`dragging_node`), so this only runs for a
+            // click that didn't press either.
             selected.set(object_at(
                 Point::new(raw.x, raw.y),
                 &objects.get_untracked(),
                 &catalog.get_untracked(),
             ));
+            selected_shape.set(None);
+            selected_nodes.set(Vec::new());
             return;
         };
         let next = snap(tl, &raw);
@@ -389,6 +435,8 @@ fn planner_body() -> impl IntoView {
             return;
         }
         selected.set(Some(i));
+        selected_shape.set(None);
+        selected_nodes.set(Vec::new());
         let (grab_x, grab_y) = match (hover_at.get_untracked(), objects.get_untracked().get(i)) {
             (Some(c), Some(o)) => (o.x - c.x, o.y - c.y),
             _ => (0.0, 0.0),
@@ -398,6 +446,72 @@ fn planner_body() -> impl IntoView {
             grab_x,
             grab_y,
         }));
+    });
+
+    // Press a shape's body → select it, resetting any node selection (a fresh
+    // start on this shape). Ignored while a drawing tool is armed. Doesn't
+    // start a drag — F3.1 only moves *nodes*, not a whole shape — so
+    // `shape_press` just gates `on_commit`'s empty-space fallback from
+    // clearing the selection this same click just set.
+    let on_shape_press = Callback::new(move |i: usize| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        selected.set(None);
+        selected_shape.set(Some(i));
+        selected_nodes.set(Vec::new());
+        shape_press.set(true);
+    });
+
+    // Press a selected shape's node → select it and start a move drag. A
+    // second press on an *adjacent* node adds it (arming the insert-between
+    // popup); any other press (a non-adjacent node, or a third node once a
+    // pair is already selected) resets the selection to just that node.
+    let on_node_press = Callback::new(move |ni: usize| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        let Some(si) = selected_shape.get_untracked() else {
+            return;
+        };
+        let len = shapes
+            .get_untracked()
+            .get(si)
+            .map_or(0, |s| s.corners.len());
+        selected_nodes.update(|v| match v.as_slice() {
+            [a] if *a != ni && are_adjacent(len, *a, ni) => *v = vec![*a, ni],
+            [a] if *a == ni => {}
+            _ => *v = vec![ni],
+        });
+        dragging_node.set(Some(ni));
+    });
+
+    // The insert-between popup's "Insert" button: split the edge between the
+    // two selected nodes with a new one at its midpoint.
+    let on_insert_node = Callback::new(move |()| {
+        // Gates `on_commit`'s empty-space fallback, same as a shape body
+        // press — this button has no drag of its own to consume the click.
+        shape_press.set(true);
+        if let (Some(si), [a, b]) = (
+            selected_shape.get_untracked(),
+            selected_nodes.get_untracked().as_slice(),
+        ) {
+            let (a, b) = (*a, *b);
+            shapes.update(|v| {
+                if let Some(s) = v.get_mut(si)
+                    && let Some(corners) = insert_node_between(&s.corners, a, b)
+                {
+                    s.corners = corners;
+                }
+            });
+        }
+        selected_nodes.set(Vec::new());
+    });
+
+    // The insert-between popup's "Cancel" button: just deselect both nodes.
+    let on_cancel_nodes = Callback::new(move |()| {
+        shape_press.set(true);
+        selected_nodes.set(Vec::new());
     });
 
     // Remove the selected object and clear the selection.
@@ -412,19 +526,46 @@ fn planner_body() -> impl IntoView {
         }
     });
 
-    // Delete / Backspace removes the selected object — but not while a text field
-    // or picker is focused, so it can't eat a keypress meant for editing.
+    // Remove the selected shape's selected node (refused, per `delete_node`,
+    // if it would leave the shape below its 3-node drawable minimum).
+    let delete_selected_node = Callback::new(move |()| {
+        if let (Some(si), [ni]) = (
+            selected_shape.get_untracked(),
+            selected_nodes.get_untracked().as_slice(),
+        ) {
+            let ni = *ni;
+            shapes.update(|v| {
+                if let Some(s) = v.get_mut(si)
+                    && let Some(corners) = delete_node(&s.corners, ni)
+                {
+                    s.corners = corners;
+                }
+            });
+            selected_nodes.set(Vec::new());
+        }
+    });
+
+    // Delete / Backspace removes the selected object, or (if no object is
+    // selected but exactly one shape node is) that node — but not while a
+    // text field or picker is focused, so it can't eat a keypress meant for
+    // editing.
     #[cfg(feature = "csr")]
     Effect::new(move |_| {
         let handle =
             window_event_listener(leptos::ev::keydown, move |ev: leptos::ev::KeyboardEvent| {
-                if selected.get_untracked().is_none() || is_editing_field() {
+                if is_editing_field() {
                     return;
                 }
                 let key = ev.key();
-                if key == "Delete" || key == "Backspace" {
+                if key != "Delete" && key != "Backspace" {
+                    return;
+                }
+                if selected.get_untracked().is_some() {
                     ev.prevent_default();
                     delete_selected.run(());
+                } else if selected_nodes.get_untracked().len() == 1 {
+                    ev.prevent_default();
+                    delete_selected_node.run(());
                 }
             });
         on_cleanup(move || handle.remove());
@@ -473,6 +614,8 @@ fn planner_body() -> impl IntoView {
         placed.set(Vec::new());
         preview.set(None);
         selected.set(None);
+        selected_shape.set(None);
+        selected_nodes.set(Vec::new());
         tool.set(Some(t));
     };
 
@@ -505,6 +648,8 @@ fn planner_body() -> impl IntoView {
         placed.set(Vec::new());
         preview.set(None);
         selected.set(None);
+        selected_shape.set(None);
+        selected_nodes.set(Vec::new());
         sticky_run.set(false);
         tool.set(Some(Tool::Object));
     });
@@ -591,6 +736,8 @@ fn planner_body() -> impl IntoView {
                             deck=deck
                             steps=steps
                             shapes=shapes
+                            selected_shape=selected_shape
+                            selected_nodes=selected_nodes
                             openings=openings
                             objects=objects
                             catalog=catalog
@@ -610,6 +757,10 @@ fn planner_body() -> impl IntoView {
                                 resizing.set(Some(ResizePart::Trunk));
                             })
                             on_object_press=on_object_press
+                            on_shape_press=on_shape_press
+                            on_node_press=on_node_press
+                            on_insert_node=on_insert_node
+                            on_cancel_nodes=on_cancel_nodes
                         />
                     }
                 }}

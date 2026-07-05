@@ -40,6 +40,12 @@ pub fn Yard(
     /// Drawn areas (paver patios, mulch beds, …).
     #[prop(optional, into)]
     shapes: Signal<Vec<Shape>>,
+    /// The selected shape's index (into `shapes`), if any.
+    #[prop(optional, into)]
+    selected_shape: Signal<Option<usize>>,
+    /// The selected shape's selected node indices (0, 1, or an adjacent pair).
+    #[prop(optional, into)]
+    selected_nodes: Signal<Vec<usize>>,
     /// Committed doors/windows on the house walls.
     #[prop(optional, into)]
     openings: Signal<Vec<Opening>>,
@@ -90,6 +96,19 @@ pub fn Yard(
     /// An object body was pressed (by index) — select it and start a move drag.
     #[prop(optional)]
     on_object_press: Option<Callback<usize>>,
+    /// A shape's filled body was pressed (by `shapes` index) — select it.
+    #[prop(optional)]
+    on_shape_press: Option<Callback<usize>>,
+    /// A selected shape's node handle was pressed (by corner index) — select
+    /// it and start a move drag.
+    #[prop(optional)]
+    on_node_press: Option<Callback<usize>>,
+    /// The insert-between popup's "Insert" button was pressed.
+    #[prop(optional)]
+    on_insert_node: Option<Callback<()>>,
+    /// The insert-between popup's "Cancel" button was pressed.
+    #[prop(optional)]
+    on_cancel_nodes: Option<Callback<()>>,
 ) -> impl IntoView {
     let t = Transform { px_ft, pad, yard_d };
     let w_px = t.sx(yard_w) + pad;
@@ -189,7 +208,20 @@ pub fn Yard(
             // Reactive overlays: only these subtrees update as the plan / gesture
             // change, so the <svg> stays put during a pointer gesture.
             {move || view! { <Deck t=t levels=deck.get() steps=steps.get() /> }}
-            {move || view! { <Shapes t=t shapes=shapes.get() /> }}
+            {move || {
+                view! {
+                    <Shapes
+                        t=t
+                        shapes=shapes.get()
+                        selected=selected_shape.get()
+                        selected_nodes=selected_nodes.get()
+                        on_shape_press=on_shape_press
+                        on_node_press=on_node_press
+                        on_insert_node=on_insert_node
+                        on_cancel_nodes=on_cancel_nodes
+                    />
+                }
+            }}
             {move || view! { <House t=t corners=house.get() openings=openings.get() /> }}
             {move || {
                 // Deck levels are the surfaces furniture should sit within (paver
