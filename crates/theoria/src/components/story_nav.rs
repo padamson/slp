@@ -5,16 +5,22 @@
 
 use leptos::prelude::*;
 
+#[allow(clippy::needless_pass_by_value)]
 #[component]
 pub fn StoryNav(
     names: Vec<&'static str>,
     selected: ReadSignal<usize>,
     set_selected: WriteSignal<usize>,
+    /// Whether each story (by the same index as `names`) has a Markdown
+    /// description — those get a small marker in the sidebar, since most of
+    /// a gallery's stories otherwise look identical from the list alone.
+    #[prop(default = Vec::new())]
+    has_docs: Vec<bool>,
 ) -> impl IntoView {
     let tree = build_tree(names);
     view! {
         <nav class="theoria-nav">
-            <ul>{render_nodes(tree, selected, set_selected, 0)}</ul>
+            <ul>{render_nodes(tree, selected, set_selected, &has_docs, 0)}</ul>
         </nav>
     }
 }
@@ -89,26 +95,51 @@ fn render_nodes(
     nodes: Vec<NavNode>,
     selected: ReadSignal<usize>,
     set_selected: WriteSignal<usize>,
+    has_docs: &[bool],
     depth: usize,
 ) -> Vec<AnyView> {
     let indent = |d: usize| format!("padding-left: {}px", 8 + d * 12);
     nodes
         .into_iter()
         .map(|node| match node {
-            NavNode::Leaf { label, index } => view! {
-                <li>
-                    <button
-                        class:active=move || selected.get() == index
-                        style=indent(depth)
-                        on:click=move |_| set_selected.set(index)
-                    >
-                        {label}
-                    </button>
-                </li>
+            NavNode::Leaf { label, index } => {
+                // A small page-with-folded-corner glyph — the conventional
+                // "docs" mark — for a leaf whose panel has a description.
+                let docs_badge = has_docs.get(index).copied().unwrap_or(false).then(|| {
+                    view! {
+                        <svg
+                            class="theoria-docs-badge"
+                            viewBox="0 0 12 14"
+                            width="10"
+                            height="11"
+                            title="Has a docs panel"
+                        >
+                            <path
+                                d="M1 1h6l3 3v9H1z"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1"
+                            />
+                            <path d="M7 1v3h3" fill="none" stroke="currentColor" stroke-width="1" />
+                        </svg>
+                    }
+                });
+                view! {
+                    <li>
+                        <button
+                            class:active=move || selected.get() == index
+                            style=indent(depth)
+                            on:click=move |_| set_selected.set(index)
+                        >
+                            {label}
+                            {docs_badge}
+                        </button>
+                    </li>
+                }
+                .into_any()
             }
-            .into_any(),
             NavNode::Group { label, children } => {
-                let kids = render_nodes(children, selected, set_selected, depth + 1);
+                let kids = render_nodes(children, selected, set_selected, has_docs, depth + 1);
                 // Each group is independently collapsible (open by default).
                 let open = RwSignal::new(true);
                 view! {

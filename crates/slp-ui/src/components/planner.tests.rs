@@ -30,3 +30,19 @@ fn renders_header_controls_tools_and_yard() {
         "the yard canvas renders"
     );
 }
+
+#[test]
+fn the_starter_catalog_seeds_on_load_so_the_palette_and_estimate_appear_immediately() {
+    // The starter catalog seeds unconditionally on load (a tree/fire pit
+    // doesn't need a deck drawn first) — the palette and estimate panel,
+    // both gated on a non-empty catalog, are already up on a fresh plan.
+    let html = dokime::render(|| view! { <Planner /> });
+    assert!(
+        html.contains(r#"data-testid="object-palette""#),
+        "the object palette appears without drawing anything first"
+    );
+    assert!(
+        html.contains(r#"data-testid="estimate""#),
+        "the estimate panel appears without drawing anything first"
+    );
+}

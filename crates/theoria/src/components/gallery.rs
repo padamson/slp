@@ -15,6 +15,7 @@ const STORAGE_KEY: &str = "theoria:selected-story";
 #[component]
 pub fn Gallery(stories: Vec<Story>) -> impl IntoView {
     let names: Vec<&'static str> = stories.iter().map(|s| s.name).collect();
+    let has_docs: Vec<bool> = stories.iter().map(|s| s.description().is_some()).collect();
 
     // Restore the previously-selected story (by name) if it still exists.
     let initial = load_selected()
@@ -54,7 +55,7 @@ pub fn Gallery(stories: Vec<Story>) -> impl IntoView {
 
     view! {
         <div class="theoria">
-            <StoryNav names=names selected=selected set_selected=set_selected />
+            <StoryNav names=names selected=selected set_selected=set_selected has_docs=has_docs />
             <main class="theoria-stage">{stage}</main>
             {panel}
         </div>

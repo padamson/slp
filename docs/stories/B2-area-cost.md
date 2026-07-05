@@ -25,3 +25,10 @@ decide what to buy.
   in components.
 - `unit_price` comes from the seeded `materials/manifest.toml`; the full catalog
   is epic M.
+- **This is where per-measure pricing (`price_unit`) first bites.** Every
+  catalog item costed so far (furniture, fire pit, trees) is priced *per item*
+  (`qty × unit_price` in `slp-core::takeoff`). A paver area is priced *per ft²*
+  (and gravel/sand *per yd³*) — a different `take_off` shape, not just a new
+  category. `price_unit` (per-item vs per-ft²/yd³/linear-ft) is one of the
+  fields [M4](M4-M5-material-ingestion.md) adds to the catalog schema; B2 is
+  the first story that actually needs it read.

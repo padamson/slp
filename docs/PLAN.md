@@ -139,6 +139,13 @@ app. See `CLAUDE.md` for all commands.
   `unit_price`, `price_unit`, `tile_ft`, `source_url`, `source`, `license`,
   `fetched_at`, `checksum`, `asset` (gitignored path). 2D tiles the albedo;
   3D uses it as the albedo map (normal/roughness optional later).
+  *(`CatalogItem`, generated today, is this record's discrete-object subset —
+  `id`/`name`/`category`/`shape`/`width_ft`/`depth_ft`/`height_ft`/
+  `unit_price`/`clearance_ft`/`trunk_diameter_ft` — grown ad hoc per slice
+  (E1, D1, D2). It's missing `price_unit` and every provenance field; those
+  land with [M4](stories/M4-M5-material-ingestion.md), which is also where the
+  two names converge — `CatalogItem` may just become `Material`, or gain these
+  fields under its own name, whichever the schema work there decides.)*
 - **Settings** — gravel/sand/mulch depths, wall/edge $/ft², etc.
 
 `panschema verify` in CI guards schema/codegen drift (t2t convention).

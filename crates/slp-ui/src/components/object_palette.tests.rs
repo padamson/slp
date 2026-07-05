@@ -69,6 +69,52 @@ fn nothing_is_flagged_when_nothing_is_armed() {
 }
 
 #[test]
+fn an_item_with_no_category_falls_back_to_the_other_group() {
+    let mut c = CatalogItem::new("mystery".to_string());
+    c.name = Some("Mystery".to_string());
+    let html = dokime::render(move || {
+        view! { <ObjectPalette catalog=vec![c] armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }
+    });
+    assert!(
+        html.contains("Other"),
+        "no-category item groups under \"Other\""
+    );
+    assert!(html.contains(r#"data-testid="palette-mystery""#));
+}
+
+#[test]
+fn an_empty_category_string_humanizes_to_an_empty_label() {
+    let mut c = CatalogItem::new("blank".to_string());
+    c.name = Some("Blank".to_string());
+    c.category = Some(String::new());
+    let html = dokime::render(move || {
+        view! { <ObjectPalette catalog=vec![c] armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }
+    });
+    assert!(
+        !html.contains("Other"),
+        "an empty-string category is distinct from an absent one, so it must not fall back to \"Other\""
+    );
+    assert!(
+        html.contains(r#"class="palette-group-label"> </div>"#),
+        "an empty-string category humanizes to an empty label"
+    );
+}
+
+#[test]
+fn a_tile_with_no_unit_price_shows_an_empty_price() {
+    let mut c = CatalogItem::new("mystery-price".to_string());
+    c.name = Some("Mystery price".to_string());
+    c.category = Some("furniture".to_string());
+    let html = dokime::render(move || {
+        view! { <ObjectPalette catalog=vec![c] armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }
+    });
+    assert!(
+        html.contains(r#"<span class="palette-price"> </span>"#),
+        "no unit_price renders an empty price, not a placeholder"
+    );
+}
+
+#[test]
 fn a_round_item_gets_a_circle_icon() {
     let html = dokime::render(move || {
         view! { <ObjectPalette catalog=catalog() armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }

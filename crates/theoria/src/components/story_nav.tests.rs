@@ -18,6 +18,38 @@ fn lists_every_name() {
 }
 
 #[test]
+fn no_has_docs_shows_no_badges() {
+    let html = dokime::render(|| {
+        let (selected, set_selected) = signal(0usize);
+        view! { <StoryNav names=vec!["Alpha", "Beta"] selected=selected set_selected=set_selected /> }
+    });
+    assert!(
+        !html.contains("theoria-docs-badge"),
+        "no badge without has_docs"
+    );
+}
+
+#[test]
+fn marks_only_the_stories_with_docs() {
+    let html = dokime::render(|| {
+        let (selected, set_selected) = signal(0usize);
+        view! {
+            <StoryNav
+                names=vec!["Alpha", "Beta"]
+                selected=selected
+                set_selected=set_selected
+                has_docs=vec![true, false]
+            />
+        }
+    });
+    assert_eq!(
+        dokime::count(&html, "theoria-docs-badge"),
+        1,
+        "only the story with a description gets the badge"
+    );
+}
+
+#[test]
 fn marks_the_selected_item_active() {
     let html = dokime::render(|| {
         let (selected, set_selected) = signal(1usize);

@@ -37,3 +37,25 @@ fn shows_controls_description_and_code_for_a_story_with_args() {
     );
     assert!(html.contains("theoria-code"), "show-code renders");
 }
+
+#[test]
+fn only_stories_with_a_description_get_a_nav_docs_badge() {
+    let html = dokime::render(move || {
+        let stories = vec![
+            Story::new("Alpha", || view! { <p>"alpha-body"</p> }),
+            Story::__from_macro(
+                "Beta",
+                || view! { <p>"beta-body"</p> }.into_any(),
+                Vec::new(),
+                "view! { <Beta /> }",
+                Some("A beta story."),
+            ),
+        ];
+        view! { <Gallery stories=stories /> }
+    });
+    assert_eq!(
+        dokime::count(&html, "theoria-docs-badge"),
+        1,
+        "only Beta (with a description) gets the nav badge"
+    );
+}

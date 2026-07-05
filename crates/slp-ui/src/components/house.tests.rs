@@ -82,3 +82,15 @@ fn one_corner_shows_a_marker_but_no_outline() {
         "a single point is not yet an outline"
     );
 }
+
+#[test]
+fn two_corners_draw_one_wall_not_a_closed_ring() {
+    // An open chain: the single edge between the two corners, no wrap-back.
+    let corners = vec![Coord::new(0.0, 0.0), Coord::new(4.0, 0.0)];
+    let html = dokime::render(move || view! { <House t=t() corners=corners /> });
+    assert_eq!(
+        dokime::count(&html, r#"class="wall""#),
+        1,
+        "an open 2-corner chain is one wall, not a closed 2-wall ring"
+    );
+}

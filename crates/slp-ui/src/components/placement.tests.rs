@@ -38,6 +38,27 @@ fn shows_nodes_a_chain_and_a_rubber_band_to_the_preview() {
 }
 
 #[test]
+fn one_placed_node_shows_the_marker_and_band_but_no_chain() {
+    let placed = vec![Coord::new(0.0, 0.0)];
+    let html = dokime::render(move || {
+        view! { <Placement t=t() placed=placed preview=Some(Coord::new(4.0, 3.0)) /> }
+    });
+    assert_eq!(
+        dokime::count(&html, r#"class="placement-node""#),
+        1,
+        "a marker for the one placed node"
+    );
+    assert!(
+        html.contains(r#"class="placement-band""#),
+        "the rubber-band to the previewed node"
+    );
+    assert!(
+        !html.contains("<polyline"),
+        "no chain with fewer than 2 placed nodes"
+    );
+}
+
+#[test]
 fn no_object_footprint_shows_the_plain_hollow_node_marker() {
     let html = dokime::render(move || {
         view! { <Placement t=t() placed=Vec::new() preview=Some(Coord::new(4.0, 3.0)) /> }

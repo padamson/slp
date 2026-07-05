@@ -74,3 +74,48 @@ fn no_levels_renders_nothing() {
     let html = dokime::render(move || view! { <Deck t=t() levels=Vec::new() /> });
     assert!(!html.contains(r#"class="deck""#));
 }
+
+#[test]
+fn paints_lower_elevations_first_so_higher_layers_on_top() {
+    // Passed HIGH-then-LOW: the render still paints LOW first, per the sort
+    // in `Deck` ("lowest first so higher platforms paint on top").
+    let low = DeckLevel {
+        corners: vec![
+            Coord::new(0.0, 0.0),
+            Coord::new(4.0, 0.0),
+            Coord::new(4.0, 3.0),
+            Coord::new(0.0, 3.0),
+        ],
+        ..DeckLevel::new(0.5)
+    };
+    let high = DeckLevel {
+        corners: vec![
+            Coord::new(9.0, 9.0),
+            Coord::new(13.0, 9.0),
+            Coord::new(13.0, 12.0),
+            Coord::new(9.0, 12.0),
+        ],
+        ..DeckLevel::new(2.0)
+    };
+    let html = dokime::render(move || view! { <Deck t=t() levels=vec![high, low] /> });
+    let low_idx = html.find("0,200").expect("low polygon's SW corner renders");
+    let high_idx = html
+        .find("90,110")
+        .expect("high polygon's SW corner renders");
+    assert!(low_idx < high_idx, "low paints before high (underneath it)");
+}
+
+#[test]
+fn skips_a_degenerate_level_with_too_few_corners() {
+    let degenerate = DeckLevel {
+        corners: vec![Coord::new(5.0, 5.0)],
+        ..DeckLevel::new(1.0)
+    };
+    let html =
+        dokime::render(move || view! { <Deck t=t() levels=vec![square(1.0), degenerate] /> });
+    assert_eq!(
+        dokime::count(&html, "<polygon"),
+        1,
+        "the degenerate level is skipped, not just malformed"
+    );
+}

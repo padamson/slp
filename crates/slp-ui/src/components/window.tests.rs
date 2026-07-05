@@ -19,3 +19,17 @@ fn renders_a_window_as_a_framed_glass_slice() {
         "frame box: two wall faces + two jambs"
     );
 }
+
+#[test]
+fn a_zero_length_span_falls_back_to_a_fixed_normal_not_nan() {
+    let html = dokime::render(|| view! { <Window x1=5.0 y1=5.0 x2=5.0 y2=5.0 /> });
+    assert!(
+        !html.contains("NaN"),
+        "a zero-length span must not divide by zero into NaN coordinates"
+    );
+    assert_eq!(
+        dokime::count(&html, r#"class="window-frame""#),
+        4,
+        "still draws the frame box for a degenerate span"
+    );
+}
