@@ -73,7 +73,7 @@ pub fn Placement(
                     }
                     .into_any()
                 },
-                |fp| object_preview(t, px, py, fp),
+                |fp| object_preview(t, px, py, &fp),
             );
             view! {
                 <g class="placement-preview">
@@ -97,7 +97,7 @@ pub fn Placement(
 /// circle), to scale, at a faint group opacity — "what and exactly where",
 /// not a generic marker. Rotation isn't shown: a freshly placed object always
 /// starts at 0°.
-fn object_preview(t: Transform, px: f64, py: f64, fp: Footprint) -> AnyView {
+fn object_preview(t: Transform, px: f64, py: f64, fp: &Footprint) -> AnyView {
     let (w_px, d_px) = (fp.w_ft * t.px_ft, fp.d_ft * t.px_ft);
     let shape = if fp.circle {
         view! {

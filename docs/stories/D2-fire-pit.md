@@ -50,6 +50,20 @@ safe distance from combustibles before I buy.
         the first legend entry that isn't a filled shape)
   - [x] e2e covers a clear layout, then a nearby object, a nearby deck edge,
         and a nearby house wall each independently tripping the ring red
+- **D2.2 — silver look, placement rule, distinct clearance red** *(refinement)* ✅ *done*
+  - [x] the fire pit's footprint fills **silver** (a metal look), not the shared
+        furniture brown — driven by category, in `slp-ui/src/style.rs`
+  - [x] a fire pit may sit on the **yard or the deck** (a paver, once B1 lands),
+        but **not the house** — its footprint turns red on the house, via the
+        shared category-aware placement-validity model (see D1's Notes)
+  - [x] the clearance ring reads as its own signal: a **thinner** stroke, and on
+        intrusion a **darker red** than the object/edge-overlap red — so
+        "someone's inside the keep-clear zone" doesn't look identical to "this
+        object is off its surface"
+  - [x] dokime: a fire pit fills silver; is fine off a deck but flags on the
+        house; the intruded ring uses the darker-red constant (not
+        `OVERFLOW_STROKE`); e2e: a fire pit on the house footprint goes red, on
+        the deck it's fine and fills silver
 
 ## Notes / refs
 

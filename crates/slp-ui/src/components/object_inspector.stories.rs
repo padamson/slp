@@ -30,6 +30,8 @@ pub fn stories() -> Vec<Story> {
                     on_status=Callback::new(move |s| status.set(s))
                     on_virtual=Callback::new(|_| {})
                     on_reset_rotation=Callback::new(|()| {})
+                    on_canopy_diameter=Callback::new(|_| {})
+                    on_trunk_diameter=Callback::new(|_| {})
                     on_delete=Callback::new(|()| {})
                 />
             </div>

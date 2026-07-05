@@ -31,6 +31,8 @@ fn shows_metadata_status_and_reset() {
                 on_status=Callback::new(|_| {})
                 on_virtual=Callback::new(|_| {})
                 on_reset_rotation=Callback::new(|()| {})
+                on_canopy_diameter=Callback::new(|_| {})
+                on_trunk_diameter=Callback::new(|_| {})
                 on_delete=Callback::new(|()| {})
             />
         }
@@ -80,6 +82,8 @@ fn falls_back_when_the_catalog_item_is_missing() {
                 on_status=Callback::new(|_| {})
                 on_virtual=Callback::new(|_| {})
                 on_reset_rotation=Callback::new(|()| {})
+                on_canopy_diameter=Callback::new(|_| {})
+                on_trunk_diameter=Callback::new(|_| {})
                 on_delete=Callback::new(|()| {})
             />
         }
@@ -109,10 +113,98 @@ fn a_round_item_shows_its_diameter() {
                 on_status=Callback::new(|_| {})
                 on_virtual=Callback::new(|_| {})
                 on_reset_rotation=Callback::new(|()| {})
+                on_canopy_diameter=Callback::new(|_| {})
+                on_trunk_diameter=Callback::new(|_| {})
                 on_delete=Callback::new(|()| {})
             />
         }
     });
     assert!(html.contains("⌀ 3 ft"), "a circle shows its diameter");
     assert!(!html.contains("×"), "not a width × depth for a round item");
+}
+
+fn oak() -> CatalogItem {
+    let mut c = CatalogItem::new("oak-tree".to_string());
+    c.name = Some("Oak tree".to_string());
+    c.category = Some("tree".to_string());
+    c.shape = FootprintShape::circle;
+    c.width_ft = Some(20.0);
+    c.trunk_diameter_ft = Some(2.0);
+    c
+}
+
+#[test]
+fn a_tree_shows_canopy_and_trunk_size_inputs() {
+    let obj = Object::new("oak-tree".to_string(), 5.0, 5.0);
+    let html = dokime::render(move || {
+        view! {
+            <ObjectInspector
+                object=obj
+                item=Some(oak())
+                corner=Corner::Nw
+                on_status=Callback::new(|_| {})
+                on_virtual=Callback::new(|_| {})
+                on_reset_rotation=Callback::new(|()| {})
+                on_canopy_diameter=Callback::new(|_| {})
+                on_trunk_diameter=Callback::new(|_| {})
+                on_delete=Callback::new(|()| {})
+            />
+        }
+    });
+    assert!(
+        html.contains(r#"data-testid="canopy-diameter""#),
+        "a canopy-size input"
+    );
+    assert!(
+        html.contains(r#"data-testid="trunk-diameter""#),
+        "a trunk-size input"
+    );
+}
+
+#[test]
+fn a_non_tree_shows_no_canopy_or_trunk_inputs() {
+    let mut obj = Object::new("chair".to_string(), 12.0, 8.0);
+    obj.rot = Some(90.0);
+    let html = dokime::render(move || {
+        view! {
+            <ObjectInspector
+                object=obj
+                item=Some(chair())
+                corner=Corner::Nw
+                on_status=Callback::new(|_| {})
+                on_virtual=Callback::new(|_| {})
+                on_reset_rotation=Callback::new(|()| {})
+                on_canopy_diameter=Callback::new(|_| {})
+                on_trunk_diameter=Callback::new(|_| {})
+                on_delete=Callback::new(|()| {})
+            />
+        }
+    });
+    assert!(!html.contains("canopy-diameter"));
+    assert!(!html.contains("trunk-diameter"));
+}
+
+#[test]
+fn a_trees_canopy_override_wins_over_the_catalog_footprint() {
+    let mut obj = Object::new("oak-tree".to_string(), 5.0, 5.0);
+    obj.canopy_diameter_ft = Some(30.0);
+    let html = dokime::render(move || {
+        view! {
+            <ObjectInspector
+                object=obj
+                item=Some(oak())
+                corner=Corner::Nw
+                on_status=Callback::new(|_| {})
+                on_virtual=Callback::new(|_| {})
+                on_reset_rotation=Callback::new(|()| {})
+                on_canopy_diameter=Callback::new(|_| {})
+                on_trunk_diameter=Callback::new(|_| {})
+                on_delete=Callback::new(|()| {})
+            />
+        }
+    });
+    assert!(
+        html.contains("⌀ 30 ft"),
+        "the object's own canopy override, not the catalog's 20 ft default"
+    );
 }

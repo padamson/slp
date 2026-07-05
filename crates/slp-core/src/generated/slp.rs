@@ -46,6 +46,9 @@ pub enum OpeningKind {
 /// `height_ft` drive the 2D render and the future 3D view; `unit_price` drives
 /// cost. `clearance_ft`, when present, is a recommended clear radius *beyond*
 /// the footprint edge (e.g. a fire pit's keep-clear zone from combustibles).
+/// `trunk_diameter_ft`, when present, is a tree's default trunk diameter
+/// (`width_ft` is its canopy diameter) — an object placing this catalog item
+/// may override both via `Object.canopy_diameter_ft`/`trunk_diameter_ft`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CatalogItem {
     /// Catalog category, e.g. "furniture".
@@ -72,6 +75,12 @@ pub struct CatalogItem {
     /// ignores `depth_ft`.
     #[serde(default = "default_catalog_item_shape")]
     pub shape: FootprintShape,
+    /// Trunk diameter, in feet (a tree's canopy uses `width_ft`). On a catalog
+    /// item this is the species default, absent for non-tree categories; on a
+    /// placed object it overrides that default for this particular tree, absent
+    /// meaning use the catalog default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trunk_diameter_ft: Option<f64>,
     /// Price per item, in dollars.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit_price: Option<f64>,
@@ -92,6 +101,7 @@ impl CatalogItem {
             id,
             name: None,
             shape: FootprintShape::rectangle,
+            trunk_diameter_ft: None,
             unit_price: None,
             width_ft: None,
         }
@@ -191,8 +201,15 @@ fn default_house_structure_status() -> ItemStatus { ItemStatus::existing }
 /// existing does not, since it's already owned) and `is_virtual` (a what-if
 /// ghost duplicate at an alternate position — never counted, regardless of
 /// `status` — so a virtual object is never a second real item to buy).
+/// `canopy_diameter_ft`/`trunk_diameter_ft` override a tree's catalog
+/// defaults for this particular tree (e.g. a mature oak vs. a sapling);
+/// absent means use the catalog item's own size.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Object {
+    /// Overrides this object's canopy diameter, in feet, in place of its
+    /// catalog item's `width_ft`. Absent means use the catalog default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canopy_diameter_ft: Option<f64>,
     /// Id of the catalog item this object places.
     pub catalog_ref: String,
     /// A what-if ghost duplicate at an alternate position, not a second real
@@ -206,6 +223,12 @@ pub struct Object {
     /// Cost status of a placed item; defaults to planned when absent.
     #[serde(default = "default_object_status")]
     pub status: ItemStatus,
+    /// Trunk diameter, in feet (a tree's canopy uses `width_ft`). On a catalog
+    /// item this is the species default, absent for non-tree categories; on a
+    /// placed object it overrides that default for this particular tree, absent
+    /// meaning use the catalog default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trunk_diameter_ft: Option<f64>,
     /// East-west position, in feet.
     pub x: f64,
     /// North-south position, in feet.
@@ -219,10 +242,12 @@ fn default_object_status() -> ItemStatus { ItemStatus::planned }
 impl Object {
     pub fn new(catalog_ref: String, x: f64, y: f64) -> Self {
         Self {
+            canopy_diameter_ft: None,
             catalog_ref,
             is_virtual: false,
             rot: None,
             status: ItemStatus::planned,
+            trunk_diameter_ft: None,
             x,
             y,
         }

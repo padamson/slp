@@ -76,6 +76,14 @@ pub fn Yard(
     /// The selected object's rotation handle was pressed — start a rotate drag.
     #[prop(optional)]
     on_handle_press: Option<Callback<()>>,
+    /// A selected tree's canopy-edge handle was pressed — start a canopy
+    /// resize drag.
+    #[prop(optional)]
+    on_canopy_handle_press: Option<Callback<()>>,
+    /// A selected tree's trunk-edge handle was pressed — start a trunk resize
+    /// drag.
+    #[prop(optional)]
+    on_trunk_handle_press: Option<Callback<()>>,
     /// An object body was pressed (by index) — select it and start a move drag.
     #[prop(optional)]
     on_object_press: Option<Callback<usize>>,
@@ -198,8 +206,11 @@ pub fn Yard(
                         catalog=catalog.get()
                         surfaces=surfaces
                         structure_outlines=structure_outlines
+                        house_outline=house.get()
                         selected=selected.get()
                         on_handle_press=on_handle_press
+                        on_canopy_handle_press=on_canopy_handle_press
+                        on_trunk_handle_press=on_trunk_handle_press
                         on_object_press=on_object_press
                     />
                 }

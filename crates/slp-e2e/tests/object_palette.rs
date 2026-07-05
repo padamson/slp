@@ -11,7 +11,7 @@
 mod common;
 
 use anyhow::{Context, Result};
-use common::{arm_object, click_ft, dist_dir, draw_central_deck, measure_ppf, place_object, serve};
+use common::{arm_object, click_ft, dist_dir, measure_ppf, place_object, serve};
 use playwright_rs::protocol::Playwright;
 use playwright_rs::expect;
 
@@ -34,17 +34,12 @@ async fn arming_a_tile_then_clicking_places_the_object() -> Result<()> {
     let yard = page.locator("[data-testid='yard']").await;
     let ppf = measure_ppf(&yard).await?;
 
-    // No palette until the catalog is seeded (by drawing a deck).
-    expect(page.locator("[data-testid='object-palette']").await)
-        .to_have_count(0)
-        .await
-        .context("no palette before a catalog exists")?;
-    draw_central_deck(&page, &yard, ppf).await?;
-    let ppf = measure_ppf(&yard).await?;
+    // The palette is available immediately — the starter catalog is seeded on
+    // load, no deck required (a fire pit or a tree doesn't need one).
     expect(page.locator("[data-testid='object-palette']").await)
         .to_be_visible()
         .await
-        .context("the palette appears once the catalog is seeded")?;
+        .context("the palette is available without drawing anything first")?;
 
     // Arming a tile highlights it (and no object is placed yet).
     arm_object(&page, "lounge-chair").await?;
@@ -72,11 +67,15 @@ async fn arming_a_tile_then_clicking_places_the_object() -> Result<()> {
         .await
         .context("both objects are on the plan")?;
     // The fire pit renders as a circle (rects are the chair + double-line etc.);
-    // at least one <circle> footprint exists.
-    expect(page.locator("[data-testid='yard'] .furniture-item circle").await)
-        .to_have_count(1)
-        .await
-        .context("the fire pit renders a round footprint")?;
+    // exclude the clearance ring (also a `<circle>`) so this counts only
+    // footprints.
+    expect(
+        page.locator("[data-testid='yard'] .furniture-item circle:not([data-testid='clearance-ring'])")
+            .await,
+    )
+    .to_have_count(1)
+    .await
+    .context("the fire pit renders a round footprint")?;
     // The estimate reflects both.
     expect(page.locator("[data-testid='estimate-total']").await)
         .to_be_visible()

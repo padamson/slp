@@ -28,7 +28,15 @@ fn round_item(id: &str, diameter: f64) -> CatalogItem {
 
 fn fire_pit(diameter: f64, clearance_ft: f64) -> CatalogItem {
     let mut c = round_item("fire-pit", diameter);
+    c.category = Some("fire-pit".to_string());
     c.clearance_ft = Some(clearance_ft);
+    c
+}
+
+fn tree(id: &str, canopy_ft: f64, trunk_ft: f64) -> CatalogItem {
+    let mut c = round_item(id, canopy_ft);
+    c.category = Some("tree".to_string());
+    c.trunk_diameter_ft = Some(trunk_ft);
     c
 }
 
@@ -131,8 +139,8 @@ fn a_nearby_object_turns_the_ring_red() {
         "the fire pit is flagged as intruded"
     );
     assert!(
-        html.contains(r##"stroke="#d4351c""##),
-        "the ring turns the overflow-red color"
+        html.contains(r##"stroke="#7a1216""##),
+        "the ring turns its own darker-red intrusion color"
     );
 }
 
@@ -437,6 +445,61 @@ fn unselected_objects_have_no_rotation_handle() {
 }
 
 #[test]
+fn a_selected_round_item_shows_no_rotation_handle() {
+    // Rotating a circle is a visual no-op, so the handle would be a pointless
+    // affordance — unlike a rectangular item, which still gets one.
+    let catalog = vec![round_item("oak-tree", 20.0)];
+    let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(0) /> }
+    });
+    assert!(
+        !html.contains("rotate-handle"),
+        "no handle on a selected round item"
+    );
+}
+
+#[test]
+fn a_selected_tree_shows_canopy_and_trunk_resize_handles() {
+    let catalog = vec![tree("oak-tree", 8.0, 2.0)];
+    let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(0) /> }
+    });
+    assert!(
+        html.contains(r#"data-testid="canopy-handle""#),
+        "a canopy resize handle"
+    );
+    assert!(
+        html.contains(r#"data-testid="trunk-handle""#),
+        "a trunk resize handle"
+    );
+}
+
+#[test]
+fn an_unselected_tree_shows_no_resize_handles() {
+    let catalog = vec![tree("oak-tree", 8.0, 2.0)];
+    let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(!html.contains("canopy-handle"));
+    assert!(!html.contains("trunk-handle"));
+}
+
+#[test]
+fn a_selected_fire_pit_shows_no_resize_handles() {
+    // Resize handles are a tree-specific affordance (canopy/trunk); a fire pit
+    // has neither, so it gets none.
+    let catalog = vec![fire_pit(3.0, 1.5)];
+    let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(0) /> }
+    });
+    assert!(!html.contains("canopy-handle"));
+    assert!(!html.contains("trunk-handle"));
+}
+
+#[test]
 fn no_surfaces_means_no_fit_check() {
     // Without surfaces there is nothing to fit within, so nothing is highlighted.
     let catalog = vec![item("chair", Some(4.0), Some(4.0))];
@@ -445,6 +508,145 @@ fn no_surfaces_means_no_fit_check() {
         view! { <Furnishings t=t() objects=objects catalog=catalog /> }
     });
     assert!(!html.contains("furniture-item--overflows"));
+}
+
+#[test]
+fn a_tree_renders_a_canopy_and_a_trunk() {
+    // ⌀8 ft canopy (radius 40 px) + ⌀2 ft trunk (radius 10 px) at (5,5).
+    let catalog = vec![tree("oak-tree", 8.0, 2.0)];
+    let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert_eq!(
+        dokime::count(&html, "<circle"),
+        2,
+        "a canopy circle and a trunk circle"
+    );
+    assert!(html.contains(r#"r="40""#), "the canopy radius");
+    assert!(html.contains(r#"r="10""#), "the trunk radius");
+    assert!(
+        html.contains(r##"fill="#a8d5a0""##),
+        "the canopy's light green"
+    );
+    assert!(
+        html.contains(r##"fill="#5a3a22""##),
+        "the trunk's dark brown"
+    );
+}
+
+#[test]
+fn a_fire_pit_fills_silver() {
+    let catalog = vec![fire_pit(3.0, 1.5)];
+    let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        html.contains(r##"fill="#b8b8bc""##),
+        "a fire pit fills silver, not the shared furniture brown"
+    );
+}
+
+#[test]
+fn a_tree_trunk_is_fine_on_bare_yard() {
+    let catalog = vec![tree("oak-tree", 8.0, 2.0)];
+    let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(!html.contains("furniture-item--trunk-invalid"));
+    assert!(
+        html.contains(r##"fill="#5a3a22""##),
+        "the trunk keeps its normal color"
+    );
+}
+
+#[test]
+fn a_tree_trunk_flags_on_the_house() {
+    let catalog = vec![tree("oak-tree", 8.0, 2.0)];
+    let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
+    let house = deck(10.0, 10.0); // any polygon containing (5,5)
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog house_outline=house /> }
+    });
+    assert!(html.contains("furniture-item--trunk-invalid"));
+    assert!(
+        html.contains(r##"fill="#d4351c""##),
+        "the trunk itself turns the overflow red"
+    );
+}
+
+#[test]
+fn a_tree_trunk_flags_when_its_disk_straddles_the_house_edge() {
+    // ⌀2 ft trunk (radius 1 ft) centered 0.5 ft outside a house wall at x=5.5:
+    // the center is off the house, but the trunk's disk still overlaps the
+    // wall, so it should flag just like a fully-contained center would.
+    let catalog = vec![tree("oak-tree", 8.0, 2.0)];
+    let objects = vec![Object::new("oak-tree".to_string(), 5.5, 5.0)];
+    let house = deck(5.0, 10.0); // spans x:[0,5] — the tree's center (5.5) is outside
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog house_outline=house /> }
+    });
+    assert!(
+        html.contains("furniture-item--trunk-invalid"),
+        "the trunk's disk overlaps the house edge even though its center doesn't"
+    );
+}
+
+#[test]
+fn a_tree_trunk_flags_on_the_deck_too() {
+    // A tree's canopy may overhang the deck freely, but its trunk still
+    // shouldn't be standing on it.
+    let catalog = vec![tree("oak-tree", 8.0, 2.0)];
+    let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! {
+            <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(10.0, 10.0)] />
+        }
+    });
+    assert!(html.contains("furniture-item--trunk-invalid"));
+    // The canopy itself is never flagged with the generic overflow class.
+    assert!(!html.contains("furniture-item--overflows"));
+}
+
+#[test]
+fn a_fire_pit_is_fine_off_a_deck_but_flags_on_the_house() {
+    // Unlike furniture, a fire pit doesn't need to be on a deck — the yard
+    // (bare ground) is a valid surface for it.
+    let catalog = vec![fire_pit(3.0, 1.5)];
+    let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
+    let far_deck = deck(2.0, 2.0); // doesn't contain (5,5)
+    let html = dokime::render(move || {
+        view! {
+            <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![far_deck] />
+        }
+    });
+    assert!(
+        !html.contains("furniture-item--overflows"),
+        "a fire pit off the deck, on bare yard, is fine"
+    );
+
+    let catalog = vec![fire_pit(3.0, 1.5)];
+    let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
+    let house = deck(10.0, 10.0); // contains (5,5)
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog house_outline=house /> }
+    });
+    assert!(
+        html.contains("furniture-item--overflows"),
+        "a fire pit on the house is flagged"
+    );
+}
+
+#[test]
+fn a_per_object_canopy_and_trunk_override_wins_over_the_catalog_default() {
+    let catalog = vec![tree("oak-tree", 8.0, 2.0)];
+    let mut obj = Object::new("oak-tree".to_string(), 5.0, 5.0);
+    obj.canopy_diameter_ft = Some(20.0); // → r=100 px
+    obj.trunk_diameter_ft = Some(4.0); // → r=20 px
+    let objects = vec![obj];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(html.contains(r#"r="100""#), "the overridden canopy radius");
+    assert!(html.contains(r#"r="20""#), "the overridden trunk radius");
 }
 
 #[test]

@@ -51,7 +51,7 @@ cross-cutting machinery folded into that point in the sequence.
 | M1–M3 | *Enabler:* materials/catalog + cost engine (folded into E1) | [E1](E1-place-furniture.md) | ✅ cost engine (headless) |
 | E1 | Place deck furniture (look + cost) | [E1](E1-place-furniture.md) | ✅ place + estimate + select/inspect/rotate + status/legend + e2e |
 | D2 | Fire pit | [D2](D2-fire-pit.md) | ✅ done |
-| D1 | Trees | _doc pending_ | backlog |
+| D1 | Trees | [D1](D1-trees.md) | ✅ done |
 | B4 | Draw mulch beds; mulch volume/cost | _doc pending_ | backlog |
 | D3 | Bushes / shrubs | _doc pending_ | backlog |
 | B1 | Draw a paver area by clicking corners | [B1](B1-draw-paver-area.md) | backlog |

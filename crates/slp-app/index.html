@@ -258,6 +258,30 @@
         color: #fff;
         border-color: #2b6cb0;
       }
+      /* A tree's canopy/trunk size inputs — each `NumberField` its own row (the
+         browser default input width and inline label wrap badly at this panel's
+         190px). */
+      .inspector-tree-size {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-top: 8px;
+      }
+      .inspector-tree-size .number-field {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        font-size: 12px;
+        color: #6b6557;
+      }
+      .inspector-tree-size .number-field input {
+        width: 50px;
+        font: inherit;
+        padding: 2px 5px;
+        border: 1px solid #e3dccb;
+        border-radius: 6px;
+      }
       /* The inspector's real/virtual checkbox — a plain `Toggle`, styled to
          match the compact inspector rather than the toolbar's `.tools .toggle`. */
       .object-inspector .toggle {

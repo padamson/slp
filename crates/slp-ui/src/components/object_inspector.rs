@@ -8,7 +8,7 @@
 use leptos::prelude::*;
 use slp_core::{CatalogItem, Corner, FootprintShape, ItemStatus, Object};
 
-use super::Toggle;
+use super::{DEFAULT_TRUNK_FRACTION, NumberField, Toggle};
 
 /// Short name for the corner the window floats in (for `data-corner`).
 fn corner_name(corner: Corner) -> &'static str {
@@ -20,6 +20,7 @@ fn corner_name(corner: Corner) -> &'static str {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 #[component]
 pub fn ObjectInspector(
     object: Object,
@@ -38,6 +39,10 @@ pub fn ObjectInspector(
     on_virtual: Callback<bool>,
     /// Reset the object's rotation to 0°.
     on_reset_rotation: Callback<()>,
+    /// Set this tree's canopy diameter, overriding its catalog default.
+    on_canopy_diameter: Callback<f64>,
+    /// Set this tree's trunk diameter, overriding its catalog default.
+    on_trunk_diameter: Callback<f64>,
     /// Remove the object from the plan.
     on_delete: Callback<()>,
 ) -> impl IntoView {
@@ -49,6 +54,8 @@ pub fn ObjectInspector(
         is_virtual,
         x,
         y,
+        canopy_diameter_ft,
+        trunk_diameter_ft,
     } = object;
     let position = format!("({x:.1}, {y:.1}) ft");
     let rotation = format!("{:.0}°", rot.unwrap_or(0.0));
@@ -58,16 +65,15 @@ pub fn ObjectInspector(
         .as_ref()
         .and_then(|i| i.name.clone())
         .unwrap_or_else(|| catalog_ref.clone());
-    let category = item
-        .as_ref()
-        .and_then(|i| i.category.clone())
-        .unwrap_or_else(dash);
-    // A circle shows its diameter (⌀); a rectangle shows width × depth.
+    let category = item.as_ref().and_then(|i| i.category.clone());
+    let is_tree = category.as_deref() == Some("tree");
+    // A circle shows its diameter (⌀); a rectangle shows width × depth. A
+    // tree's own canopy override (if set) wins over its catalog width.
     let footprint = item
         .as_ref()
         .and_then(|i| {
             if i.shape == FootprintShape::circle {
-                Some(format!("⌀ {} ft", i.width_ft?))
+                Some(format!("⌀ {} ft", canopy_diameter_ft.or(i.width_ft)?))
             } else {
                 Some(format!("{} × {} ft", i.width_ft?, i.depth_ft?))
             }
@@ -77,6 +83,17 @@ pub fn ObjectInspector(
         .as_ref()
         .and_then(|i| i.height_ft)
         .map_or_else(dash, |h| format!("{h} ft"));
+    // A tree's canopy/trunk diameter, editable per-tree: the object's own
+    // override if set, else the catalog default, else a small fallback so the
+    // fields always show a sensible starting value.
+    let canopy_default = item.as_ref().and_then(|i| i.width_ft).unwrap_or(1.0);
+    let trunk_default = item
+        .as_ref()
+        .and_then(|i| i.trunk_diameter_ft)
+        .unwrap_or(canopy_default * DEFAULT_TRUNK_FRACTION);
+    let canopy_value = canopy_diameter_ft.unwrap_or(canopy_default);
+    let trunk_value = trunk_diameter_ft.unwrap_or(trunk_default);
+    let category_display = category.unwrap_or_else(dash);
     let price = item
         .and_then(|i| i.unit_price)
         .map_or_else(dash, |p| format!("${p:.2}"));
@@ -105,7 +122,7 @@ pub fn ObjectInspector(
             <h3 class="inspector-name">{name}</h3>
             <dl class="inspector-meta">
                 <dt>"Category"</dt>
-                <dd>{category}</dd>
+                <dd>{category_display}</dd>
                 <dt>"Footprint"</dt>
                 <dd>{footprint}</dd>
                 <dt>"Height"</dt>
@@ -126,6 +143,29 @@ pub fn ObjectInspector(
                     </button>
                 </dd>
             </dl>
+            {is_tree
+                .then(|| {
+                    view! {
+                        <div class="inspector-tree-size">
+                            <NumberField
+                                label="Canopy Ø (ft)"
+                                testid="canopy-diameter"
+                                value=canopy_value
+                                step=1.0
+                                min=0.1
+                                on_input=on_canopy_diameter
+                            />
+                            <NumberField
+                                label="Trunk Ø (ft)"
+                                testid="trunk-diameter"
+                                value=trunk_value
+                                step=0.1
+                                min=0.1
+                                on_input=on_trunk_diameter
+                            />
+                        </div>
+                    }
+                })}
             <div class="inspector-status" data-testid="inspector-status">
                 {status_btn(ItemStatus::planned, "Planned", "status-planned")}
                 {status_btn(ItemStatus::existing, "Existing", "status-existing")}

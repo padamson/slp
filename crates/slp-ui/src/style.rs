@@ -41,15 +41,35 @@ pub const FURNITURE_STROKE: &str = "#5a4a3a";
 pub const SELECTED_FILL: &str = "#7ea9d4";
 pub const SELECTED_STROKE: &str = "#2b6cb0";
 
-/// An object that doesn't fit its surface — the loudest signal; wins over
-/// both selection and status.
+/// An object that doesn't fit its surface, or sits somewhere its category
+/// can't (a tree's trunk on hardscape, a fire pit on the house) — the loudest
+/// signal; wins over both selection and status.
 pub const OVERFLOW_STROKE: &str = "#d4351c";
 
 /// A safety clearance ring (e.g. a fire pit's keep-clear zone) when nothing
-/// intrudes on it — a quiet, dashed reminder. When something *does* intrude
-/// (another object's footprint or a structure edge), the ring switches to
-/// [`OVERFLOW_STROKE`] — the same loud red used for "doesn't fit its surface".
+/// intrudes on it — a quiet, dashed reminder.
 pub const CLEARANCE_STROKE: &str = "#8a8275";
+/// The ring's stroke width — thinner than an object's own outline, since it's
+/// a secondary hint riding around the footprint, not the footprint itself.
+pub const CLEARANCE_STROKE_W: &str = "1";
+/// When something *does* intrude (another object's footprint or a structure
+/// edge), the ring switches to this — a darker red than [`OVERFLOW_STROKE`],
+/// so "something's inside the keep-clear zone" reads as its own signal rather
+/// than looking identical to "this object doesn't fit."
+pub const CLEARANCE_INTRUDE_STROKE: &str = "#7a1216";
+
+/// A tree's canopy: a light, translucent green disk (a trunk renders inside it
+/// in [`TRUNK_FILL`]).
+pub const CANOPY_FILL: &str = "#a8d5a0";
+pub const CANOPY_FILL_OPACITY: &str = "0.35";
+pub const CANOPY_STROKE: &str = "#6f9c64";
+/// A tree's trunk: a small, dark-brown disk at the canopy's center.
+pub const TRUNK_FILL: &str = "#5a3a22";
+pub const TRUNK_STROKE: &str = "#3a2415";
+
+/// A fire pit's footprint — a metal fill instead of the shared furniture
+/// brown.
+pub const FIRE_PIT_FILL: &str = "#b8b8bc";
 
 /// Group opacity for the placement preview ghost — faint, so it reads as "not
 /// committed yet" without needing its own status/virtual styling (the armed

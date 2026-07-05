@@ -51,6 +51,20 @@ struct Drag {
     grab_y: f64,
 }
 
+/// Which of a selected tree's two handles is being dragged.
+#[derive(Clone, Copy, PartialEq)]
+enum ResizePart {
+    Canopy,
+    Trunk,
+}
+
+/// A tree's canopy never shrinks below this (ft) while its edge handle is
+/// dragged — small enough for a sapling, never zero or negative.
+const MIN_CANOPY_FT: f64 = 1.0;
+/// A tree's trunk never shrinks below this (ft) while its edge handle is
+/// dragged.
+const MIN_TRUNK_FT: f64 = 0.2;
+
 #[component]
 pub fn Planner() -> impl IntoView {
     planner_body()
@@ -93,23 +107,30 @@ fn planner_body() -> impl IntoView {
         .unwrap_or_default();
     let deck = RwSignal::new(init_levels);
     let steps = RwSignal::new(init_steps);
-    // Placed objects + the catalog they reference. `selected_id` is the catalog
-    // item the furniture tool will drop; `seeded` guards the one-time starter
-    // catalog (see the seed effect below).
-    let init_catalog = plan.catalog;
+    // Placed objects + the catalog they reference. A tree (or a fire pit) goes
+    // straight in the yard — no deck required — so the starter catalog is
+    // seeded immediately when the loaded plan has none; a plan that already
+    // has a catalog is left alone. `selected_id` is the catalog item the
+    // object tool will drop.
+    let init_catalog = if plan.catalog.is_empty() {
+        starter_catalog()
+    } else {
+        plan.catalog
+    };
     let init_selected = init_catalog
         .first()
         .map_or_else(String::new, |c| c.id.clone());
     let objects = RwSignal::new(plan.objects);
     let catalog = RwSignal::new(init_catalog);
     let selected_id = RwSignal::new(init_selected);
-    let seeded = RwSignal::new(false);
     // The index (into `objects`) of the selected placed object, if any.
     let selected = RwSignal::new(None::<usize>);
     // The canvas's rendered geometry, measured once per resize (from Yard).
     let metrics = RwSignal::new(CanvasMetrics::default());
     // True while dragging the selected object's rotation handle.
     let rotating = RwSignal::new(false);
+    // Which of a selected tree's canopy/trunk handles is being dragged, if any.
+    let resizing = RwSignal::new(None::<ResizePart>);
     // The in-progress object move (its body is held), if any.
     let dragging = RwSignal::new(None::<Drag>);
     // The last cursor position in feet, used to grab a moved object at its offset.
@@ -156,20 +177,6 @@ fn planner_body() -> impl IntoView {
             objects: objects.get(),
             ..Default::default()
         });
-    });
-
-    // Seed a starter furniture catalog the first time a deck is drawn — the
-    // surface furniture sits on. Guarded so it runs once and never fights a user
-    // who clears it; a loaded plan that already has a catalog is left alone.
-    Effect::new(move |_| {
-        if !deck.get().is_empty() && !seeded.get_untracked() && catalog.get_untracked().is_empty() {
-            let starter = starter_catalog();
-            if let Some(first) = starter.first() {
-                selected_id.set(first.id.clone());
-            }
-            catalog.set(starter);
-            seeded.set(true);
-        }
     });
 
     // Snap the cursor to where the next node would land, for the active tool.
@@ -233,6 +240,30 @@ fn planner_body() -> impl IntoView {
             }
             return;
         }
+        // Dragging a selected tree's canopy/trunk handle: the new diameter is
+        // twice the distance from the tree's center to the cursor — the same
+        // "point toward the cursor" simplicity the rotate handle uses above,
+        // just read as a radius instead of a heading. Rounded to the nearest
+        // tenth of a foot — a tree's size doesn't need pixel-precision decimals.
+        if let Some(part) = resizing.get_untracked() {
+            if let Some(i) = selected.get_untracked() {
+                objects.update(|v| {
+                    if let Some(o) = v.get_mut(i) {
+                        let radius = Point::new(o.x, o.y).dist(Point::new(raw.x, raw.y));
+                        let diameter = (radius * 2.0 * 10.0).round() / 10.0;
+                        match part {
+                            ResizePart::Canopy => {
+                                o.canopy_diameter_ft = Some(diameter.max(MIN_CANOPY_FT));
+                            }
+                            ResizePart::Trunk => {
+                                o.trunk_diameter_ft = Some(diameter.max(MIN_TRUNK_FT));
+                            }
+                        }
+                    }
+                });
+            }
+            return;
+        }
         if let Some(tl) = tool.get_untracked() {
             preview.set(Some(snap(tl, &raw)));
         }
@@ -248,6 +279,10 @@ fn planner_body() -> impl IntoView {
         }
         if rotating.get_untracked() {
             rotating.set(false);
+            return;
+        }
+        if resizing.get_untracked().is_some() {
+            resizing.set(None);
             return;
         }
         let Some(tl) = tool.get_untracked() else {
@@ -510,8 +545,8 @@ fn planner_body() -> impl IntoView {
                 />
             </ToolGroup>
         </div>
-        // The object palette appears once there's a catalog (seeded when a deck
-        // is drawn): click a tile to arm it, then click the canvas to place.
+        // The object palette appears once there's a catalog (seeded on load):
+        // click a tile to arm it, then click the canvas to place.
         {move || {
             (!catalog.get().is_empty())
                 .then(|| view! { <ObjectPalette catalog=catalog armed=armed on_pick=pick_object /> })
@@ -544,6 +579,12 @@ fn planner_body() -> impl IntoView {
                             on_leave=on_leave
                             on_metrics=Callback::new(move |m| metrics.set(m))
                             on_handle_press=Callback::new(move |()| rotating.set(true))
+                            on_canopy_handle_press=Callback::new(move |()| {
+                                resizing.set(Some(ResizePart::Canopy));
+                            })
+                            on_trunk_handle_press=Callback::new(move |()| {
+                                resizing.set(Some(ResizePart::Trunk));
+                            })
                             on_object_press=on_object_press
                         />
                     }
@@ -632,6 +673,26 @@ fn planner_body() -> impl IntoView {
                                             });
                                     }
                                 })
+                                on_canopy_diameter=Callback::new(move |d| {
+                                    if let Some(i) = selected.get_untracked() {
+                                        objects
+                                            .update(|v| {
+                                                if let Some(o) = v.get_mut(i) {
+                                                    o.canopy_diameter_ft = Some(d);
+                                                }
+                                            });
+                                    }
+                                })
+                                on_trunk_diameter=Callback::new(move |d| {
+                                    if let Some(i) = selected.get_untracked() {
+                                        objects
+                                            .update(|v| {
+                                                if let Some(o) = v.get_mut(i) {
+                                                    o.trunk_diameter_ft = Some(d);
+                                                }
+                                            });
+                                    }
+                                })
                                 on_delete=delete_selected
                             />
                         },
@@ -696,9 +757,10 @@ fn hint(tool: Option<Tool>) -> &'static str {
     }
 }
 
-/// A small starter catalog of deck furniture, seeded the first time a deck is
-/// drawn. Plan data the user can place, ignore, or (once catalog editing lands)
-/// replace — not hardcoded geometry. Footprints are in feet, prices in dollars.
+/// A small starter catalog (furniture, a fire pit, a few trees), seeded once
+/// on load. Plan data the user can place, ignore, or (once catalog editing
+/// lands) replace — not hardcoded geometry. Footprints are in feet, prices in
+/// dollars.
 fn starter_catalog() -> Vec<CatalogItem> {
     let furniture = |id: &str, name: &str, w: f64, d: f64, h: f64, price: f64| {
         let mut c = CatalogItem::new(id.to_string());
@@ -722,6 +784,14 @@ fn starter_catalog() -> Vec<CatalogItem> {
         c.unit_price = Some(price);
         c
     };
+    // A tree: a round canopy (like `round`) plus its trunk diameter — both
+    // adjustable per placed tree once it's in the yard (this is just the
+    // species default).
+    let tree = |id: &str, name: &str, canopy: f64, trunk: f64, h: f64, price: f64| {
+        let mut c = round(id, name, "tree", canopy, h, price);
+        c.trunk_diameter_ft = Some(trunk);
+        c
+    };
     vec![
         furniture("lounge-chair", "Lounge chair", 2.5, 3.0, 2.5, 199.0),
         furniture("outdoor-sofa", "Outdoor sofa", 7.0, 3.0, 2.5, 899.0),
@@ -739,6 +809,18 @@ fn starter_catalog() -> Vec<CatalogItem> {
             fire_pit.clearance_ft = Some(diameter / 2.0);
             fire_pit
         },
+        // Trees: a round canopy + trunk, no clearance ring — a keep-clear
+        // safety zone is a fire pit's concept, not a tree's.
+        tree("japanese-maple", "Japanese maple", 8.0, 0.5, 12.0, 150.0),
+        tree(
+            "flowering-dogwood",
+            "Flowering dogwood",
+            12.0,
+            0.6,
+            18.0,
+            220.0,
+        ),
+        tree("oak-tree", "Oak tree", 20.0, 2.0, 35.0, 350.0),
     ]
 }
 
