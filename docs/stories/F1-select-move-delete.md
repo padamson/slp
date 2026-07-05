@@ -43,6 +43,10 @@ layout without redrawing — the same way I'd shuffle real furniture around a de
 - **F1.4 — reshape (drag a vertex)**
   - [ ] drag a single polygon vertex (deck / paver / house corner); dependent
         geometry (openings on that wall, steps on that edge) re-derives
+  - [ ] node **insert**/**delete** on these existing outlines (not just move) —
+        see [F3.1](F3-draw-edit-shapes.md), which builds this for freeform
+        shapes first; F1.4 applies the same operations to deck/house/paver
+        outlines, sharing implementation rather than duplicating it
 
 ## Notes / refs
 

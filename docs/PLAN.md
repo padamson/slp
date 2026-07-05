@@ -132,9 +132,18 @@ app. See `CLAUDE.md` for all commands.
   virtual). *(Structure status is carried but not yet cost- or render-differentiated.)*
 - **Shape** (tagged union by `kind`), **every shape carries `elevation` +
   `height` (default flat) and a `material_ref`** so 2D→3D is additive:
-  - `Polygon` — paver area / mulch bed: `pts[]`, `material_ref`, `border`, …
+  - `Polygon` — paver area / mulch bed: a ring of nodes, `material_ref`,
+    `border`, …. Each *edge* (node→next) carries its own kind — straight
+    (default), **arc** (a signed bulge factor), or **bezier** (two control
+    points) — so one boundary can freely mix straight/curved/arced edges (see
+    [F3](stories/F3-draw-edit-shapes.md))
+  - `Circle` — a round area or footprint: `center`, `radius_ft`,
+    `material_ref` — a plain primitive, not a polygon trick
   - `Polyline` — wall / edging: `pts[]`, `height`, `material_ref`
   - `Point` — step / tree / equipment: `x`, `y`, `rot`, `height`, type-specific
+    *(discrete objects like furniture/fire-pit/trees are actually `Object` +
+    `CatalogItem`, generated today, not this `Point` shape — see the
+    `CatalogItem` note below for the same kind of drift)*
 - **Material** (catalog record) — `id`, `name`, `category`, `dimensions`,
   `unit_price`, `price_unit`, `tile_ft`, `source_url`, `source`, `license`,
   `fetched_at`, `checksum`, `asset` (gitignored path). 2D tiles the albedo;
@@ -185,7 +194,7 @@ forces the **materials/catalog + cost engine** (M1–M3) to land with it.
 | 4 | *Enabler + first object:* catalog & cost engine, **place furniture** | M1–M3, E1 |
 | 5 | **Fire pit** | D2 |
 | 6 | **Trees** | D1 |
-| 7 | **Mulch beds** (volume & cost) | B4 |
+| 7 | *Enabler:* freeform shapes (boundaries, arcs, curves, circles) + **mulch beds** (volume & cost) | F3, B4 |
 | 8 | **Bushes / shrubs** | D3 |
 | 9 | **Paver areas** (ft² & cost) | B1, B2 |
 | 10 | **Grills** | D4 |

@@ -52,7 +52,8 @@ cross-cutting machinery folded into that point in the sequence.
 | E1 | Place deck furniture (look + cost) | [E1](E1-place-furniture.md) | ✅ place + estimate + select/inspect/rotate + status/legend + e2e |
 | D2 | Fire pit | [D2](D2-fire-pit.md) | ✅ done |
 | D1 | Trees | [D1](D1-trees.md) | ✅ done |
-| B4 | Draw mulch beds; mulch volume/cost | _doc pending_ | backlog |
+| F3 | *Enabler:* draw/edit freeform shapes (boundaries, arcs, curves, circles) | [F3](F3-draw-edit-shapes.md) | 🚧 next (pulled forward by B4) |
+| B4 | Draw mulch beds; mulch volume/cost | [B4](B4-draw-mulch-beds.md) | backlog |
 | D3 | Bushes / shrubs | _doc pending_ | backlog |
 | B1 | Draw a paver area by clicking corners | [B1](B1-draw-paver-area.md) | backlog |
 | B2 | See an area's ft² + material cost | [B2](B2-area-cost.md) | backlog |

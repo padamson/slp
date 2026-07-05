@@ -47,6 +47,13 @@ sightlines) — for **any** house, since it's drawn and saved, not baked in.
   - [ ] dokime: the selector renders its three options with the current one
         marked; e2e: switching to *off* lets a node land off-grid, *1 in* snaps
         to the nearest inch
+- **H1.4 — house elevation**
+  - [ ] `House` gains an `elevation: f64` (feet above grade, default `0.0`),
+        editable the same way a deck level's **Elev (ft)** already is
+  - [ ] this is what lets [H2.3](H2-draw-deck.md) place steps at a house
+        doorway using a real drop instead of an assumed value
+  - [ ] dokime: an inspector/readout shows the house's elevation; e2e: editing
+        it persists and survives a reload
 
 ## Notes / refs
 
