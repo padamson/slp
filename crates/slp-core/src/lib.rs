@@ -20,11 +20,12 @@ pub use boundary::{are_adjacent, delete_node, insert_node_between};
 pub use clearance::{circle_overlaps_circle, circle_overlaps_polygon, circle_overlaps_segment};
 pub use corner::{Corner, free_corner};
 pub use generated::slp::{
-    CatalogItem, Coord, Deck, DeckLevel, FootprintShape, House, ItemStatus, Object, Opening,
-    OpeningKind, Plan, Shape, StepRun,
+    CatalogItem, Circle, Coord, Deck, DeckLevel, FootprintShape, House, ItemStatus, Object,
+    Opening, OpeningKind, Plan, Shape, StepRun,
 };
 pub use geom::{
-    Point, area, footprint_corners, heading, point_in_polygon, polyline_length, within_a_single,
+    Point, area, circle_area, footprint_corners, heading, point_in_polygon, polyline_length,
+    within_a_single,
 };
 pub use pick::object_at;
 pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node, step_outward, step_run};

@@ -6,11 +6,11 @@
 //! from screen pixels to world feet.
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, Coord, DeckLevel, Object, Opening, Shape, StepRun};
+use slp_core::{CatalogItem, Circle, Coord, DeckLevel, Object, Opening, Shape, StepRun};
 
 use super::{
-    CanvasMetrics, DEFAULT_LENGTH_FT, Deck, Footprint, Furnishings, Grid, House, Legend, Modifiers,
-    Placement, ScaleBar, Shapes, Transform,
+    CanvasMetrics, Circles, DEFAULT_LENGTH_FT, Deck, Footprint, Furnishings, Grid, House, Legend,
+    Modifiers, Placement, ScaleBar, Shapes, Transform,
 };
 
 /// Fixed strip (px) reserved below the grid for the scale bar + legend,
@@ -53,6 +53,12 @@ pub fn Yard(
     /// The selected shape's selected node indices (0, 1, or an adjacent pair).
     #[prop(optional, into)]
     selected_nodes: Signal<Vec<usize>>,
+    /// Standalone circular drawn areas (round paver patios, mulch beds, …).
+    #[prop(optional, into)]
+    circles: Signal<Vec<Circle>>,
+    /// The selected circle's index (into `circles`), if any.
+    #[prop(optional, into)]
+    selected_circle: Signal<Option<usize>>,
     /// Committed doors/windows on the house walls.
     #[prop(optional, into)]
     openings: Signal<Vec<Opening>>,
@@ -131,6 +137,12 @@ pub fn Yard(
     /// select it and start a move drag.
     #[prop(optional)]
     on_deck_node_press: Option<Callback<usize>>,
+    /// A circle's filled body was pressed (by `circles` index) — select it.
+    #[prop(optional)]
+    on_circle_press: Option<Callback<usize>>,
+    /// The selected circle's resize handle was pressed — start a resize drag.
+    #[prop(optional)]
+    on_circle_handle_press: Option<Callback<()>>,
 ) -> impl IntoView {
     let t = Transform { px_ft, pad, yard_d };
     let w_px = t.sx(yard_w) + pad;
@@ -252,6 +264,17 @@ pub fn Yard(
                         on_node_press=on_node_press
                         on_insert_node=on_insert_node
                         on_cancel_nodes=on_cancel_nodes
+                    />
+                }
+            }}
+            {move || {
+                view! {
+                    <Circles
+                        t=t
+                        circles=circles.get()
+                        selected=selected_circle.get()
+                        on_circle_press=on_circle_press
+                        on_handle_press=on_circle_handle_press
                     />
                 }
             }}

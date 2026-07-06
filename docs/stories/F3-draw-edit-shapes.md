@@ -86,15 +86,24 @@ real curved shape I'm laying out, not just a boxy approximation.
         curves that reproduce the original, deleting reconnects (fallback
         straight — see Notes)
 
-- **F3.4 — standalone circle shape**
-  - [ ] a circle tool draws a **circle** (center + radius) that persists and
-        renders filled; its radius is adjustable by a drag handle on its edge
-        (reusing the round-object resize handle from [D1](D1-trees.md))
-  - [ ] a `Circle` shape carries **elevation** too, same as `Polygon` (F3.0)
-  - [ ] `slp-core` reports the circle's **area** (πr²) — so a circular bed or
-        patio costs the same way any other area does; unit tested
-  - [ ] the inspector shows a circle's size as a **diameter** (⌀), matching how
-        round objects already read
+- **F3.4 — standalone circle shape** ✅ *done*
+  - [x] a circle tool draws a **circle** (center + radius): click the center,
+        click again to set the radius — a new `Tool::Circle` gesture (Add
+        then FinishWith, like a door/window span, but snapping freely like an
+        object instead of snapping to a wall) — persists and renders filled;
+        its radius is adjustable by a drag handle on its edge (reusing the
+        round-object resize gesture from [D1](D1-trees.md): drag toward/away
+        from center, rounded to the nearest tenth of a foot)
+  - [x] a `Circle` shape carries **elevation** too, same as `Shape` (F3.0) —
+        its own top-level `Plan.circles` list (not folded into `Shape`, since
+        a circle has no corners/nodes to edit)
+  - [x] `slp-core` reports the circle's **area** (`circle_area`, πr²) — so a
+        circular bed or patio costs the same way any other area does; unit
+        tested (and the `Tool::Circle` gesture is mutation-tested, 0 missed)
+  - [x] the circle's own label reads its size as a **diameter** (⌀), matching
+        how a round object's does — selecting it (click its body, like a
+        shape/tree) is what reveals the resize handle; no dedicated inspector
+        window was needed for this
 
 - **F3.5 — a shape can be a step target**
   - [ ] once a `Shape` (boundary or circle) has an elevation (F3.0/F3.4), it's

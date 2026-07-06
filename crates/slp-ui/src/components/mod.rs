@@ -2,6 +2,7 @@
 //! `<name>.rs` + `<name>.stories.rs` (`stories` feature) + `<name>.tests.rs`
 //! (`cfg(test)`). Dotted file names use `#[path]` (not valid module idents).
 
+mod circles;
 mod deck;
 mod door;
 mod estimate_panel;
@@ -25,6 +26,7 @@ mod window;
 mod yard;
 mod yard_controls;
 
+pub use circles::Circles;
 pub use deck::Deck;
 pub use door::Door;
 pub use estimate_panel::EstimatePanel;
@@ -172,6 +174,9 @@ pub struct Modifiers {
 }
 
 #[cfg(feature = "stories")]
+#[path = "circles.stories.rs"]
+mod circles_stories;
+#[cfg(feature = "stories")]
 #[path = "deck.stories.rs"]
 mod deck_stories;
 #[cfg(feature = "stories")]
@@ -253,6 +258,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(object_palette_stories::stories());
     s.extend(steps_stories::stories());
     s.extend(shapes_stories::stories());
+    s.extend(circles_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
     s.extend(window_stories::stories());
@@ -269,6 +275,9 @@ pub fn stories() -> Vec<theoria::Story> {
     s
 }
 
+#[cfg(test)]
+#[path = "circles.tests.rs"]
+mod circles_tests;
 #[cfg(test)]
 #[path = "deck.tests.rs"]
 mod deck_tests;

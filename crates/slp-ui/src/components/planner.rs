@@ -9,10 +9,10 @@
 
 use leptos::prelude::*;
 use slp_core::{
-    CatalogItem, Commit, Coord, Corner, Deck, DeckLevel, FootprintShape, House, ItemStatus, Object,
-    Plan, Point, Shape, StepRun, Tool, are_adjacent, commit_kind, delete_node, dragged_center,
-    free_corner, heading, insert_node_between, nearest_wall, object_at, opening_from_nodes,
-    snap_node, snap_to_grid, take_off,
+    CatalogItem, Circle, Commit, Coord, Corner, Deck, DeckLevel, FootprintShape, House, ItemStatus,
+    Object, Plan, Point, Shape, StepRun, Tool, are_adjacent, commit_kind, delete_node,
+    dragged_center, free_corner, heading, insert_node_between, nearest_wall, object_at,
+    opening_from_nodes, snap_node, snap_to_grid, take_off,
 };
 
 use super::{
@@ -65,6 +65,9 @@ const MIN_CANOPY_FT: f64 = 1.0;
 /// A tree's trunk never shrinks below this (ft) while its edge handle is
 /// dragged.
 const MIN_TRUNK_FT: f64 = 0.2;
+/// A drawn circle never shrinks below this radius (ft) while its resize
+/// handle is dragged.
+const MIN_CIRCLE_RADIUS_FT: f64 = 0.5;
 
 #[component]
 pub fn Planner() -> impl IntoView {
@@ -128,6 +131,13 @@ fn planner_body() -> impl IntoView {
     let selected_deck = RwSignal::new(None::<usize>);
     // The node (index into the selected level's corners) being dragged, if any.
     let dragging_deck_node = RwSignal::new(None::<usize>);
+    // Standalone circular drawn areas (round paver patios, mulch beds, …).
+    let circles = RwSignal::new(plan.circles);
+    // The index (into `circles`) of the selected circle, if any — it shows a
+    // resize handle (mirrors `selected_shape`, one handle instead of nodes).
+    let selected_circle = RwSignal::new(None::<usize>);
+    // True while dragging a selected circle's resize handle.
+    let circle_resizing = RwSignal::new(false);
     // True from a shape/house/deck-level body's press (or the insert/cancel
     // popup buttons) to its matching release — consumed by `on_commit` so
     // that same click doesn't also fall through to the empty-space case and
@@ -167,6 +177,9 @@ fn planner_body() -> impl IntoView {
     // The elevation (ft) the next drawn area is at — grade by default (a
     // paver/mulch area usually sits flush with the yard, unlike a deck).
     let shape_elevation = RwSignal::new(0.0_f64);
+    // The elevation (ft) the next drawn circle is at — grade by default, same
+    // reasoning as `shape_elevation`.
+    let circle_elevation = RwSignal::new(0.0_f64);
     // Placement engine state: the active tool, the nodes placed this gesture,
     // and the previewed next node under the cursor.
     let tool = RwSignal::new(None::<Tool>);
@@ -206,6 +219,7 @@ fn planner_body() -> impl IntoView {
             catalog: catalog.get(),
             objects: objects.get(),
             shapes: shapes.get(),
+            circles: circles.get(),
             ..Default::default()
         });
     });
@@ -352,6 +366,23 @@ fn planner_body() -> impl IntoView {
             }
             return;
         }
+        // Dragging a selected circle's resize handle: the new radius is the
+        // distance from its center to the cursor, the same "point toward the
+        // cursor" simplicity a tree's canopy/trunk handles use, rounded to
+        // the nearest tenth of a foot.
+        if circle_resizing.get_untracked() {
+            if let Some(i) = selected_circle.get_untracked() {
+                circles.update(|v| {
+                    if let Some(c) = v.get_mut(i) {
+                        let radius =
+                            Point::new(c.center.x, c.center.y).dist(Point::new(raw.x, raw.y));
+                        let rounded = (radius * 10.0).round() / 10.0;
+                        c.radius_ft = rounded.max(MIN_CIRCLE_RADIUS_FT);
+                    }
+                });
+            }
+            return;
+        }
         if let Some(tl) = tool.get_untracked() {
             preview.set(Some(snap(tl, &raw)));
         }
@@ -385,17 +416,21 @@ fn planner_body() -> impl IntoView {
             dragging_deck_node.set(None);
             return;
         }
+        if circle_resizing.get_untracked() {
+            circle_resizing.set(false);
+            return;
+        }
         if press_only.get_untracked() {
             press_only.set(false);
             return;
         }
         let Some(tl) = tool.get_untracked() else {
             // No tool armed: a click selects the object under the cursor, or
-            // clears every selection (object, shape/node, house, deck level)
-            // when it lands on empty space. A shape/house/deck-level body or
-            // node press is gated out above (`press_only`/the `dragging_*`
-            // flags), so this only runs for a click that didn't press any of
-            // them.
+            // clears every selection (object, shape/node, house, deck level,
+            // circle) when it lands on empty space. A shape/house/deck-level/
+            // circle body or node press is gated out above (`press_only`/the
+            // `dragging_*`/`circle_resizing` flags), so this only runs for a
+            // click that didn't press any of them.
             selected.set(object_at(
                 Point::new(raw.x, raw.y),
                 &objects.get_untracked(),
@@ -405,6 +440,7 @@ fn planner_body() -> impl IntoView {
             selected_nodes.set(Vec::new());
             house_selected.set(false);
             selected_deck.set(None);
+            selected_circle.set(None);
             return;
         };
         let next = snap(tl, &raw);
@@ -473,6 +509,21 @@ fn planner_body() -> impl IntoView {
                 }
                 reset(tool, placed, preview, sticky_run);
             }
+            Commit::FinishWith if tl == Tool::Circle => {
+                // The first node is the center; the radius is its distance to
+                // the second (the release point that just finished the gesture).
+                if let Some(center) = pl.first() {
+                    let radius = Point::new(center.x, center.y).dist(Point::new(next.x, next.y));
+                    circles.update(|v| {
+                        v.push(Circle::new(
+                            Box::new(center.clone()),
+                            circle_elevation.get_untracked(),
+                            radius,
+                        ));
+                    });
+                }
+                reset(tool, placed, preview, sticky_run);
+            }
             Commit::FinishWith => {
                 if let (Some(kind), Some(start)) = (tl.opening_kind(), pl.first())
                     && let Some(o) =
@@ -487,16 +538,17 @@ fn planner_body() -> impl IntoView {
 
     let on_leave = Callback::new(move |()| preview.set(None));
 
-    // Every "selected thing" (object, shape, house, deck level) is a separate
-    // signal rather than one `Selection` enum — but that means selecting one
-    // must clear all the others, so it's centralized here instead of repeated
-    // at every press site.
+    // Every "selected thing" (object, shape, house, deck level, circle) is a
+    // separate signal rather than one `Selection` enum — but that means
+    // selecting one must clear all the others, so it's centralized here
+    // instead of repeated at every press site.
     let clear_selection = move || {
         selected.set(None);
         selected_shape.set(None);
         selected_nodes.set(Vec::new());
         house_selected.set(false);
         selected_deck.set(None);
+        selected_circle.set(None);
     };
 
     // Press an object's body → select it and start a move drag, grabbing it at
@@ -572,6 +624,25 @@ fn planner_body() -> impl IntoView {
             return;
         }
         dragging_deck_node.set(Some(ni));
+    });
+
+    // Press a circle's body (by its index) → select it. Same press-only,
+    // no-drag pattern as a shape/house/deck-level body.
+    let on_circle_press = Callback::new(move |i: usize| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        clear_selection();
+        selected_circle.set(Some(i));
+        press_only.set(true);
+    });
+
+    // Press the selected circle's resize handle → start a resize drag.
+    let on_circle_handle_press = Callback::new(move |()| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        circle_resizing.set(true);
     });
 
     // Press a selected shape's node → select it and start a move drag. A
@@ -804,6 +875,14 @@ fn planner_body() -> impl IntoView {
                     on_input=Callback::new(move |v| shape_elevation.set(v))
                     step=0.5
                 />
+                {tool_btn(tool, pick, Tool::Circle, "Draw circle", "draw-circle")}
+                <NumberField
+                    label="Elev (ft)"
+                    testid="circle-elevation"
+                    value=circle_elevation
+                    on_input=Callback::new(move |v| circle_elevation.set(v))
+                    step=0.5
+                />
             </ToolGroup>
             <ToolGroup label="Snap">
                 <Toggle
@@ -847,6 +926,8 @@ fn planner_body() -> impl IntoView {
                             shapes=shapes
                             selected_shape=selected_shape
                             selected_nodes=selected_nodes
+                            circles=circles
+                            selected_circle=selected_circle
                             openings=openings
                             objects=objects
                             catalog=catalog
@@ -874,6 +955,8 @@ fn planner_body() -> impl IntoView {
                             on_house_node_press=on_house_node_press
                             on_deck_level_press=on_deck_level_press
                             on_deck_node_press=on_deck_node_press
+                            on_circle_press=on_circle_press
+                            on_circle_handle_press=on_circle_handle_press
                         />
                     }
                 }}
@@ -1039,6 +1122,7 @@ fn hint(tool: Option<Tool>) -> &'static str {
         Some(Tool::Door) => "Click two points on a wall to place the door.",
         Some(Tool::Window) => "Click two points on a wall to place the window.",
         Some(Tool::Steps) => "Click two points on a deck edge to add steps.",
+        Some(Tool::Circle) => "Click the center, then click again to set the radius.",
         Some(Tool::Object) => {
             "Click to place the armed item (its tile again, or Esc, to cancel) \
              · hold Shift to place several · ⌥/Alt to place a what-if ghost."

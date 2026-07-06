@@ -30,6 +30,7 @@ classes:
       - catalog
       - objects
       - shapes
+      - circles
     slot_usage:
       yard_width:
         required: true
@@ -178,6 +179,24 @@ classes:
       elevation:
         required: true
 
+  Circle:
+    description: |-
+      A standalone circular drawn area (a round paver patio or mulch bed) — a
+      center point + radius at a given elevation, the circle equivalent of
+      `Shape`. A mostly-round bed with straight or bulging (arc) edges is
+      still a `Shape` (arc edges, F3.2) — `Circle` is for a true circle.
+    slots:
+      - center
+      - radius_ft
+      - elevation
+    slot_usage:
+      center:
+        required: true
+      radius_ft:
+        required: true
+      elevation:
+        required: true
+
   Coord:
     description: |-
       A point in the plan, in feet. The yard's south-west corner is the origin;
@@ -223,6 +242,18 @@ slots:
     multivalued: true
     inlined_as_list: true
     description: Drawn areas on the plan (paver patios, mulch beds, …).
+  circles:
+    range: Circle
+    multivalued: true
+    inlined_as_list: true
+    description: Standalone circular drawn areas (round paver patios, mulch beds, …).
+  center:
+    range: Coord
+    inlined: true
+    description: A circle's center point, in feet.
+  radius_ft:
+    range: double
+    description: A circle's radius, in feet.
   id:
     description: Stable identifier for a catalog item.
   category:

@@ -43,6 +43,16 @@ pub fn area(pts: &[Point]) -> f64 {
     sum.abs() / 2.0
 }
 
+/// Area of a circle (ft²) of the given radius — `πr²`. A non-positive radius
+/// encloses no area and returns `0.0`.
+#[must_use]
+pub fn circle_area(radius_ft: f64) -> f64 {
+    if radius_ft <= 0.0 {
+        return 0.0;
+    }
+    std::f64::consts::PI * radius_ft * radius_ft
+}
+
 /// Total length of an open polyline (ft) — the sum of its segment lengths.
 #[must_use]
 pub fn polyline_length(pts: &[Point]) -> f64 {
@@ -150,6 +160,18 @@ mod tests {
     fn degenerate_polygons_have_no_area() {
         assert!(area(&[]).abs() < 1e-12);
         assert!(area(&poly(&[(0.0, 0.0), (1.0, 1.0)])).abs() < 1e-12);
+    }
+
+    #[test]
+    fn circle_area_is_pi_r_squared() {
+        assert!((circle_area(1.0) - std::f64::consts::PI).abs() < 1e-9);
+        assert!((circle_area(2.0) - 4.0 * std::f64::consts::PI).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_nonpositive_radius_has_no_area() {
+        assert!(circle_area(0.0).abs() < 1e-12);
+        assert!(circle_area(-3.0).abs() < 1e-12);
     }
 
     #[test]

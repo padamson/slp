@@ -41,6 +41,10 @@ pub enum Tool {
     /// position (the object's center). Any category — furniture, fire pit,
     /// tree, grill — is placed the same way.
     Object,
+    /// A standalone circle (a round paver patio or mulch bed): the first
+    /// click drops the center, the second sets the radius (the distance to
+    /// it) and finishes — unlike a span, neither click snaps to a wall.
+    Circle,
 }
 
 impl Tool {
@@ -50,7 +54,9 @@ impl Tool {
         match self {
             Tool::Door => Some(OpeningKind::door),
             Tool::Window => Some(OpeningKind::window),
-            Tool::House | Tool::Deck | Tool::Shape | Tool::Steps | Tool::Object => None,
+            Tool::House | Tool::Deck | Tool::Shape | Tool::Steps | Tool::Object | Tool::Circle => {
+                None
+            }
         }
     }
 
@@ -142,7 +148,7 @@ pub fn snap_node(
             }
             p
         }
-        Tool::Object => {
+        Tool::Object | Tool::Circle => {
             if grid {
                 snap_to_grid(raw, grid_step)
             } else {
@@ -183,8 +189,9 @@ pub fn commit_kind(tool: Tool, placed: &[Coord], next: &Coord) -> Commit {
                 Commit::Add
             }
         }
-        // First click adds the start node; the second finishes the span.
-        Tool::Door | Tool::Window | Tool::Steps => {
+        // First click adds the start node; the second finishes the span (or,
+        // for a circle, the center-then-radius pair).
+        Tool::Door | Tool::Window | Tool::Steps | Tool::Circle => {
             if placed.is_empty() {
                 Commit::Add
             } else {
@@ -411,15 +418,63 @@ mod tests {
     }
 
     #[test]
+    fn circle_center_snaps_freely_like_an_object() {
+        // Grid on: the center rounds to whole feet, with no ortho constraint
+        // (there's no previous node to align an edge to).
+        assert_eq!(
+            snap_node(
+                Tool::Circle,
+                &[],
+                &[],
+                &Coord::new(5.4, 7.6),
+                true,
+                true,
+                1.0
+            ),
+            Coord::new(5.0, 8.0)
+        );
+        // Grid off: passes through unchanged.
+        assert_eq!(
+            snap_node(
+                Tool::Circle,
+                &[],
+                &[],
+                &Coord::new(5.4, 7.6),
+                false,
+                true,
+                1.0
+            ),
+            Coord::new(5.4, 7.6)
+        );
+    }
+
+    #[test]
+    fn circle_commit_adds_the_center_then_finishes_on_the_radius_click() {
+        assert_eq!(
+            commit_kind(Tool::Circle, &[], &Coord::new(5.0, 5.0)),
+            Commit::Add
+        );
+        assert_eq!(
+            commit_kind(Tool::Circle, &[Coord::new(5.0, 5.0)], &Coord::new(8.0, 5.0)),
+            Commit::FinishWith
+        );
+    }
+
+    #[test]
     fn tool_classification() {
         assert_eq!(Tool::Door.opening_kind(), Some(OpeningKind::door));
         assert_eq!(Tool::Window.opening_kind(), Some(OpeningKind::window));
         assert_eq!(Tool::House.opening_kind(), None);
         assert_eq!(Tool::Object.opening_kind(), None);
+        assert_eq!(Tool::Circle.opening_kind(), None);
         assert!(Tool::House.is_outline() && Tool::Deck.is_outline() && Tool::Shape.is_outline());
         assert!(!Tool::Door.is_outline() && !Tool::Steps.is_outline());
+        assert!(!Tool::Circle.is_outline());
         assert!(Tool::Door.is_span() && Tool::Window.is_span() && Tool::Steps.is_span());
         assert!(!Tool::House.is_span() && !Tool::Deck.is_span() && !Tool::Shape.is_span());
+        // A circle is a center-then-radius pair — not a span (no wall to
+        // snap to) and not a single-click point either.
+        assert!(!Tool::Circle.is_span() && !Tool::Circle.is_point());
         // An object is a point placement — neither an outline nor a span.
         assert!(Tool::Object.is_point());
         assert!(!Tool::Object.is_outline() && !Tool::Object.is_span());

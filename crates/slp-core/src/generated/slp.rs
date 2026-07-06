@@ -108,6 +108,30 @@ impl CatalogItem {
     }
 }
 
+/// A standalone circular drawn area (a round paver patio or mulch bed) — a
+/// center point + radius at a given elevation, the circle equivalent of
+/// `Shape`. A mostly-round bed with straight or bulging (arc) edges is
+/// still a `Shape` (arc edges, F3.2) — `Circle` is for a true circle.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Circle {
+    /// A circle's center point, in feet.
+    pub center: Box<Coord>,
+    /// Height in feet above grade.
+    pub elevation: f64,
+    /// A circle's radius, in feet.
+    pub radius_ft: f64,
+}
+
+impl Circle {
+    pub fn new(center: Box<Coord>, elevation: f64, radius_ft: f64) -> Self {
+        Self {
+            center,
+            elevation,
+            radius_ft,
+        }
+    }
+}
+
 /// A point in the plan, in feet. The yard's south-west corner is the origin;
 /// +x runs east, +y runs north.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
@@ -286,6 +310,9 @@ pub struct Plan {
     /// Products the user has added, available to place onto the plan.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub catalog: Vec<CatalogItem>,
+    /// Standalone circular drawn areas (round paver patios, mulch beds, …).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub circles: Vec<Circle>,
     /// The deck outline, if the user has drawn one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deck: Option<Box<Deck>>,
@@ -311,6 +338,7 @@ impl Plan {
     pub fn new(yard_depth: f64, yard_width: f64) -> Self {
         Self {
             catalog: Vec::new(),
+            circles: Vec::new(),
             deck: None,
             house: None,
             name: None,
