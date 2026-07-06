@@ -169,16 +169,37 @@ classes:
     description: |-
       A drawn area (a paver patio, a mulch bed, …) — a closed outline of
       nodes at a given elevation, the area equivalent of `Object`. Each edge
-      (node→next) is a straight line by default, or a circular arc when the
-      matching `bulges` entry is non-zero. Category/pricing (which catalog
-      item it costs against) is added when a category actually needs it (e.g.
-      pavers, mulch beds) — `Shape` on its own is just geometry.
+      (node→next) is a straight line by default, a circular arc when the
+      matching `bulges` entry is non-zero, or a cubic-Bézier curve when a
+      `curves` entry names it (a curve takes precedence over a bulge on the
+      same edge). Category/pricing (which catalog item it costs against) is
+      added when a category actually needs it (e.g. pavers, mulch beds) —
+      `Shape` on its own is just geometry.
     slots:
       - corners
       - bulges
+      - curves
       - elevation
     slot_usage:
       elevation:
+        required: true
+
+  CurveEdge:
+    description: |-
+      A cubic-Bézier boundary edge on a `Shape`: the edge from node `edge` to
+      node `edge + 1` curves through control points `control1` (near the start
+      node) and `control2` (near the end node), the SVG `C` convention. Only
+      the boundary's curved edges are listed; straight/arc edges are absent.
+    slots:
+      - edge
+      - control1
+      - control2
+    slot_usage:
+      edge:
+        required: true
+      control1:
+        required: true
+      control2:
         required: true
 
   Circle:
@@ -335,6 +356,24 @@ slots:
       the arc's signed subtended angle). `bulges[i]` is the edge from
       `corners[i]` to the next node; 0 (or absent) is a straight edge. A
       short or empty list leaves the trailing edges straight.
+  curves:
+    range: CurveEdge
+    multivalued: true
+    inlined_as_list: true
+    description: |-
+      Cubic-Bézier edges of a `Shape` — a sparse list naming only the curved
+      edges (straight/arc edges are absent). Empty = no curves.
+  edge:
+    range: integer
+    description: Index of the boundary edge (from node `edge` to node `edge + 1`).
+  control1:
+    range: Coord
+    inlined: true
+    description: The Bézier control point near the edge's start node.
+  control2:
+    range: Coord
+    inlined: true
+    description: The Bézier control point near the edge's end node.
   levels:
     range: DeckLevel
     multivalued: true

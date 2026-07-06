@@ -13,7 +13,7 @@
 //!    straight/arc boundary's true enclosed area.
 //! 2. [`arc_svg`] — the radius + SVG `A`-command flags to render the arc.
 
-use crate::{Coord, Point, area};
+use crate::{Coord, Point, area, bezier_segment_area};
 
 /// A circular arc's SVG `A`-command parameters (radius in the caller's units,
 /// plus the two boolean flags). The endpoint is the caller's own `b` point;
@@ -72,29 +72,35 @@ pub fn segment_area(chord_len: f64, bulge: f64) -> f64 {
     -radius * radius * (theta - theta.sin()) / 2.0
 }
 
-/// The area (ft²) enclosed by a closed boundary whose edges may be straight or
-/// arcs. `corners` are the ring's nodes; `bulges[i]` is the bulge for edge
-/// `corners[i]`→`corners[i+1]` (the last edge wraps to node 0). A short or
-/// empty `bulges` treats the missing trailing edges as straight, so an
-/// all-straight boundary can pass `&[]`.
+/// The area (ft²) enclosed by a closed boundary whose edges may be straight,
+/// circular **arcs**, or cubic-Bézier **curves**. `corners` are the ring's
+/// nodes; `bulges[i]` is the arc bulge for edge `corners[i]`→`corners[i+1]`
+/// (0/absent = not an arc); `curves` is a sparse list of `(edge_index, c1, c2)`
+/// for the Bézier edges. A curve takes precedence over a bulge on the same
+/// edge. A short/empty `bulges` and an empty `curves` mean all-straight.
 ///
-/// Fewer than three nodes encloses no polygon area on its own; the arc terms
-/// are still added, so a two-node ring of opposing semicircles reads as its
-/// circle's area.
+/// Fewer than three nodes encloses no polygon area on its own; the arc/curve
+/// terms are still added, so a two-node ring of opposing semicircles reads as
+/// its circle's area.
 #[must_use]
-pub fn boundary_area(corners: &[Coord], bulges: &[f64]) -> f64 {
+pub fn boundary_area(corners: &[Coord], bulges: &[f64], curves: &[(usize, Point, Point)]) -> f64 {
     let n = corners.len();
     if n < 2 {
         return 0.0;
     }
     let pts: Vec<Point> = corners.iter().map(|c| Point::new(c.x, c.y)).collect();
     // Signed shoelace of the straight-chord polygon (positive for a
-    // counter-clockwise ring), plus each arc's signed segment correction.
+    // counter-clockwise ring), plus each curved edge's signed correction
+    // beyond its chord (Bézier if the edge has controls, else an arc segment).
     let mut signed = signed_shoelace(&pts);
     for i in 0..n {
-        let bulge = bulges.get(i).copied().unwrap_or(0.0);
-        let chord = pts[i].dist(pts[(i + 1) % n]);
-        signed += segment_area(chord, bulge);
+        let (p0, p3) = (pts[i], pts[(i + 1) % n]);
+        if let Some(&(_, c1, c2)) = curves.iter().find(|&&(e, _, _)| e == i) {
+            signed += bezier_segment_area(p0, c1, c2, p3);
+        } else {
+            let bulge = bulges.get(i).copied().unwrap_or(0.0);
+            signed += segment_area(p0.dist(p3), bulge);
+        }
     }
     signed.abs()
 }
@@ -215,7 +221,7 @@ mod tests {
         // bowing to opposite sides → a full circle of radius r. Area = πr².
         let r = 4.0;
         let corners = vec![Coord::new(-r, 0.0), Coord::new(r, 0.0)];
-        let got = boundary_area(&corners, &[1.0, 1.0]);
+        let got = boundary_area(&corners, &[1.0, 1.0], &[]);
         assert!(approx(got, PI * r * r), "got {got}, want {}", PI * r * r);
     }
 
@@ -228,9 +234,12 @@ mod tests {
             Coord::new(4.0, 3.0),
             Coord::new(0.0, 3.0),
         ];
-        assert!(approx(boundary_area(&rect, &[]), 12.0));
+        assert!(approx(boundary_area(&rect, &[], &[]), 12.0));
         // An explicit all-zero bulge list agrees.
-        assert!(approx(boundary_area(&rect, &[0.0, 0.0, 0.0, 0.0]), 12.0));
+        assert!(approx(
+            boundary_area(&rect, &[0.0, 0.0, 0.0, 0.0], &[]),
+            12.0
+        ));
     }
 
     #[test]
@@ -244,8 +253,8 @@ mod tests {
             Coord::new(1.0, 1.0),
             Coord::new(0.0, 1.0),
         ];
-        let bowed_in = boundary_area(&sq, &[0.3, 0.0, 0.0, 0.0]);
-        let bowed_out = boundary_area(&sq, &[-0.3, 0.0, 0.0, 0.0]);
+        let bowed_in = boundary_area(&sq, &[0.3, 0.0, 0.0, 0.0], &[]);
+        let bowed_out = boundary_area(&sq, &[-0.3, 0.0, 0.0, 0.0], &[]);
         assert!(bowed_in < 1.0, "bowing into the interior removes area");
         assert!(bowed_out > 1.0, "bowing outward adds area");
         assert!(approx(1.0 - bowed_in, bowed_out - 1.0), "symmetric");
@@ -262,7 +271,7 @@ mod tests {
             Coord::new(4.0, 1.0),
             Coord::new(1.0, 3.0),
         ];
-        assert!(approx(boundary_area(&tri, &[]), 5.5));
+        assert!(approx(boundary_area(&tri, &[], &[]), 5.5));
     }
 
     #[test]
@@ -275,12 +284,46 @@ mod tests {
             Coord::new(0.0, 3.0),
         ];
         let cw: Vec<Coord> = ccw.iter().rev().cloned().collect();
-        assert!(approx(boundary_area(&ccw, &[]), boundary_area(&cw, &[])));
+        assert!(approx(
+            boundary_area(&ccw, &[], &[]),
+            boundary_area(&cw, &[], &[])
+        ));
     }
 
     #[test]
     fn fewer_than_two_nodes_encloses_nothing() {
-        assert!(approx(boundary_area(&[], &[]), 0.0));
-        assert!(approx(boundary_area(&[Coord::new(1.0, 1.0)], &[5.0]), 0.0));
+        assert!(approx(boundary_area(&[], &[], &[]), 0.0));
+        assert!(approx(
+            boundary_area(&[Coord::new(1.0, 1.0)], &[5.0], &[]),
+            0.0
+        ));
+    }
+
+    #[test]
+    fn a_bezier_edge_adds_its_segment_area_and_wins_over_a_bulge() {
+        // Unit square (CCW) = 1 ft². Give edge 0 (0,0)->(1,0) a bezier that
+        // bows outward (controls below the chord) → area grows past 1 by the
+        // curve's segment area, regardless of any bulge also set on edge 0
+        // (the curve takes precedence).
+        let sq = vec![
+            Coord::new(0.0, 0.0),
+            Coord::new(1.0, 0.0),
+            Coord::new(1.0, 1.0),
+            Coord::new(0.0, 1.0),
+        ];
+        let curve = (0usize, Point::new(0.25, -0.5), Point::new(0.75, -0.5));
+        let seg = bezier_segment_area(
+            Point::new(0.0, 0.0),
+            Point::new(0.25, -0.5),
+            Point::new(0.75, -0.5),
+            Point::new(1.0, 0.0),
+        );
+        // Edge 0 bows below the CCW interior → adds |seg| to the area.
+        assert!(approx(boundary_area(&sq, &[], &[curve]), 1.0 + seg.abs()));
+        // A bulge on the same edge is ignored — the curve wins.
+        assert!(approx(
+            boundary_area(&sq, &[0.9, 0.0, 0.0, 0.0], &[curve]),
+            1.0 + seg.abs()
+        ));
     }
 }

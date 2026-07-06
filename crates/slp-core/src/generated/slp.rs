@@ -151,6 +151,30 @@ impl Coord {
     }
 }
 
+/// A cubic-Bézier boundary edge on a `Shape`: the edge from node `edge` to
+/// node `edge + 1` curves through control points `control1` (near the start
+/// node) and `control2` (near the end node), the SVG `C` convention. Only
+/// the boundary's curved edges are listed; straight/arc edges are absent.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CurveEdge {
+    /// The Bézier control point near the edge's start node.
+    pub control1: Box<Coord>,
+    /// The Bézier control point near the edge's end node.
+    pub control2: Box<Coord>,
+    /// Index of the boundary edge (from node `edge` to node `edge + 1`).
+    pub edge: i64,
+}
+
+impl CurveEdge {
+    pub fn new(control1: Box<Coord>, control2: Box<Coord>, edge: i64) -> Self {
+        Self {
+            control1,
+            control2,
+            edge,
+        }
+    }
+}
+
 /// A deck or patio: one or more levels (footprints at an elevation) plus
 /// steps. Drawn by the user (never hardcoded).
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
@@ -352,10 +376,12 @@ impl Plan {
 
 /// A drawn area (a paver patio, a mulch bed, …) — a closed outline of
 /// nodes at a given elevation, the area equivalent of `Object`. Each edge
-/// (node→next) is a straight line by default, or a circular arc when the
-/// matching `bulges` entry is non-zero. Category/pricing (which catalog
-/// item it costs against) is added when a category actually needs it (e.g.
-/// pavers, mulch beds) — `Shape` on its own is just geometry.
+/// (node→next) is a straight line by default, a circular arc when the
+/// matching `bulges` entry is non-zero, or a cubic-Bézier curve when a
+/// `curves` entry names it (a curve takes precedence over a bulge on the
+/// same edge). Category/pricing (which catalog item it costs against) is
+/// added when a category actually needs it (e.g. pavers, mulch beds) —
+/// `Shape` on its own is just geometry.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Shape {
     /// Per-edge arc bulge factors for a `Shape` (DXF convention: `tan(θ/4)`,
@@ -367,6 +393,10 @@ pub struct Shape {
     /// Ordered corner points of a closed outline (house wall or deck level).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub corners: Vec<Coord>,
+    /// Cubic-Bézier edges of a `Shape` — a sparse list naming only the curved
+    /// edges (straight/arc edges are absent). Empty = no curves.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub curves: Vec<CurveEdge>,
     /// Height in feet above grade.
     pub elevation: f64,
 }
@@ -376,6 +406,7 @@ impl Shape {
         Self {
             bulges: Vec::new(),
             corners: Vec::new(),
+            curves: Vec::new(),
             elevation,
         }
     }

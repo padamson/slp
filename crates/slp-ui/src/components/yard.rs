@@ -126,6 +126,10 @@ pub fn Yard(
     /// start a drag that bows that edge into an arc.
     #[prop(optional)]
     on_edge_press: Option<Callback<usize>>,
+    /// A selected shape's Bézier control handle was pressed `(edge, which)` —
+    /// start a drag that curves that edge.
+    #[prop(optional)]
+    on_control_press: Option<Callback<(usize, usize)>>,
     /// The house's body was pressed — select it.
     #[prop(optional)]
     on_house_press: Option<Callback<()>>,
@@ -269,6 +273,7 @@ pub fn Yard(
                         on_insert_node=on_insert_node
                         on_cancel_nodes=on_cancel_nodes
                         on_edge_press=on_edge_press
+                        on_control_press=on_control_press
                     />
                 }
             }}

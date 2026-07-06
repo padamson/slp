@@ -1,7 +1,7 @@
 //! theoria stories for `Shapes`. Compiled only under the `stories` feature.
 
 use leptos::prelude::*;
-use slp_core::{Coord, Shape};
+use slp_core::{Coord, CurveEdge, Shape};
 
 use super::{Shapes, Transform};
 use theoria::Story;
@@ -24,6 +24,7 @@ fn rect(elevation: f64, bulges: Vec<f64>) -> Shape {
         ],
         elevation,
         bulges,
+        curves: Vec::new(),
     }
 }
 
@@ -51,6 +52,23 @@ pub fn stories() -> Vec<Story> {
                 </svg>
             }
         }),
+        Story::new(
+            "Structures/Shapes/An area with a bezier (curved) edge",
+            || {
+                // Edge 2 (the top, node 2->3) is a cubic bezier bowing up.
+                let mut shape = rect(0.0, Vec::new());
+                shape.curves = vec![CurveEdge {
+                    edge: 2,
+                    control1: Box::new(Coord::new(18.0, 22.0)),
+                    control2: Box::new(Coord::new(12.0, 22.0)),
+                }];
+                view! {
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 400" width="460">
+                        <Shapes t=t() shapes=vec![shape] />
+                    </svg>
+                }
+            },
+        ),
         Story::new(
             "Structures/Shapes/A selected area shows node handles",
             || {

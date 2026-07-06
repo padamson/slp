@@ -9,8 +9,8 @@
 
 use leptos::prelude::*;
 use slp_core::{
-    CatalogItem, Circle, Commit, Coord, Corner, Deck, DeckLevel, FootprintShape, House, ItemStatus,
-    Object, Plan, Point, Shape, StepRun, Tool, are_adjacent, commit_kind, delete_node,
+    CatalogItem, Circle, Commit, Coord, Corner, CurveEdge, Deck, DeckLevel, FootprintShape, House,
+    ItemStatus, Object, Plan, Point, Shape, StepRun, Tool, are_adjacent, commit_kind, delete_node,
     dragged_center, free_corner, heading, insert_node_between, nearest_wall, object_at,
     opening_from_nodes, snap_node, snap_to_grid, take_off,
 };
@@ -129,6 +129,9 @@ fn planner_body() -> impl IntoView {
     // The edge (index into the selected shape's edges) whose bulge handle is
     // being dragged, if any — dragging it bows that edge into an arc.
     let dragging_edge = RwSignal::new(None::<usize>);
+    // The `(edge, which-control)` whose Bézier control handle is being dragged,
+    // if any — dragging it curves that edge (which=0 is control1, 1 is control2).
+    let dragging_control = RwSignal::new(None::<(usize, usize)>);
     // Whether the house is selected — its corners become interactive (mirrors
     // `selected_shape`, but there's only ever one house).
     let house_selected = RwSignal::new(false);
@@ -319,7 +322,9 @@ fn planner_body() -> impl IntoView {
         }
         // Dragging a selected shape's node: it follows the cursor directly
         // (no grab offset — a node's position *is* the cursor), snapping to
-        // the foot grid when grid-snap is on, same as every other node.
+        // the foot grid when grid-snap is on, same as every other node. Any
+        // Bézier control handles attached to the node move with it (the same
+        // delta) so a curved edge's tangent doesn't kink.
         if let Some(ni) = dragging_node.get_untracked() {
             if let Some(si) = selected_shape.get_untracked() {
                 let at = if grid_snap.get_untracked() {
@@ -329,9 +334,11 @@ fn planner_body() -> impl IntoView {
                 };
                 shapes.update(|v| {
                     if let Some(s) = v.get_mut(si)
-                        && let Some(c) = s.corners.get_mut(ni)
+                        && let Some(old) = s.corners.get(ni).cloned()
                     {
-                        *c = at;
+                        let (dx, dy) = (at.x - old.x, at.y - old.y);
+                        s.corners[ni] = at;
+                        carry_controls(s, ni, dx, dy);
                     }
                 });
             }
@@ -349,6 +356,24 @@ fn planner_body() -> impl IntoView {
                         && let Some(b) = edge_bulge_from_cursor(&s.corners, ei, &raw)
                     {
                         set_bulge(&mut s.bulges, s.corners.len(), ei, b);
+                    }
+                });
+            }
+            return;
+        }
+        // Dragging a selected shape's Bézier control handle: move that control
+        // point to the cursor (grid-snapped like a node), promoting a still-
+        // straight edge to a curve on first drag.
+        if let Some((ei, which)) = dragging_control.get_untracked() {
+            if let Some(si) = selected_shape.get_untracked() {
+                let at = if grid_snap.get_untracked() {
+                    snap_to_grid(&raw, GRID_STEP)
+                } else {
+                    raw.clone()
+                };
+                shapes.update(|v| {
+                    if let Some(s) = v.get_mut(si) {
+                        set_shape_control(s, ei, which, at);
                     }
                 });
             }
@@ -437,6 +462,10 @@ fn planner_body() -> impl IntoView {
             dragging_edge.set(None);
             return;
         }
+        if dragging_control.get_untracked().is_some() {
+            dragging_control.set(None);
+            return;
+        }
         if dragging_house_node.get_untracked().is_some() {
             dragging_house_node.set(None);
             return;
@@ -490,11 +519,13 @@ fn planner_body() -> impl IntoView {
                     };
                     deck.update(|v| v.push(level));
                 } else if tl == Tool::Shape {
-                    // A freshly-drawn area is all straight edges — no bulges.
+                    // A freshly-drawn area is all straight edges — no bulges,
+                    // no curves.
                     let shape = Shape {
                         corners: pl,
                         elevation: shape_elevation.get_untracked(),
                         bulges: Vec::new(),
+                        curves: Vec::new(),
                     };
                     shapes.update(|v| v.push(shape));
                 } else {
@@ -708,6 +739,15 @@ fn planner_body() -> impl IntoView {
         dragging_edge.set(Some(ei));
     });
 
+    // Press a selected shape's Bézier control handle → start a drag that
+    // curves that edge (promoting a straight edge on first move).
+    let on_control_press = Callback::new(move |ec: (usize, usize)| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        dragging_control.set(Some(ec));
+    });
+
     // The insert-between popup's "Insert" button: split the edge between the
     // two selected nodes with a new one at its midpoint.
     let on_insert_node = Callback::new(move |()| {
@@ -725,11 +765,13 @@ fn planner_body() -> impl IntoView {
                 {
                     s.corners = corners;
                     // Inserting a node changes the edge count, which would
-                    // misalign the parallel per-edge `bulges` array. Arc-aware
-                    // re-indexing is deferred (see F3-draw-edit-shapes.md), so
-                    // for now editing the node ring resets its edges to
-                    // straight — safe, never a misrendered arc.
+                    // misalign the per-edge `bulges` / edge-indexed `curves`.
+                    // Curve-aware re-indexing (split the arc/Bézier at the new
+                    // node) is deferred (see F3-draw-edit-shapes.md), so for
+                    // now editing the node ring resets its edges to straight —
+                    // safe, never a misrendered arc/curve.
                     s.bulges.clear();
+                    s.curves.clear();
                 }
             });
         }
@@ -768,8 +810,10 @@ fn planner_body() -> impl IntoView {
                 {
                     s.corners = corners;
                     // Deleting a node changes the edge count — reset the
-                    // per-edge bulges to straight (see the insert callback).
+                    // per-edge bulges/curves to straight (see the insert
+                    // callback).
                     s.bulges.clear();
+                    s.curves.clear();
                 }
             });
             selected_nodes.set(Vec::new());
@@ -1001,6 +1045,7 @@ fn planner_body() -> impl IntoView {
                             on_insert_node=on_insert_node
                             on_cancel_nodes=on_cancel_nodes
                             on_edge_press=on_edge_press
+                            on_control_press=on_control_press
                             on_house_press=on_house_press
                             on_house_node_press=on_house_node_press
                             on_deck_level_press=on_deck_level_press
@@ -1184,6 +1229,69 @@ fn set_bulge(bulges: &mut Vec<f64>, edge_count: usize, ei: usize, bulge: f64) {
         bulges.resize(edge_count, 0.0);
     }
     bulges[ei] = bulge;
+}
+
+/// Set control `which` (0 = control1, 1 = control2) of edge `ei`'s Bézier to
+/// `at`, promoting a still-straight edge to a curve: a new `CurveEdge` is
+/// created with both controls at the chord's thirds (so the untouched control
+/// starts sensibly), any arc bulge on that edge is cleared (a curve wins), and
+/// then the dragged control is overwritten.
+fn set_shape_control(shape: &mut Shape, ei: usize, which: usize, at: Coord) {
+    let n = shape.corners.len();
+    if ei >= n {
+        return;
+    }
+    if !shape
+        .curves
+        .iter()
+        .any(|c| usize::try_from(c.edge) == Ok(ei))
+    {
+        let from = &shape.corners[ei];
+        let to = &shape.corners[(ei + 1) % n];
+        let third = |t: f64| Coord::new(from.x + t * (to.x - from.x), from.y + t * (to.y - from.y));
+        shape.curves.push(CurveEdge {
+            edge: i64::try_from(ei).unwrap_or(0),
+            control1: Box::new(third(1.0 / 3.0)),
+            control2: Box::new(third(2.0 / 3.0)),
+        });
+        if let Some(b) = shape.bulges.get_mut(ei) {
+            *b = 0.0;
+        }
+    }
+    if let Some(c) = shape
+        .curves
+        .iter_mut()
+        .find(|c| usize::try_from(c.edge) == Ok(ei))
+    {
+        if which == 0 {
+            *c.control1 = at;
+        } else {
+            *c.control2 = at;
+        }
+    }
+}
+
+/// Translate the Bézier control points attached to node `ni` by `(dx, dy)`,
+/// so a moved corner carries its curve handles and the curve doesn't kink.
+/// The controls near node `ni` are `control1` of edge `ni` (which starts at
+/// `ni`) and `control2` of the previous edge (which ends at `ni`).
+fn carry_controls(shape: &mut Shape, ni: usize, dx: f64, dy: f64) {
+    let n = shape.corners.len();
+    if n == 0 {
+        return;
+    }
+    let prev = (ni + n - 1) % n;
+    for c in &mut shape.curves {
+        let edge = usize::try_from(c.edge).ok();
+        if edge == Some(ni) {
+            c.control1.x += dx;
+            c.control1.y += dy;
+        }
+        if edge == Some(prev) {
+            c.control2.x += dx;
+            c.control2.y += dy;
+        }
+    }
 }
 
 /// Clear the active tool and any in-progress placement.

@@ -89,14 +89,27 @@ real curved shape I'm laying out, not just a boxy approximation.
         boundary resets its edges to straight** (never a misrendered arc).
         Straight-boundary insert/delete is unaffected. Tracked for a follow-up.
 
-- **F3.3 — bezier (smooth-curve) edges**
-  - [ ] any boundary edge can be a **smooth curve** with draggable control
-        handles, for an S-curve or free-form bed edge; it renders true-to-scale
-  - [ ] the reported **area** accounts for curved edges, unit + mutation tested
-  - [ ] node editing works on curves: moving an endpoint carries its handles so
-        the curve doesn't kink, inserting a node on a curve splits it into two
-        curves that reproduce the original, deleting reconnects (fallback
-        straight — see Notes)
+- **F3.3 — bezier (smooth-curve) edges** ✅ *done (curve + move); insert/delete-on-curve deferred*
+  - [x] any boundary edge can be a **smooth curve** (cubic Bézier) with two
+        draggable control handles, for an S-curve or free-form bed edge. A
+        selected shape shows both controls per straight/curved edge (on a
+        straight edge they sit at the chord's thirds; dragging one promotes the
+        edge to a Bézier); a curved edge draws a guide line from each control
+        to its anchor node and drops the arc apex handle. Renders true-to-scale
+        as an SVG `C` path command; stored as a sparse `Shape.curves`
+        (`CurveEdge{edge, control1, control2}`), curve winning over a bulge on
+        the same edge
+  - [x] the reported **area** accounts for curved edges — `boundary_area` adds
+        each Bézier's signed segment area (`bezier_segment_area`, the analytic
+        `½∮` of a cubic minus its chord); unit + mutation tested (0 missed on
+        `bezier.rs` + `arc.rs`)
+  - [x] moving an endpoint **carries its control handles** (same delta) so the
+        curve's tangent doesn't kink
+  - [ ] **deferred:** inserting a node *on a curve* splitting it into two
+        curves (De Casteljau at t=½), and delete-merges-to-straight for curved
+        neighbors. Node insert/delete changes the edge count, so — as for arcs
+        — it currently **resets a curved boundary's edges to straight** rather
+        than misalign the edge-indexed `curves`. Tracked for a follow-up.
 
 - **F3.4 — standalone circle shape** ✅ *done*
   - [x] a circle tool draws a **circle** (center + radius): click the center,

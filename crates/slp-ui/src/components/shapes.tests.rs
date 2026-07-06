@@ -1,7 +1,7 @@
 //! dokime component tests for `Shapes` (drawn paver/mulch/… areas).
 
 use leptos::prelude::*;
-use slp_core::{Coord, Shape};
+use slp_core::{Coord, CurveEdge, Shape};
 
 use super::{Shapes, Transform};
 
@@ -23,6 +23,7 @@ fn square(elevation: f64) -> Shape {
         ],
         elevation,
         bulges: Vec::new(),
+        curves: Vec::new(),
     }
 }
 
@@ -98,11 +99,31 @@ fn a_bowed_edge_changes_the_reported_area() {
 }
 
 #[test]
+fn a_curved_edge_renders_a_path_with_a_bezier_command() {
+    // Give edge 0 a cubic bezier — the boundary becomes a <path> with a `C`
+    // command, no <polygon>, and the reported area shifts off the straight 12.
+    let mut s = square(0.0);
+    s.curves = vec![CurveEdge {
+        edge: 0,
+        control1: Box::new(Coord::new(1.0, -2.0)),
+        control2: Box::new(Coord::new(3.0, -2.0)),
+    }];
+    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
+    assert!(!html.contains("<polygon"), "a curved boundary is a path");
+    assert_eq!(dokime::count(&html, " C "), 1, "one cubic-bezier command");
+    assert!(
+        !html.contains(">12 ft²<"),
+        "the area accounts for the curve"
+    );
+}
+
+#[test]
 fn skips_a_degenerate_shape_with_too_few_corners() {
     let degenerate = Shape {
         corners: vec![Coord::new(5.0, 5.0), Coord::new(6.0, 5.0)],
         elevation: 0.0,
         bulges: Vec::new(),
+        curves: Vec::new(),
     };
     let html = dokime::render(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0), degenerate] /> }
@@ -147,6 +168,50 @@ fn a_selected_shape_shows_a_bulge_handle_per_edge() {
     assert_eq!(
         dokime::count(&plain, r#"data-testid="shape-edge-handle""#),
         0
+    );
+}
+
+#[test]
+fn a_selected_shape_shows_two_control_handles_per_straight_edge() {
+    // A straight square: 4 edges × 2 control handles = 8, plus the 4 apex
+    // (bulge) handles. Straight edges draw no guide line (the controls sit on
+    // the chord).
+    let html = dokime::render(
+        move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> },
+    );
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="shape-control-handle""#),
+        8
+    );
+    assert_eq!(dokime::count(&html, r#"class="shape-control-guide""#), 0);
+}
+
+#[test]
+fn a_bezier_edge_shows_control_handles_with_guides_and_no_apex() {
+    // Make edge 0 a bezier. That edge shows 2 control handles + 2 guide lines
+    // and NO apex handle; the other 3 straight edges keep their apex + 2
+    // controls each. So: apex handles 3, control handles 2 (bezier) + 6
+    // (straight) = 8, guide lines 2.
+    let mut s = square(0.0);
+    s.curves = vec![CurveEdge {
+        edge: 0,
+        control1: Box::new(Coord::new(1.0, -2.0)),
+        control2: Box::new(Coord::new(3.0, -2.0)),
+    }];
+    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s] selected=Some(0) /> });
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="shape-edge-handle""#),
+        3,
+        "the bezier edge has no apex handle"
+    );
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="shape-control-handle""#),
+        8
+    );
+    assert_eq!(
+        dokime::count(&html, r#"class="shape-control-guide""#),
+        2,
+        "the bezier edge's two controls each draw a guide line"
     );
 }
 
