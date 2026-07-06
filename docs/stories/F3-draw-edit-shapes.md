@@ -65,17 +65,29 @@ real curved shape I'm laying out, not just a boxy approximation.
         `&[Coord]`), so `House`/`DeckLevel` node editing can reuse them
         unchanged when that lands; 0 mutants missed
 
-- **F3.2 — arc edges**
-  - [ ] any boundary edge can be an **arc** (a circular bulge to one side)
-        instead of a straight line, set/adjusted by a handle on that edge; the
-        arc renders true-to-scale
-  - [ ] the reported **area** accounts for each arc's bulge (a bed with a bowed
-        edge reads more/less ft² than its straight-chord version), unit +
-        mutation tested
-  - [ ] node editing works on arcs: moving an endpoint keeps the arc's curvature
-        sensible, inserting a node on an arc splits it into two arcs that follow
-        the same curve, deleting reconnects (the merged edge falls back to
-        straight — see Notes)
+- **F3.2 — arc edges** ✅ *done (move); node insert/delete-on-arc deferred*
+  - [x] any boundary edge can be an **arc** (a circular bulge to one side)
+        instead of a straight line, set/adjusted by a per-edge handle at the
+        edge's apex; dragging it perpendicular to the chord sets the bulge
+        (rounded to a tidy step, clamped to a major-arc range). The arc renders
+        true-to-scale — an all-straight boundary stays a `<polygon>`, once any
+        edge bows the whole boundary becomes a `<path>` with `A` arc commands.
+        Bulge follows the CAD/DXF convention (`tan(θ/4)`, positive bows left of
+        the edge's travel direction) in `slp_core::arc`
+  - [x] the reported **area** accounts for each arc's bulge (`boundary_area` =
+        signed shoelace + a signed circular-segment correction per arc, taken
+        absolute) — a bed with a bowed-out edge reads more ft², bowed-in reads
+        less; unit + mutation tested (0 missed on `arc.rs`, one equivalent
+        `sweep` comparison excluded with rationale)
+  - [x] moving an endpoint keeps the edge's bulge, so the arc's curvature stays
+        sensible as its chord changes (the bulge is chord-relative)
+  - [ ] **deferred:** inserting a node *on an arc* splitting it into two arcs
+        (a half-angle split), and delete-merges-to-straight for arced
+        neighbors. Node insert/delete (F3.1) changes the edge count, which
+        would misalign the parallel `bulges` array; arc-aware re-indexing is
+        deferred, so as a safe interim **editing the node ring on a bowed
+        boundary resets its edges to straight** (never a misrendered arc).
+        Straight-boundary insert/delete is unaffected. Tracked for a follow-up.
 
 - **F3.3 — bezier (smooth-curve) edges**
   - [ ] any boundary edge can be a **smooth curve** with draggable control

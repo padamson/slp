@@ -41,6 +41,9 @@ exclude_globs = [
 #    `<`→`<=` change behavior only when the point lies exactly on a vertex/edge,
 #    which the function documents as unspecified. (The `<=` pattern also covers
 #    the `n < 3` guard, which is separately covered by the triangle test.)
+#  - `arc_svg` `sweep: bulge > 0.0` `>`→`>=`: equivalent — `bulge_radius` returns
+#    `None` for a near-zero bulge before this closure runs, so `bulge` is never 0
+#    here and `> 0` and `>= 0` agree on every reachable input.
 exclude_re = [
     'replace \+= with -= in area',
     'replace main -> Result',
@@ -50,4 +53,5 @@ exclude_re = [
     'replace > with >= in point_in_polygon',
     'replace < with > in point_in_polygon',
     'replace < with <= in point_in_polygon',
+    'replace > with >= in arc_svg',
 ]

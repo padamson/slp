@@ -22,6 +22,7 @@ fn square(elevation: f64) -> Shape {
             Coord::new(0.0, 3.0),
         ],
         elevation,
+        bulges: Vec::new(),
     }
 }
 
@@ -68,10 +69,40 @@ fn no_shapes_renders_nothing() {
 }
 
 #[test]
+fn a_bowed_edge_renders_a_path_with_an_arc_command_not_a_polygon() {
+    // Bow the first edge (0,0)->(4,0) into an arc — the whole boundary becomes
+    // a <path> with an `A` arc command, no <polygon>.
+    let mut s = square(0.0);
+    s.bulges = vec![0.5, 0.0, 0.0, 0.0];
+    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
+    assert!(!html.contains("<polygon"), "an arced boundary is a path");
+    assert!(
+        html.contains("<path"),
+        "the arced boundary renders as a path"
+    );
+    // The path has exactly one arc command (the one bowed edge).
+    assert_eq!(dokime::count(&html, " A "), 1, "one arc command");
+}
+
+#[test]
+fn a_bowed_edge_changes_the_reported_area() {
+    // Bowing an edge outward (negative bulge = away from a CCW interior) grows
+    // the area past the straight 12 ft²; the label reflects it.
+    let mut s = square(0.0);
+    s.bulges = vec![-1.0, 0.0, 0.0, 0.0]; // bottom edge bows out into a semicircle
+    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
+    assert!(
+        !html.contains(">12 ft²<"),
+        "the area is no longer the straight 12"
+    );
+}
+
+#[test]
 fn skips_a_degenerate_shape_with_too_few_corners() {
     let degenerate = Shape {
         corners: vec![Coord::new(5.0, 5.0), Coord::new(6.0, 5.0)],
         elevation: 0.0,
+        bulges: Vec::new(),
     };
     let html = dokime::render(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0), degenerate] /> }
@@ -99,6 +130,24 @@ fn a_selected_shape_shows_interactive_node_handles_instead() {
     assert!(html.contains(r#"class="shape shape--selected""#));
     assert_eq!(dokime::count(&html, r#"class="shape-corner""#), 0);
     assert_eq!(dokime::count(&html, r#"data-testid="shape-node""#), 4);
+}
+
+#[test]
+fn a_selected_shape_shows_a_bulge_handle_per_edge() {
+    // The square has 4 edges, so 4 edge (bulge) handles when selected — none
+    // when unselected.
+    let selected = dokime::render(
+        move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> },
+    );
+    assert_eq!(
+        dokime::count(&selected, r#"data-testid="shape-edge-handle""#),
+        4
+    );
+    let plain = dokime::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+    assert_eq!(
+        dokime::count(&plain, r#"data-testid="shape-edge-handle""#),
+        0
+    );
 }
 
 #[test]

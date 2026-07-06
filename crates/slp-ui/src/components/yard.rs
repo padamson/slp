@@ -122,6 +122,10 @@ pub fn Yard(
     /// The insert-between popup's "Cancel" button was pressed.
     #[prop(optional)]
     on_cancel_nodes: Option<Callback<()>>,
+    /// A selected shape's edge (bulge) handle was pressed (by edge index) —
+    /// start a drag that bows that edge into an arc.
+    #[prop(optional)]
+    on_edge_press: Option<Callback<usize>>,
     /// The house's body was pressed — select it.
     #[prop(optional)]
     on_house_press: Option<Callback<()>>,
@@ -264,6 +268,7 @@ pub fn Yard(
                         on_node_press=on_node_press
                         on_insert_node=on_insert_node
                         on_cancel_nodes=on_cancel_nodes
+                        on_edge_press=on_edge_press
                     />
                 }
             }}

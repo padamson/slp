@@ -351,12 +351,19 @@ impl Plan {
 }
 
 /// A drawn area (a paver patio, a mulch bed, …) — a closed outline of
-/// straight-edged nodes at a given elevation, the area equivalent of
-/// `Object`. Category/pricing (which catalog item it costs against) is
-/// added when a category actually needs it (e.g. pavers, mulch beds) —
-/// `Shape` on its own is just geometry: nodes + elevation.
+/// nodes at a given elevation, the area equivalent of `Object`. Each edge
+/// (node→next) is a straight line by default, or a circular arc when the
+/// matching `bulges` entry is non-zero. Category/pricing (which catalog
+/// item it costs against) is added when a category actually needs it (e.g.
+/// pavers, mulch beds) — `Shape` on its own is just geometry.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Shape {
+    /// Per-edge arc bulge factors for a `Shape` (DXF convention: `tan(θ/4)`,
+    /// the arc's signed subtended angle). `bulges[i]` is the edge from
+    /// `corners[i]` to the next node; 0 (or absent) is a straight edge. A
+    /// short or empty list leaves the trailing edges straight.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bulges: Vec<f64>,
     /// Ordered corner points of a closed outline (house wall or deck level).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub corners: Vec<Coord>,
@@ -367,6 +374,7 @@ pub struct Shape {
 impl Shape {
     pub fn new(elevation: f64) -> Self {
         Self {
+            bulges: Vec::new(),
             corners: Vec::new(),
             elevation,
         }

@@ -68,6 +68,11 @@ const MIN_TRUNK_FT: f64 = 0.2;
 /// A drawn circle never shrinks below this radius (ft) while its resize
 /// handle is dragged.
 const MIN_CIRCLE_RADIUS_FT: f64 = 0.5;
+/// A dragged edge bulge is clamped to this magnitude (|1| is a semicircle;
+/// this allows a major arc without letting the radius blow up numerically).
+const BULGE_LIMIT: f64 = 2.0;
+/// A dragged edge bulge rounds to this step, so an arc lands on tidy curvature.
+const BULGE_STEP: f64 = 0.05;
 
 #[component]
 pub fn Planner() -> impl IntoView {
@@ -121,6 +126,9 @@ fn planner_body() -> impl IntoView {
     let selected_nodes = RwSignal::new(Vec::<usize>::new());
     // The node (index into the selected shape's corners) being dragged, if any.
     let dragging_node = RwSignal::new(None::<usize>);
+    // The edge (index into the selected shape's edges) whose bulge handle is
+    // being dragged, if any — dragging it bows that edge into an arc.
+    let dragging_edge = RwSignal::new(None::<usize>);
     // Whether the house is selected — its corners become interactive (mirrors
     // `selected_shape`, but there's only ever one house).
     let house_selected = RwSignal::new(false);
@@ -329,6 +337,23 @@ fn planner_body() -> impl IntoView {
             }
             return;
         }
+        // Dragging a selected shape's edge (bulge) handle: the bulge is the
+        // signed perpendicular offset of the cursor from the edge's chord
+        // midpoint, as a fraction of the half-chord (`bulge = 2·sagitta/chord`,
+        // the inverse of the apex placement in `shapes.rs`). Left of the
+        // edge's travel direction is positive, matching the renderer.
+        if let Some(ei) = dragging_edge.get_untracked() {
+            if let Some(si) = selected_shape.get_untracked() {
+                shapes.update(|v| {
+                    if let Some(s) = v.get_mut(si)
+                        && let Some(b) = edge_bulge_from_cursor(&s.corners, ei, &raw)
+                    {
+                        set_bulge(&mut s.bulges, s.corners.len(), ei, b);
+                    }
+                });
+            }
+            return;
+        }
         // Dragging a selected house corner: moving it only changes wall
         // geometry — each `Wall`/opening re-derives its position live from
         // the corners + its wall index, so doors/windows just follow.
@@ -408,6 +433,10 @@ fn planner_body() -> impl IntoView {
             dragging_node.set(None);
             return;
         }
+        if dragging_edge.get_untracked().is_some() {
+            dragging_edge.set(None);
+            return;
+        }
         if dragging_house_node.get_untracked().is_some() {
             dragging_house_node.set(None);
             return;
@@ -461,9 +490,11 @@ fn planner_body() -> impl IntoView {
                     };
                     deck.update(|v| v.push(level));
                 } else if tl == Tool::Shape {
+                    // A freshly-drawn area is all straight edges — no bulges.
                     let shape = Shape {
                         corners: pl,
                         elevation: shape_elevation.get_untracked(),
+                        bulges: Vec::new(),
                     };
                     shapes.update(|v| v.push(shape));
                 } else {
@@ -668,6 +699,15 @@ fn planner_body() -> impl IntoView {
         dragging_node.set(Some(ni));
     });
 
+    // Press a selected shape's edge (bulge) handle → start a drag that bows
+    // that edge into an arc.
+    let on_edge_press = Callback::new(move |ei: usize| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        dragging_edge.set(Some(ei));
+    });
+
     // The insert-between popup's "Insert" button: split the edge between the
     // two selected nodes with a new one at its midpoint.
     let on_insert_node = Callback::new(move |()| {
@@ -684,6 +724,12 @@ fn planner_body() -> impl IntoView {
                     && let Some(corners) = insert_node_between(&s.corners, a, b)
                 {
                     s.corners = corners;
+                    // Inserting a node changes the edge count, which would
+                    // misalign the parallel per-edge `bulges` array. Arc-aware
+                    // re-indexing is deferred (see F3-draw-edit-shapes.md), so
+                    // for now editing the node ring resets its edges to
+                    // straight — safe, never a misrendered arc.
+                    s.bulges.clear();
                 }
             });
         }
@@ -721,6 +767,9 @@ fn planner_body() -> impl IntoView {
                     && let Some(corners) = delete_node(&s.corners, ni)
                 {
                     s.corners = corners;
+                    // Deleting a node changes the edge count — reset the
+                    // per-edge bulges to straight (see the insert callback).
+                    s.bulges.clear();
                 }
             });
             selected_nodes.set(Vec::new());
@@ -951,6 +1000,7 @@ fn planner_body() -> impl IntoView {
                             on_node_press=on_node_press
                             on_insert_node=on_insert_node
                             on_cancel_nodes=on_cancel_nodes
+                            on_edge_press=on_edge_press
                             on_house_press=on_house_press
                             on_house_node_press=on_house_node_press
                             on_deck_level_press=on_deck_level_press
@@ -1097,6 +1147,43 @@ fn nearest_level(levels: &[DeckLevel], anchor: &Coord) -> Option<DeckLevel> {
         .filter_map(|lvl| nearest_wall(&lvl.corners, anchor).map(|(_, _, d)| (d, lvl)))
         .min_by(|a, b| a.0.total_cmp(&b.0))
         .map(|(_, lvl)| lvl.clone())
+}
+
+/// The bulge for edge `ei` (node `ei`→next) implied by the cursor at `raw`:
+/// the signed perpendicular offset of the cursor from the edge's chord
+/// midpoint, as a fraction of the half-chord (`bulge = 2·sagitta/chord`).
+/// Positive is left of the edge's travel direction (matching the renderer).
+/// `None` for a degenerate (zero-length) edge. Clamped to a sane range and
+/// rounded so a dragged arc lands on tidy curvature values.
+fn edge_bulge_from_cursor(corners: &[Coord], ei: usize, raw: &Coord) -> Option<f64> {
+    let n = corners.len();
+    let from = &corners[ei];
+    let to = &corners[(ei + 1) % n];
+    let (dx, dy) = (to.x - from.x, to.y - from.y);
+    let chord = dx.hypot(dy);
+    if chord < 1e-9 {
+        return None;
+    }
+    let (mx, my) = (from.x.midpoint(to.x), from.y.midpoint(to.y));
+    // Left normal of `from`→`to`; the signed perpendicular offset is the sagitta.
+    let (nx, ny) = (-dy / chord, dx / chord);
+    let sagitta = (raw.x - mx).mul_add(nx, (raw.y - my) * ny);
+    let bulge = 2.0 * sagitta / chord;
+    // Clamp to a major-arc-ish range and round to a tidy step (0.05).
+    let clamped = bulge.clamp(-BULGE_LIMIT, BULGE_LIMIT);
+    Some((clamped / BULGE_STEP).round() * BULGE_STEP)
+}
+
+/// Set edge `ei`'s bulge in `bulges`, growing it to `edge_count` (padding with
+/// zeros) so the parallel per-edge array stays aligned with the corner ring.
+fn set_bulge(bulges: &mut Vec<f64>, edge_count: usize, ei: usize, bulge: f64) {
+    if ei >= edge_count {
+        return;
+    }
+    if bulges.len() < edge_count {
+        bulges.resize(edge_count, 0.0);
+    }
+    bulges[ei] = bulge;
 }
 
 /// Clear the active tool and any in-progress placement.
