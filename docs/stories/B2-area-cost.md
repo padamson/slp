@@ -23,8 +23,9 @@ decide what to buy.
         area by `yd³ = ft²·in/324`, so the estimate lists **Pavers / Gravel base
         / Bedding sand** as three itemized lines. The paver area's inspector
         shows the all-in (surface + base + bedding) cost.
-  - [ ] course depths are catalog-level (fixed per paver type); editing them
-        per-area is deferred to the catalog inspector ([M4-M5](M4-M5-material-ingestion.md))
+  - [ ] course material + depth are catalog-level here (fixed per paver type);
+        making them **per-area** (this patio on one gravel, that patio on
+        another) is [B3](B3-area-composition.md)
 - **B2.3 — live settings**
   - [x] selecting an area floats an inspector (material · ft² · cost) beside the
         canvas — the area counterpart of the object inspector, per the "metadata

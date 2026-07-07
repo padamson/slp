@@ -59,6 +59,28 @@ so that my estimate reflects things I can actually buy, not placeholder data.
   - [ ] deleting a catalog item the plan has no objects placed from removes it
         outright; one that's in use is blocked (or asks to remove the
         placements first) — never a dangling `catalog_ref` (M4.3b, next)
+  - [ ] **add** a new catalog item by hand (name/category/price/`price_unit`/
+        dimensions) — the manual-authoring entry point (also
+        [B3.0](B3-area-composition.md)); pairs with the `price_unit` `Select`
+        from [B3.3](B3-area-composition.md)
+- **M4.4 — material images (visualization + surface tiling)** — *`PLAN.md` §2:
+  "a material = {image(s), real dimensions, unit price, provenance}", feeding
+  "both 2D tiling and 3D albedo".*
+  - [ ] a material carries an image: the `asset` ref (M4.0) plus a **real-world
+        tile size** (how many feet the image spans, for scale). When adding/
+        editing a material, attach an image — a user upload or a URL/cache path.
+        [design fork: a small thumbnail inline (data-URI, portable through
+        `localStorage`/export) vs. a `materials/cache/` path or IndexedDB blob
+        for large/ingested assets — recommend inline thumbnail + cache-path for
+        full-res; never commit the binary]
+  - [ ] **thumbnail**: the flat color swatch in the catalog panel, the Area
+        tool's material picker, and the area inspector becomes the actual
+        material photo when one is present (flat color as fallback)
+  - [ ] **surface tiling**: a drawn area (paver/mulch) fills with its surface
+        material's image tiled as an SVG `<pattern>` at real-world scale
+        (`patternUnits="userSpaceOnUse"`, tile = tile-size-ft × px_ft), so a
+        2×2 ft sample repeats to scale across the polygon; flat color when there's
+        no image. 2.5D-ready — the same texture is the 3D surface albedo later.
 - **M5.0 — swap & compare**
   - [ ] from a selected placed object, browse the catalog for an alternative in
         the same category and preview the swap (footprint + cost delta) before
