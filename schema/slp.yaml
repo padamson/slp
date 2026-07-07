@@ -62,6 +62,10 @@ classes:
       - height_ft
       - clearance_ft
       - trunk_diameter_ft
+      - base_material_ref
+      - base_depth_in
+      - bedding_material_ref
+      - bedding_depth_in
     slot_usage:
       id:
         required: true
@@ -306,6 +310,27 @@ slots:
       Id of the catalog *material* a drawn area is made of (mulch, pavers, …),
       the area analogue of an object's `catalog_ref`. Absent = uncategorized
       geometry with no cost.
+  base_material_ref:
+    description: |-
+      For an installed-surface material (pavers), the id of the catalog material
+      forming its compacted base course (crushed gravel). Its volume is costed
+      per drawn area of this material at `base_depth_in`. Absent = no base course.
+  base_depth_in:
+    range: double
+    description: |-
+      Thickness of the base course, in inches, for a material with a
+      `base_material_ref` (e.g. a paver's ~4 in of gravel) — `yd³ = ft²·in/324`.
+  bedding_material_ref:
+    description: |-
+      For an installed-surface material (pavers), the id of the catalog material
+      forming its bedding layer (setting sand) directly under the surface. Its
+      volume is costed per drawn area of this material at `bedding_depth_in`.
+      Absent = no bedding layer.
+  bedding_depth_in:
+    range: double
+    description: |-
+      Thickness of the bedding layer, in inches, for a material with a
+      `bedding_material_ref` (e.g. a paver's ~1 in of sand) — `yd³ = ft²·in/324`.
   depth_in:
     range: double
     description: |-

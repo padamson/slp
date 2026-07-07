@@ -72,6 +72,27 @@ pub enum PriceUnit {
 /// `Object.canopy_diameter_ft`/`trunk_diameter_ft`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CatalogItem {
+    /// Thickness of the base course, in inches, for a material with a
+    /// `base_material_ref` (e.g. a paver's ~4 in of gravel) — `yd³ =
+    /// ft²·in/324`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_depth_in: Option<f64>,
+    /// For an installed-surface material (pavers), the id of the catalog material
+    /// forming its compacted base course (crushed gravel). Its volume is costed
+    /// per drawn area of this material at `base_depth_in`. Absent = no base course.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_material_ref: Option<String>,
+    /// Thickness of the bedding layer, in inches, for a material with a
+    /// `bedding_material_ref` (e.g. a paver's ~1 in of sand) — `yd³ =
+    /// ft²·in/324`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bedding_depth_in: Option<f64>,
+    /// For an installed-surface material (pavers), the id of the catalog material
+    /// forming its bedding layer (setting sand) directly under the surface. Its
+    /// volume is costed per drawn area of this material at `bedding_depth_in`.
+    /// Absent = no bedding layer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bedding_material_ref: Option<String>,
     /// Catalog category, e.g. "furniture", "mulch-bed", "paver".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
@@ -123,6 +144,10 @@ fn default_catalog_item_shape() -> FootprintShape { FootprintShape::rectangle }
 impl CatalogItem {
     pub fn new(id: String) -> Self {
         Self {
+            base_depth_in: None,
+            base_material_ref: None,
+            bedding_depth_in: None,
+            bedding_material_ref: None,
             category: None,
             clearance_ft: None,
             depth_ft: None,

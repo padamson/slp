@@ -17,7 +17,14 @@ decide what to buy.
 - **B2.1 — paver cost line**
   - [x] an estimate panel shows pavers (area × $/ft²) and a grand total
 - **B2.2 — gravel + sand**
-  - [ ] base + bedding volume + cost lines, using yd³ = ft²·in/324
+  - [x] a paver material declares its assembly — a gravel **base course** and a
+        **bedding sand** layer (each a per-yd³ catalog material + a course depth
+        on the paver item); `take_off` costs their volume beneath every paver
+        area by `yd³ = ft²·in/324`, so the estimate lists **Pavers / Gravel base
+        / Bedding sand** as three itemized lines. The paver area's inspector
+        shows the all-in (surface + base + bedding) cost.
+  - [ ] course depths are catalog-level (fixed per paver type); editing them
+        per-area is deferred to the catalog inspector ([M4-M5](M4-M5-material-ingestion.md))
 - **B2.3 — live settings**
   - [x] selecting an area floats an inspector (material · ft² · cost) beside the
         canvas — the area counterpart of the object inspector, per the "metadata

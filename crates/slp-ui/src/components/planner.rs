@@ -1458,9 +1458,29 @@ fn selected_area(
     let unit_price = item.and_then(|i| i.unit_price);
     let show_depth = price_unit == Some(PriceUnit::per_cubic_yard);
     // Cost of this one area, by its material's pricing: per-ft² of surface, or
-    // per-yd³ of volume at its depth (`yd³ = ft²·in/324`).
+    // per-yd³ of volume at its depth (`yd³ = ft²·in/324`). A surface material
+    // (pavers) adds the cost of its base + bedding courses beneath this area,
+    // so the panel shows the area's all-in cost — mirroring the itemized
+    // pavers/gravel/sand lines in the estimate.
     let cost = match (&price_unit, unit_price) {
-        (Some(PriceUnit::per_square_foot), Some(p)) => Some(area_ft2 * p),
+        (Some(PriceUnit::per_square_foot), Some(p)) => {
+            let mut total = area_ft2 * p;
+            if let Some(i) = item {
+                total += course_cost(
+                    catalog,
+                    i.base_material_ref.as_deref(),
+                    i.base_depth_in,
+                    area_ft2,
+                );
+                total += course_cost(
+                    catalog,
+                    i.bedding_material_ref.as_deref(),
+                    i.bedding_depth_in,
+                    area_ft2,
+                );
+            }
+            Some(total)
+        }
         (Some(PriceUnit::per_cubic_yard), Some(p)) => Some(area_ft2 * depth / 324.0 * p),
         _ => None,
     };
@@ -1473,6 +1493,29 @@ fn selected_area(
         show_depth,
         cost,
     })
+}
+
+/// The dollar cost of a sub-base course (gravel base / bedding sand) beneath a
+/// `area_ft2` surface: `yd³ = ft²·depth_in/324` at the referenced material's
+/// price. Zero when the surface names no such course, or it isn't in the
+/// catalog / has no price.
+fn course_cost(
+    catalog: &[CatalogItem],
+    material_ref: Option<&str>,
+    depth_in: Option<f64>,
+    area_ft2: f64,
+) -> f64 {
+    let Some(id) = material_ref else {
+        return 0.0;
+    };
+    let Some(price) = catalog
+        .iter()
+        .find(|c| c.id == id)
+        .and_then(|c| c.unit_price)
+    else {
+        return 0.0;
+    };
+    area_ft2 * depth_in.unwrap_or(0.0) / 324.0 * price
 }
 
 /// A shape's enclosed area (ft²), accounting for any arc/curve edges — the UI
@@ -1752,7 +1795,35 @@ fn starter_catalog() -> Vec<CatalogItem> {
             PriceUnit::per_cubic_yard,
             40.0,
         ),
-        material("paver", "Pavers", "paver", PriceUnit::per_square_foot, 8.0),
+        {
+            // A paver patio is a three-layer assembly: the pavers themselves
+            // (per ft²) over a compacted gravel base (~4 in) over a bedding
+            // sand layer (~1 in). The base/bedding materials are seeded right
+            // after this so the estimate lists all three lines together; their
+            // volume follows every paver area automatically (see `take_off`).
+            let mut paver = material("paver", "Pavers", "paver", PriceUnit::per_square_foot, 8.0);
+            paver.base_material_ref = Some("paver-base".to_string());
+            paver.base_depth_in = Some(4.0);
+            paver.bedding_material_ref = Some("paver-sand".to_string());
+            paver.bedding_depth_in = Some(1.0);
+            paver
+        },
+        // The paver sub-base courses, costed per yd³ (typical bulk/delivered
+        // prices): crushed gravel base, then bedding sand.
+        material(
+            "paver-base",
+            "Gravel base",
+            "paver-base",
+            PriceUnit::per_cubic_yard,
+            55.0,
+        ),
+        material(
+            "paver-sand",
+            "Bedding sand",
+            "paver-sand",
+            PriceUnit::per_cubic_yard,
+            42.0,
+        ),
     ]
 }
 

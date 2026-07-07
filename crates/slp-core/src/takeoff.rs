@@ -9,7 +9,7 @@
 //! the area (or volume) of every drawn `Shape`/`Circle` whose `material_ref`
 //! names it.
 
-use crate::generated::slp::{ItemStatus, Plan, PriceUnit};
+use crate::generated::slp::{CatalogItem, ItemStatus, Plan, PriceUnit};
 use crate::{Point, Shape, boundary_area, circle_area};
 
 /// One line of the bill of materials: a catalog item/material, the measured
@@ -113,22 +113,55 @@ fn material_area(plan: &Plan, id: &str) -> f64 {
     shapes + circles
 }
 
-/// The total volume (yd³) of every drawn `Shape`/`Circle` made of material
-/// `id`, each at its own depth — `yd³ = ft²·depth_in / 324`.
+/// The total volume (yd³) of material `id` across the plan: every drawn area
+/// made *of* it (at that area's own depth, e.g. a mulch or gravel bed), **plus**
+/// — when `id` is the base or bedding course of a surface material like pavers —
+/// the base/bedding volume beneath every drawn area of that surface, at the
+/// surface material's declared course depth. All by `yd³ = ft²·depth_in / 324`.
 fn material_volume(plan: &Plan, id: &str) -> f64 {
-    let shapes: f64 = plan
-        .shapes
-        .iter()
-        .filter(|s| s.material_ref.as_deref() == Some(id))
-        .map(|s| volume_yd3(shape_area(s), s.depth_in.unwrap_or(0.0)))
-        .sum();
-    let circles: f64 = plan
-        .circles
-        .iter()
-        .filter(|c| c.material_ref.as_deref() == Some(id))
-        .map(|c| volume_yd3(circle_area(c.radius_ft), c.depth_in.unwrap_or(0.0)))
-        .sum();
-    shapes + circles
+    let mut volume = 0.0;
+    for (material_ref, area_ft2, own_depth) in area_measures(plan) {
+        // A bed literally made of `id` (mulch, gravel), at its own depth.
+        if material_ref == Some(id) {
+            volume += volume_yd3(area_ft2, own_depth);
+        }
+        // A surface (paver) area whose material names `id` as its base or
+        // bedding course contributes that course's volume beneath it.
+        if let Some(surface) = material_ref.and_then(|m| catalog_item(plan, m)) {
+            if surface.base_material_ref.as_deref() == Some(id) {
+                volume += volume_yd3(area_ft2, surface.base_depth_in.unwrap_or(0.0));
+            }
+            if surface.bedding_material_ref.as_deref() == Some(id) {
+                volume += volume_yd3(area_ft2, surface.bedding_depth_in.unwrap_or(0.0));
+            }
+        }
+    }
+    volume
+}
+
+/// Every drawn area's `(material_ref, area ft², own depth_in)` — shapes then
+/// circles — the raw inputs for area/volume take-off.
+fn area_measures(plan: &Plan) -> Vec<(Option<&str>, f64, f64)> {
+    let shapes = plan.shapes.iter().map(|s| {
+        (
+            s.material_ref.as_deref(),
+            shape_area(s),
+            s.depth_in.unwrap_or(0.0),
+        )
+    });
+    let circles = plan.circles.iter().map(|c| {
+        (
+            c.material_ref.as_deref(),
+            circle_area(c.radius_ft),
+            c.depth_in.unwrap_or(0.0),
+        )
+    });
+    shapes.chain(circles).collect()
+}
+
+/// The catalog item with `id`, if the plan's catalog holds one.
+fn catalog_item<'a>(plan: &'a Plan, id: &str) -> Option<&'a CatalogItem> {
+    plan.catalog.iter().find(|c| c.id == id)
 }
 
 /// A shape's enclosed area (ft²), accounting for any arc/curve edges.
@@ -440,6 +473,124 @@ mod tests {
             vec![],
         ));
         assert!(bom.lines.is_empty(), "no mulch bed, so no mulch line");
+    }
+
+    // --- Paver sub-base (gravel + bedding) driven off the paver assembly ---
+
+    /// A paver material sitting on `base_depth` in of `base` gravel and
+    /// `bed_depth` in of `bed` sand.
+    fn paver_on(base: &str, base_depth: f64, bed: &str, bed_depth: f64) -> CatalogItem {
+        let mut c = material("paver", "Pavers", 6.0, PriceUnit::per_square_foot);
+        c.base_material_ref = Some(base.to_string());
+        c.base_depth_in = Some(base_depth);
+        c.bedding_material_ref = Some(bed.to_string());
+        c.bedding_depth_in = Some(bed_depth);
+        c
+    }
+
+    #[test]
+    fn a_paver_area_drives_gravel_base_and_bedding_sand_volumes() {
+        // A 10×10 = 100 ft² paver patio on 4 in gravel + 1 in sand:
+        //   gravel = 100·4/324 ≈ 1.235 yd³ × $50 ≈ $61.73
+        //   sand   = 100·1/324 ≈ 0.309 yd³ × $30 ≈ $9.26
+        //   pavers = 100 ft² × $6 = $600
+        let bom = take_off(&plan_with_areas(
+            vec![
+                paver_on("gravel", 4.0, "sand", 1.0),
+                material("gravel", "Gravel base", 50.0, PriceUnit::per_cubic_yard),
+                material("sand", "Bedding sand", 30.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![bed("paver", 10.0, 10.0, 0.0)],
+            vec![],
+        ));
+        // Three itemized lines, in catalog order: pavers, gravel, sand.
+        assert_eq!(bom.lines.len(), 3);
+        assert_eq!(bom.lines[0].catalog_ref, "paver");
+        assert!((bom.lines[0].quantity - 100.0).abs() < 1e-9);
+
+        assert_eq!(bom.lines[1].catalog_ref, "gravel");
+        let gravel_yd3 = 100.0 * 4.0 / 324.0;
+        assert!(
+            (bom.lines[1].quantity - gravel_yd3).abs() < 1e-9,
+            "gravel yd³"
+        );
+        assert!((bom.lines[1].line_total - gravel_yd3 * 50.0).abs() < 1e-9);
+
+        assert_eq!(bom.lines[2].catalog_ref, "sand");
+        let sand_yd3 = 100.0 * 1.0 / 324.0;
+        assert!((bom.lines[2].quantity - sand_yd3).abs() < 1e-9, "sand yd³");
+        assert!((bom.lines[2].line_total - sand_yd3 * 30.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_base_course_sums_direct_beds_and_paver_driven_volume() {
+        // "gravel" is used both as a paver's base (100 ft² × 4 in) AND as its
+        // own 6 in deep drainage bed (10×8 = 80 ft²). The gravel line is the
+        // sum of both, so neither contribution may be dropped.
+        let bom = take_off(&plan_with_areas(
+            vec![
+                paver_on("gravel", 4.0, "sand", 1.0),
+                material("gravel", "Gravel", 50.0, PriceUnit::per_cubic_yard),
+                material("sand", "Sand", 30.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![bed("paver", 10.0, 10.0, 0.0), bed("gravel", 10.0, 8.0, 6.0)],
+            vec![],
+        ));
+        let gravel = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "gravel")
+            .unwrap();
+        let expected = 100.0 * 4.0 / 324.0 + 80.0 * 6.0 / 324.0;
+        assert!(
+            (gravel.quantity - expected).abs() < 1e-9,
+            "paver base {} + direct bed {} = {expected}, got {}",
+            100.0 * 4.0 / 324.0,
+            80.0 * 6.0 / 324.0,
+            gravel.quantity
+        );
+    }
+
+    #[test]
+    fn a_plain_per_ft2_material_drives_no_sub_base() {
+        // A paver with no base/bedding refs adds only its own ft² line — no
+        // phantom gravel/sand volume.
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Pavers", 6.0, PriceUnit::per_square_foot),
+                material("gravel", "Gravel", 50.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![bed("paver", 10.0, 10.0, 0.0)],
+            vec![],
+        ));
+        assert_eq!(bom.lines.len(), 1, "only the paver line");
+        assert_eq!(bom.lines[0].catalog_ref, "paver");
+    }
+
+    #[test]
+    fn a_round_paver_area_also_drives_its_sub_base() {
+        // The base/bedding volume follows a circular paver area too.
+        let circle = Circle {
+            material_ref: Some("paver".to_string()),
+            depth_in: Some(0.0),
+            ..Circle::new(Box::new(Coord::new(20.0, 20.0)), 0.0, 5.0)
+        };
+        let bom = take_off(&plan_with_areas(
+            vec![
+                paver_on("gravel", 4.0, "sand", 1.0),
+                material("gravel", "Gravel", 50.0, PriceUnit::per_cubic_yard),
+                material("sand", "Sand", 30.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![],
+            vec![circle],
+        ));
+        let gravel = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "gravel")
+            .unwrap();
+        let expected = circle_area(5.0) * 4.0 / 324.0;
+        assert!((gravel.quantity - expected).abs() < 1e-9);
     }
 
     #[test]

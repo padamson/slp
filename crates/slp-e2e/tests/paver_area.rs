@@ -95,6 +95,21 @@ async fn draws_a_paver_area_and_costs_it_per_square_foot() -> Result<()> {
     );
     assert!(text.contains("80 ft²"), "10×8 = 80 ft²: {text}");
 
+    // The paver assembly itemizes its sub-base: a Gravel base and a Bedding
+    // sand line, each measured in yd³ (80 ft² × 4 in / 324 ≈ 1.0 yd³ gravel,
+    // × 1 in ≈ 0.2 yd³ sand).
+    let with_base = wait_contains(&estimate, "Gravel base")
+        .await
+        .context("the estimate itemizes the gravel base")?;
+    assert!(
+        with_base.contains("Bedding sand"),
+        "and the bedding sand: {with_base}"
+    );
+    assert!(
+        with_base.contains("yd³"),
+        "the sub-base courses read in yd³: {with_base}"
+    );
+
     // Reload — the paver area (and its cost) persist.
     page.reload(None).await.context("reload the page")?;
     expect(page.locator("[data-testid='yard'] .shape polygon").await)
