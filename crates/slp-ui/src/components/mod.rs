@@ -3,6 +3,7 @@
 //! (`cfg(test)`). Dotted file names use `#[path]` (not valid module idents).
 
 mod area_inspector;
+mod catalog_panel;
 mod circles;
 mod deck;
 mod door;
@@ -19,6 +20,7 @@ mod planner;
 mod scale_bar;
 mod shapes;
 mod steps;
+mod text_field;
 mod toggle;
 mod tool_button;
 mod tool_group;
@@ -28,6 +30,7 @@ mod yard;
 mod yard_controls;
 
 pub use area_inspector::AreaInspector;
+pub use catalog_panel::CatalogPanel;
 pub use circles::Circles;
 pub use deck::Deck;
 pub use door::Door;
@@ -44,6 +47,7 @@ pub use planner::Planner;
 pub use scale_bar::{DEFAULT_LENGTH_FT, ScaleBar};
 pub use shapes::Shapes;
 pub use steps::Steps;
+pub use text_field::TextField;
 pub use toggle::Toggle;
 pub use tool_button::ToolButton;
 pub use tool_group::ToolGroup;
@@ -179,6 +183,9 @@ pub struct Modifiers {
 #[path = "area_inspector.stories.rs"]
 mod area_inspector_stories;
 #[cfg(feature = "stories")]
+#[path = "catalog_panel.stories.rs"]
+mod catalog_panel_stories;
+#[cfg(feature = "stories")]
 #[path = "circles.stories.rs"]
 mod circles_stories;
 #[cfg(feature = "stories")]
@@ -227,6 +234,9 @@ mod shapes_stories;
 #[path = "steps.stories.rs"]
 mod steps_stories;
 #[cfg(feature = "stories")]
+#[path = "text_field.stories.rs"]
+mod text_field_stories;
+#[cfg(feature = "stories")]
 #[path = "toggle.stories.rs"]
 mod toggle_stories;
 #[cfg(feature = "stories")]
@@ -265,6 +275,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(shapes_stories::stories());
     s.extend(circles_stories::stories());
     s.extend(area_inspector_stories::stories());
+    s.extend(catalog_panel_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
     s.extend(window_stories::stories());
@@ -276,6 +287,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(tool_button_stories::stories());
     s.extend(toggle_stories::stories());
     s.extend(number_field_stories::stories());
+    s.extend(text_field_stories::stories());
     s.extend(tool_group_stories::stories());
     s.extend(yard_controls_stories::stories());
     s
@@ -284,6 +296,9 @@ pub fn stories() -> Vec<theoria::Story> {
 #[cfg(test)]
 #[path = "area_inspector.tests.rs"]
 mod area_inspector_tests;
+#[cfg(test)]
+#[path = "catalog_panel.tests.rs"]
+mod catalog_panel_tests;
 #[cfg(test)]
 #[path = "circles.tests.rs"]
 mod circles_tests;
@@ -332,6 +347,9 @@ mod shapes_tests;
 #[cfg(test)]
 #[path = "steps.tests.rs"]
 mod steps_tests;
+#[cfg(test)]
+#[path = "text_field.tests.rs"]
+mod text_field_tests;
 #[cfg(test)]
 #[path = "toggle.tests.rs"]
 mod toggle_tests;

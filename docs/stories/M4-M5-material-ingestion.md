@@ -44,19 +44,21 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         starter item) or **rejects** it (discarded, cache entry cleaned up)
   - [ ] a parse that comes back incomplete (missing price/dimensions) is
         flagged for the user to fill in during review, not silently guessed
-- **M4.3 — catalog inspector (edit any catalog item's metadata)**
-  - [ ] a catalog-browsing/editing panel — the catalog-side counterpart to
-        [`ObjectInspector`](E1-place-furniture.md) (which edits a *placed*
-        object): list every item in the plan's catalog (ingested + starter +
-        hand-added), select one, edit its name/category/price/`price_unit`/
-        dimensions/image directly
-  - [ ] editing a catalog item's footprint/price updates every object already
+- **M4.3 — catalog inspector (edit any catalog item's metadata)** ✅ *partly done*
+  - [x] a catalog-browsing/editing panel (`CatalogPanel`) — the catalog-side
+        counterpart to [`ObjectInspector`](E1-place-furniture.md) (which edits a
+        *placed* object): a toolbar-toggled drawer listing every item in the
+        plan's catalog, select one, edit its name/category/price and footprint
+        dimensions (width/depth/height) directly. Built on a new reusable
+        `TextField` primitive (the string counterpart of `NumberField`).
+  - [ ] `price_unit` and image editing not yet wired (needs a select control /
+        the ingestion asset path) — a follow-up
+  - [x] editing a catalog item's footprint/price updates every object already
         placed from it (they reference it by `catalog_ref`, not a copy) — the
-        estimate and render react live, same as any other catalog change
-      today
+        estimate reprices and the footprint re-renders live (e2e-covered)
   - [ ] deleting a catalog item the plan has no objects placed from removes it
         outright; one that's in use is blocked (or asks to remove the
-        placements first) — never a dangling `catalog_ref`
+        placements first) — never a dangling `catalog_ref` (M4.3b, next)
 - **M5.0 — swap & compare**
   - [ ] from a selected placed object, browse the catalog for an alternative in
         the same category and preview the swap (footprint + cost delta) before

@@ -17,7 +17,7 @@ use slp_core::{
 };
 
 use super::{
-    AreaInspector, CanvasMetrics, EstimatePanel, Footprint, Modifiers, NumberField,
+    AreaInspector, CanvasMetrics, CatalogPanel, EstimatePanel, Footprint, Modifiers, NumberField,
     ObjectInspector, ObjectPalette, Toggle, ToolButton, ToolGroup, Yard, YardControls,
 };
 
@@ -171,6 +171,10 @@ fn planner_body() -> impl IntoView {
     let objects = RwSignal::new(plan.objects);
     let catalog = RwSignal::new(init_catalog);
     let selected_id = RwSignal::new(init_selected);
+    // The catalog inspector: whether its editing panel is open, and which
+    // catalog item (by id) is being edited.
+    let catalog_open = RwSignal::new(false);
+    let catalog_selected = RwSignal::new(None::<String>);
     // The index (into `objects`) of the selected placed object, if any.
     let selected = RwSignal::new(None::<usize>);
     // The canvas's rendered geometry, measured once per resize (from Yard).
@@ -896,6 +900,37 @@ fn planner_body() -> impl IntoView {
         }
     });
 
+    // Catalog inspector: select an item to edit, close the panel, and edit the
+    // selected item's fields by id. Objects reference their catalog item by
+    // `catalog_ref` (not a copy), so every edit reprices and re-renders every
+    // object placed from it, live.
+    let select_catalog_item = Callback::new(move |id: String| catalog_selected.set(Some(id)));
+    let close_catalog = Callback::new(move |()| catalog_open.set(false));
+    // Apply `edit` to the catalog item currently selected in the panel.
+    let edit_selected_catalog = move |edit: &dyn Fn(&mut CatalogItem)| {
+        if let Some(id) = catalog_selected.get_untracked() {
+            catalog.update(|list| {
+                if let Some(c) = list.iter_mut().find(|c| c.id == id) {
+                    edit(c);
+                }
+            });
+        }
+    };
+    // An empty name/category clears the field (back to a fallback / uncategorized)
+    // rather than storing a blank string.
+    let set_catalog_name =
+        Callback::new(move |v: String| edit_selected_catalog(&|c| c.name = non_empty(&v)));
+    let set_catalog_category =
+        Callback::new(move |v: String| edit_selected_catalog(&|c| c.category = non_empty(&v)));
+    let set_catalog_price =
+        Callback::new(move |v: f64| edit_selected_catalog(&|c| c.unit_price = Some(v)));
+    let set_catalog_width =
+        Callback::new(move |v: f64| edit_selected_catalog(&|c| c.width_ft = Some(v)));
+    let set_catalog_depth =
+        Callback::new(move |v: f64| edit_selected_catalog(&|c| c.depth_ft = Some(v)));
+    let set_catalog_height =
+        Callback::new(move |v: f64| edit_selected_catalog(&|c| c.height_ft = Some(v)));
+
     // Remove the selected shape's selected node (refused, per `delete_node`,
     // if it would leave the shape below its 3-node drawable minimum).
     let delete_selected_node = Callback::new(move |()| {
@@ -1098,6 +1133,14 @@ fn planner_body() -> impl IntoView {
                     testid="snap-ortho"
                     checked=ortho
                     on_toggle=Callback::new(move |v| ortho.set(v))
+                />
+            </ToolGroup>
+            <ToolGroup label="Catalog">
+                <ToolButton
+                    label="Edit catalog"
+                    testid="edit-catalog"
+                    active=Signal::derive(move || catalog_open.get())
+                    on_pick=Callback::new(move |()| catalog_open.update(|o| *o = !*o))
                 />
             </ToolGroup>
         </div>
@@ -1366,6 +1409,25 @@ fn planner_body() -> impl IntoView {
             </div>
             // The estimate appears alongside the canvas once there's a catalog.
             {move || { (!catalog.get().is_empty()).then(|| view! { <EstimatePanel bom=bom /> }) }}
+            // The catalog inspector, when opened from the toolbar.
+            {move || {
+                catalog_open.get().then(|| {
+                    view! {
+                        <CatalogPanel
+                            catalog=catalog
+                            selected=catalog_selected
+                            on_select=select_catalog_item
+                            on_name=set_catalog_name
+                            on_category=set_catalog_category
+                            on_price=set_catalog_price
+                            on_width=set_catalog_width
+                            on_depth=set_catalog_depth
+                            on_height=set_catalog_height
+                            on_close=close_catalog
+                        />
+                    }
+                })
+            }}
         </div>
     }
 }
@@ -1691,6 +1753,13 @@ fn reset(
     preview.set(None);
     tool.set(None);
     sticky_run.set(false);
+}
+
+/// A trimmed-to-`Option` string: `Some(s)` unless it's empty, so clearing a
+/// catalog item's name/category stores `None` (a fallback / uncategorized)
+/// rather than a blank string.
+fn non_empty(s: &str) -> Option<String> {
+    (!s.is_empty()).then(|| s.to_string())
 }
 
 /// The status hint for the active tool.
