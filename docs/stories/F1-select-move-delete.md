@@ -39,8 +39,11 @@ layout without redrawing — the same way I'd shuffle real furniture around a de
         each selectable thing is its own parallel signal, cleared by a shared
         `clear_selection` helper so picking one always deselects the rest)
   - [ ] step runs aren't yet selectable (no story has needed it yet)
-  - [ ] delete removes the corresponding geometry (a deck level, a step run,
-        the house) — not built; only node-level delete exists so far ([F3.1](F3-draw-edit-shapes.md))
+  - [x] selecting the house or a deck level floats the shared `AreaInspector`
+        in structure mode — its footprint (ft²), a build-status control
+        (existing/planned), a deck level's elevation, and **Remove** ([B2](B2-area-cost.md))
+  - [x] Remove deletes the corresponding geometry (a deck level, or the house
+        outline + its openings); step-run delete is still unbuilt
 - **F1.3 — move a drawn outline**
   - [ ] drag a whole deck level or step run (translate all its vertices),
         grid-snapped, with the same press-to-grab gesture

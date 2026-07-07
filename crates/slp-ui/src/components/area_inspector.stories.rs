@@ -2,7 +2,7 @@
 //! feature.
 
 use leptos::prelude::*;
-use slp_core::Corner;
+use slp_core::{Corner, ItemStatus};
 
 use super::AreaInspector;
 use theoria::Story;
@@ -44,6 +44,37 @@ pub fn stories() -> Vec<Story> {
                     depth=0.0
                 show_depth=false
                     cost=Some(960.0)
+                    corner=Corner::Nw
+                    on_elevation=noop_f64()
+                    on_depth=noop_f64()
+                    on_delete=noop()
+                />
+            }
+        }),
+        Story::new("Panels/AreaInspector/Deck level", || {
+            view! {
+                <AreaInspector
+                    title="Deck".to_string()
+                    area_ft2=240.0
+                    elevation=2.0
+                    depth=0.0
+                    status=Some(ItemStatus::existing)
+                    corner=Corner::Se
+                    on_elevation=noop_f64()
+                    on_depth=noop_f64()
+                    on_delete=noop()
+                />
+            }
+        }),
+        Story::new("Panels/AreaInspector/House (no elevation)", || {
+            view! {
+                <AreaInspector
+                    title="House".to_string()
+                    area_ft2=1200.0
+                    elevation=0.0
+                    show_elevation=false
+                    depth=0.0
+                    status=Some(ItemStatus::planned)
                     corner=Corner::Nw
                     on_elevation=noop_f64()
                     on_depth=noop_f64()

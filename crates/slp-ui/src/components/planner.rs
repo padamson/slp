@@ -91,11 +91,9 @@ fn planner_body() -> impl IntoView {
     });
     let (width, set_width) = signal(plan.yard_width);
     let (depth, set_depth) = signal(plan.yard_depth);
-    // The committed house: outline corners + openings. `structure_status` isn't
-    // tracked by its own signal (no UI sets it yet — see the F1/E1.6 backlog),
-    // so it's captured once here and carried through unchanged on every save,
-    // rather than being silently reset to `existing` on the next persist.
-    let (init_corners, init_openings, house_status) = plan.house.map_or_else(
+    // The committed house: outline corners + openings + build status. The
+    // status is editable from the area inspector when the house is selected.
+    let (init_corners, init_openings, init_house_status) = plan.house.map_or_else(
         || (Vec::new(), Vec::new(), ItemStatus::existing),
         |h| {
             let House {
@@ -108,6 +106,7 @@ fn planner_body() -> impl IntoView {
     );
     let corners = RwSignal::new(init_corners);
     let openings = RwSignal::new(init_openings);
+    let house_status = RwSignal::new(init_house_status);
     let (init_levels, init_steps) = plan
         .deck
         .map(|d| {
@@ -218,7 +217,7 @@ fn planner_body() -> impl IntoView {
             Box::new(House {
                 corners: cs,
                 openings: os,
-                structure_status: house_status.clone(),
+                structure_status: house_status.get(),
             })
         });
         let dk = deck.get();
@@ -860,6 +859,43 @@ fn planner_body() -> impl IntoView {
         }
     });
 
+    // Structure (house / deck level) inspector edits. The house has one status
+    // and no elevation; a deck level has both.
+    let set_house_status = Callback::new(move |s: ItemStatus| house_status.set(s));
+    let delete_house = Callback::new(move |()| {
+        corners.set(Vec::new());
+        openings.set(Vec::new());
+        house_selected.set(false);
+    });
+    let set_deck_elevation = Callback::new(move |v: f64| {
+        if let Some(i) = selected_deck.get_untracked() {
+            deck.update(|levels| {
+                if let Some(l) = levels.get_mut(i) {
+                    l.elevation = v;
+                }
+            });
+        }
+    });
+    let set_deck_status = Callback::new(move |s: ItemStatus| {
+        if let Some(i) = selected_deck.get_untracked() {
+            deck.update(|levels| {
+                if let Some(l) = levels.get_mut(i) {
+                    l.structure_status = s;
+                }
+            });
+        }
+    });
+    let delete_deck_level = Callback::new(move |()| {
+        if let Some(i) = selected_deck.get_untracked() {
+            deck.update(|levels| {
+                if i < levels.len() {
+                    levels.remove(i);
+                }
+            });
+            selected_deck.set(None);
+        }
+    });
+
     // Remove the selected shape's selected node (refused, per `delete_node`,
     // if it would leave the shape below its 3-node drawable minimum).
     let delete_selected_node = Callback::new(move |()| {
@@ -1246,6 +1282,83 @@ fn planner_body() -> impl IntoView {
                                 on_elevation=set_area_elevation
                                 on_depth=set_area_depth
                                 on_delete=delete_selected_area
+                            />
+                        },
+                    )
+                }}
+                // When the house is selected, float its inspector — its
+                // structure status + footprint (it sits at grade, no elevation).
+                {move || {
+                    if !house_selected.get() {
+                        return None;
+                    }
+                    let cs = corners.get();
+                    if cs.is_empty() {
+                        return None;
+                    }
+                    let area_ft2 = boundary_area(&cs, &[], &[]);
+                    let m = metrics.get();
+                    let points = content_points(
+                        &cs,
+                        &deck.get(),
+                        &objects.get(),
+                        &shapes.get(),
+                        &circles.get(),
+                    );
+                    let (corner, style) =
+                        inspector_placement(&points, width.get(), depth.get(), &m);
+                    Some(
+                        view! {
+                            <AreaInspector
+                                title="House"
+                                area_ft2=area_ft2
+                                elevation=0.0
+                                show_elevation=false
+                                depth=0.0
+                                status=Some(house_status.get())
+                                corner=corner
+                                style=style
+                                on_elevation=Callback::new(|_| {})
+                                on_depth=Callback::new(|_| {})
+                                on_status=set_house_status
+                                on_delete=delete_house
+                            />
+                        },
+                    )
+                }}
+                // When a deck level is selected, float its inspector — status,
+                // elevation, and footprint.
+                {move || {
+                    let i = selected_deck.get()?;
+                    let levels = deck.get();
+                    let level = levels.get(i)?;
+                    let area_ft2 = boundary_area(&level.corners, &[], &[]);
+                    let elevation = level.elevation;
+                    let status = level.structure_status.clone();
+                    let m = metrics.get();
+                    let points = content_points(
+                        &corners.get(),
+                        &levels,
+                        &objects.get(),
+                        &shapes.get(),
+                        &circles.get(),
+                    );
+                    let (corner, style) =
+                        inspector_placement(&points, width.get(), depth.get(), &m);
+                    Some(
+                        view! {
+                            <AreaInspector
+                                title="Deck"
+                                area_ft2=area_ft2
+                                elevation=elevation
+                                depth=0.0
+                                status=Some(status)
+                                corner=corner
+                                style=style
+                                on_elevation=set_deck_elevation
+                                on_depth=Callback::new(|_| {})
+                                on_status=set_deck_status
+                                on_delete=delete_deck_level
                             />
                         },
                     )

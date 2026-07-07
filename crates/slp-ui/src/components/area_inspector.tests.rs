@@ -1,7 +1,7 @@
 //! dokime component tests for `AreaInspector`.
 
 use leptos::prelude::*;
-use slp_core::Corner;
+use slp_core::{Corner, ItemStatus};
 
 use super::AreaInspector;
 
@@ -95,6 +95,76 @@ fn an_unpriced_area_shows_a_dash_for_cost() {
     });
     assert!(html.contains("50 ft²"));
     assert!(html.contains("—"), "cost dashes out when unpriced");
+}
+
+#[test]
+fn a_deck_level_shows_status_and_elevation_but_no_material_or_cost() {
+    let html = dokime::render(move || {
+        view! {
+            <AreaInspector
+                title="Deck".to_string()
+                area_ft2=200.0
+                elevation=2.0
+                depth=0.0
+                status=Some(ItemStatus::existing)
+                corner=Corner::Ne
+                on_elevation=noop_f64()
+                on_depth=noop_f64()
+                on_delete=noop()
+            />
+        }
+    });
+    assert!(html.contains("Deck"));
+    assert!(html.contains("200 ft²"));
+    // Structure mode: existing/planned buttons, no material or cost row.
+    assert!(
+        html.contains(r#"data-testid="area-status""#),
+        "status control"
+    );
+    assert!(html.contains(r#"data-testid="area-status-existing""#));
+    assert!(
+        html.contains(r#"data-testid="area-inspector-elevation""#),
+        "deck elevation"
+    );
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="area-inspector-cost""#),
+        0,
+        "a structure has no cost row"
+    );
+    assert!(
+        !html.contains("Material"),
+        "no material row for a structure"
+    );
+}
+
+#[test]
+fn a_house_shows_status_but_hides_elevation() {
+    // The house sits at grade — its inspector has a status control but no
+    // elevation field.
+    let html = dokime::render(move || {
+        view! {
+            <AreaInspector
+                title="House".to_string()
+                area_ft2=1200.0
+                elevation=0.0
+                show_elevation=false
+                depth=0.0
+                status=Some(ItemStatus::planned)
+                corner=Corner::Nw
+                on_elevation=noop_f64()
+                on_depth=noop_f64()
+                on_delete=noop()
+            />
+        }
+    });
+    assert!(html.contains("House"));
+    assert!(html.contains("1200 ft²"));
+    assert!(html.contains(r#"data-testid="area-status""#));
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="area-inspector-elevation""#),
+        0,
+        "the house hides the elevation field"
+    );
 }
 
 #[test]

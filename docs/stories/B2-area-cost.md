@@ -40,9 +40,14 @@ decide what to buy.
   [B4](B4-draw-mulch-beds.md) (mulch beds, earlier in delivery order) is
   actually the first story to need the yd³-by-depth case read; B2 reuses that,
   adding the plain per-ft² case for pavers themselves.
-- **`AreaInspector`** (`slp-ui`) is the drawn-area counterpart of
-  `ObjectInspector`: it floats in the first empty yard corner when a shape or
-  circle is selected, resolves the area's material through the catalog for its
-  name/category/cost, and hosts B2.3's live depth/elevation edits + Remove.
-  Extending the same panel to structural areas (house, deck) — the rest of the
-  "metadata panels for all areas" ask — is a follow-up.
+- **`AreaInspector`** (`slp-ui`) is the region counterpart of `ObjectInspector`:
+  it floats in the first empty yard corner when a shape, circle, the house, or a
+  deck level is selected. For a **drawn area** it resolves the material through
+  the catalog for name/category/cost and hosts B2.3's live depth/elevation edits;
+  in **structure mode** (house / deck level) it swaps material+cost for a
+  build-status control (existing/planned) — with elevation for a deck level, none
+  for the grade-level house. Either can be removed. This closes the "metadata
+  panels for all areas (house, deck, pavers, mulch, …)" ask.
+- The inspector's corner placement dodges *every* placed/drawn feature via
+  `slp_core::content_points` (house, deck, objects, shape vertices, circle
+  center+rim), so a panel never floats over content.
