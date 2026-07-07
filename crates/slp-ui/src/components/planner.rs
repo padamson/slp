@@ -947,6 +947,11 @@ fn planner_body() -> impl IntoView {
         item.name = Some("New material".to_string());
         item.category = Some("material".to_string());
         item.unit_price = Some(0.0);
+        // A material is measured by volume/area, not placed as an object — so it
+        // just lives in the catalog for a course/area to reference, never a
+        // per-item palette tile. Default to bulk (per yd³); editable via the
+        // price-unit control. (Per-item would wrongly make it placeable.)
+        item.price_unit = PriceUnit::per_cubic_yard;
         catalog.update(|list| list.push(item));
         catalog_selected.set(Some(id));
     });

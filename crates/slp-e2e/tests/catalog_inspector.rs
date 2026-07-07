@@ -182,15 +182,23 @@ async fn adds_and_authors_a_material_that_persists() -> Result<()> {
         .fill("60", None)
         .await
         .context("price the material")?;
+    // A new material defaults to a bulk (per-yd³) unit — change it to per-ft² to
+    // prove the control mutates it.
     let unit = page.locator("[data-testid='catalog-price-unit']").await;
-    unit.select_option("per_cubic_yard", None)
+    unit.select_option("per_square_foot", None)
         .await
-        .context("price it per cubic yard")?;
+        .context("price it per square foot")?;
     assert_eq!(
         unit.input_value(None).await?,
-        "per_cubic_yard",
+        "per_square_foot",
         "the price unit is set"
     );
+
+    // A material is never a placeable object — it must not appear in the palette.
+    expect(page.locator("[data-testid='palette-material-1']").await)
+        .to_have_count(0)
+        .await
+        .context("the added material is catalog-only, not a placeable tile")?;
 
     // Reload — the authored material persists (catalog rides localStorage).
     page.reload(None).await.context("reload the page")?;
@@ -214,7 +222,7 @@ async fn adds_and_authors_a_material_that_persists() -> Result<()> {
             .await
             .input_value(None)
             .await?,
-        "per_cubic_yard",
+        "per_square_foot",
         "the price unit persisted"
     );
 
