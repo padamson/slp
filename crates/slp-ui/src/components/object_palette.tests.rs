@@ -1,7 +1,7 @@
 //! dokime component tests for `ObjectPalette`.
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, FootprintShape};
+use slp_core::{CatalogItem, FootprintShape, PriceUnit};
 
 use super::ObjectPalette;
 
@@ -44,6 +44,47 @@ fn renders_a_tile_per_item_grouped_by_category() {
     // Names + prices show on the tiles.
     assert!(html.contains("Lounge chair"));
     assert!(html.contains("$199"));
+}
+
+#[test]
+fn area_materials_are_not_placeable_tiles() {
+    // Mulch (per yd³) and pavers (per ft²) belong to drawn areas, not the
+    // object palette — only the per-item chair is a tile.
+    let mut mulch = CatalogItem::new("mulch".to_string());
+    mulch.name = Some("Mulch".to_string());
+    mulch.category = Some("mulch-bed".to_string());
+    mulch.price_unit = PriceUnit::per_cubic_yard;
+    let mut paver = CatalogItem::new("paver".to_string());
+    paver.name = Some("Pavers".to_string());
+    paver.category = Some("paver".to_string());
+    paver.price_unit = PriceUnit::per_square_foot;
+    let catalog = vec![
+        item("lounge-chair", "Lounge chair", "furniture", false),
+        mulch,
+        paver,
+    ];
+    let html = dokime::render(move || {
+        view! { <ObjectPalette catalog=catalog armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }
+    });
+    assert!(
+        html.contains(r#"data-testid="palette-lounge-chair""#),
+        "the chair is a tile"
+    );
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="palette-mulch""#),
+        0,
+        "no mulch tile"
+    );
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="palette-paver""#),
+        0,
+        "no paver tile"
+    );
+    assert_eq!(
+        dokime::count(&html, r#"class="palette-group""#),
+        1,
+        "only the furniture group"
+    );
 }
 
 #[test]

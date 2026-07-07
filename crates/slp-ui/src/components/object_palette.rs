@@ -1,13 +1,18 @@
-//! The object palette: catalog items as click-to-place tiles, **grouped by
-//! category**. Clicking a tile arms placement of that item (click the armed
-//! tile again to disarm) — replacing the old catalog dropdown + "Place" button
-//! with one click, and scaling to many object categories (furniture, fire pits,
-//! trees, …). Each tile's mini-icon is drawn from the shared [`crate::style`]
-//! palette, in the item's footprint shape, so it reads like what lands on the
-//! canvas.
+//! The object palette: **placeable** catalog items as click-to-place tiles,
+//! **grouped by category**. Clicking a tile arms placement of that item (click
+//! the armed tile again to disarm) — replacing the old catalog dropdown +
+//! "Place" button with one click, and scaling to many object categories
+//! (furniture, fire pits, trees, …). Each tile's mini-icon is drawn from the
+//! shared [`crate::style`] palette, in the item's footprint shape, so it reads
+//! like what lands on the canvas.
+//!
+//! Only per-item objects appear here. Area materials (mulch, pavers, and a
+//! paver's gravel/sand sub-courses) are priced per measured area/volume and are
+//! chosen via the Area tool's material picker, not placed as point-objects — so
+//! they're filtered out of the palette.
 
 use leptos::prelude::*;
-use slp_core::{CatalogItem, FootprintShape};
+use slp_core::{CatalogItem, FootprintShape, PriceUnit};
 
 use crate::style::{FURNITURE_FILL, FURNITURE_STROKE};
 
@@ -27,7 +32,17 @@ pub fn ObjectPalette(
         <div class="object-palette" data-testid="object-palette">
             {move || {
                 let armed_id = armed.get();
-                group_by_category(&catalog.get())
+                // Only *placeable* items (priced per item) are tiles. Area
+                // materials — mulch, pavers, and a paver's gravel/sand sub-
+                // courses — are priced per ft²/yd³ and belong to a drawn area
+                // (chosen via the Area tool's material picker), never placed as
+                // a point-object here.
+                let placeable: Vec<CatalogItem> = catalog
+                    .get()
+                    .into_iter()
+                    .filter(|c| c.price_unit == PriceUnit::per_item)
+                    .collect();
+                group_by_category(&placeable)
                     .into_iter()
                     .map(|(category, group)| {
                         let tiles = group
