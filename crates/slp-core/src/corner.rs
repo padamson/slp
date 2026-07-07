@@ -2,7 +2,37 @@
 //! doesn't cover the plan. Corners are checked in priority order and the first
 //! with no content in it wins.
 
-use crate::Point;
+use crate::{Circle, Coord, DeckLevel, Object, Point, Shape};
+
+/// Every plan-content point an inspector window should dodge when choosing a
+/// corner (see [`free_corner`]) — the house outline, each deck level's corners,
+/// object centers, and each drawn area: a shape's vertices, and a circle's
+/// center plus its four extent points so a large circle still registers in the
+/// corner it covers. Gathering *all* placed/drawn content in one place is what
+/// keeps the inspectors from floating over anything on the plan.
+#[must_use]
+pub fn content_points(
+    house: &[Coord],
+    deck: &[DeckLevel],
+    objects: &[Object],
+    shapes: &[Shape],
+    circles: &[Circle],
+) -> Vec<Point> {
+    let pt = |c: &Coord| Point::new(c.x, c.y);
+    let mut points: Vec<Point> = house.iter().map(pt).collect();
+    points.extend(deck.iter().flat_map(|l| l.corners.iter().map(pt)));
+    points.extend(objects.iter().map(|o| Point::new(o.x, o.y)));
+    points.extend(shapes.iter().flat_map(|s| s.corners.iter().map(pt)));
+    for c in circles {
+        let (cx, cy, r) = (c.center.x, c.center.y, c.radius_ft);
+        points.push(Point::new(cx, cy));
+        points.push(Point::new(cx + r, cy));
+        points.push(Point::new(cx - r, cy));
+        points.push(Point::new(cx, cy + r));
+        points.push(Point::new(cx, cy - r));
+    }
+    points
+}
 
 /// A corner of the yard. `Nw` is the north-west (top-left, since north is up).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,6 +131,56 @@ mod tests {
     fn content_in_the_middle_leaves_ne_free() {
         // A point mid-yard sits in no corner box → NE (the default) stays free.
         assert_eq!(free(&[Point::new(20.0, 10.0)]), Corner::Ne);
+    }
+
+    fn shape_with(corners: &[(f64, f64)]) -> Shape {
+        let mut s = Shape::new(0.0);
+        s.corners = corners.iter().map(|&(x, y)| Coord::new(x, y)).collect();
+        s
+    }
+
+    fn level_with(corners: &[(f64, f64)]) -> DeckLevel {
+        let mut l = DeckLevel::new(0.0);
+        l.corners = corners.iter().map(|&(x, y)| Coord::new(x, y)).collect();
+        l
+    }
+
+    #[test]
+    fn content_points_gathers_every_placed_and_drawn_feature() {
+        let house = [Coord::new(1.0, 1.0), Coord::new(2.0, 2.0)];
+        let deck = [level_with(&[(3.0, 3.0)])];
+        let objects = [Object::new("chair".into(), 4.0, 5.0)];
+        let shapes = [shape_with(&[(6.0, 7.0), (8.0, 9.0)])];
+        let circles: [Circle; 0] = [];
+
+        let pts = content_points(&house, &deck, &objects, &shapes, &circles);
+
+        // House (2) + deck corner (1) + object center (1) + shape verts (2) = 6.
+        assert!(pts.contains(&Point::new(1.0, 1.0)), "house corner");
+        assert!(pts.contains(&Point::new(3.0, 3.0)), "deck level corner");
+        assert!(pts.contains(&Point::new(4.0, 5.0)), "object center");
+        assert!(pts.contains(&Point::new(6.0, 7.0)), "shape vertex");
+        assert!(pts.contains(&Point::new(8.0, 9.0)), "shape vertex");
+        assert_eq!(pts.len(), 6);
+    }
+
+    #[test]
+    fn a_circle_contributes_its_center_and_four_extent_points() {
+        let circle = Circle::new(Box::new(Coord::new(10.0, 20.0)), 0.0, 3.0);
+        let pts = content_points(&[], &[], &[], &[], &[circle]);
+        // Center + N/S/E/W of the rim — so a big circle registers in the corner
+        // it fills even when its center sits outside the corner box.
+        assert!(pts.contains(&Point::new(10.0, 20.0)), "center");
+        assert!(pts.contains(&Point::new(13.0, 20.0)), "east rim");
+        assert!(pts.contains(&Point::new(7.0, 20.0)), "west rim");
+        assert!(pts.contains(&Point::new(10.0, 23.0)), "north rim");
+        assert!(pts.contains(&Point::new(10.0, 17.0)), "south rim");
+        assert_eq!(pts.len(), 5);
+    }
+
+    #[test]
+    fn no_content_yields_no_points() {
+        assert!(content_points(&[], &[], &[], &[], &[]).is_empty());
     }
 
     #[test]

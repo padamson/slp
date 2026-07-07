@@ -194,9 +194,12 @@
         min-width: min(360px, 100%);
         margin: 8px 0;
       }
-      /* Object inspector: floats in an empty corner of the canvas when a placed
-         object is selected. */
-      .object-inspector {
+      /* Inspector windows: a small card that floats in an empty corner of the
+         canvas when an object (ObjectInspector) or a drawn area (AreaInspector)
+         is selected. Both share the same chrome and corner placement; only their
+         contents differ. */
+      .object-inspector,
+      .area-inspector {
         /* Fixed to the viewport; top/left are set inline from the measured grid
            screen-rect so the window sits exactly inside the grid corner. */
         position: fixed;
@@ -258,16 +261,18 @@
         color: #fff;
         border-color: #2b6cb0;
       }
-      /* A tree's canopy/trunk size inputs — each `NumberField` its own row (the
-         browser default input width and inline label wrap badly at this panel's
-         190px). */
-      .inspector-tree-size {
+      /* Inspector number inputs — each `NumberField` its own row (the browser
+         default input width and inline label wrap badly at this panel's 190px):
+         a tree's canopy/trunk size, or an area's elevation/depth. */
+      .inspector-tree-size,
+      .inspector-area-size {
         display: flex;
         flex-direction: column;
         gap: 4px;
         margin-top: 8px;
       }
-      .inspector-tree-size .number-field {
+      .inspector-tree-size .number-field,
+      .inspector-area-size .number-field {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -275,7 +280,8 @@
         font-size: 12px;
         color: #6b6557;
       }
-      .inspector-tree-size .number-field input {
+      .inspector-tree-size .number-field input,
+      .inspector-area-size .number-field input {
         width: 50px;
         font: inherit;
         padding: 2px 5px;

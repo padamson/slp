@@ -22,7 +22,7 @@ pub use arc::{ArcSvg, arc_svg, boundary_area, bulge_radius, segment_area};
 pub use bezier::bezier_segment_area;
 pub use boundary::{are_adjacent, delete_node, insert_node_between};
 pub use clearance::{circle_overlaps_circle, circle_overlaps_polygon, circle_overlaps_segment};
-pub use corner::{Corner, free_corner};
+pub use corner::{Corner, content_points, free_corner};
 pub use generated::slp::{
     CatalogItem, Circle, Coord, CurveEdge, Deck, DeckLevel, FootprintShape, House, ItemStatus,
     Object, Opening, OpeningKind, Plan, PriceUnit, Shape, StepRun,

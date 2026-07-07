@@ -13,13 +13,17 @@ decide what to buy.
 ## Vertical slices
 
 - **B2.0 — area readout**
-  - [ ] each area shows its area (ft²) on the canvas
+  - [x] each area shows its area (ft²) on the canvas
 - **B2.1 — paver cost line**
-  - [ ] an estimate panel shows pavers (area × $/ft²) and a grand total
+  - [x] an estimate panel shows pavers (area × $/ft²) and a grand total
 - **B2.2 — gravel + sand**
   - [ ] base + bedding volume + cost lines, using yd³ = ft²·in/324
 - **B2.3 — live settings**
-  - [ ] editing depths/prices recomputes the estimate
+  - [x] selecting an area floats an inspector (material · ft² · cost) beside the
+        canvas — the area counterpart of the object inspector, per the "metadata
+        panels for all areas" ask
+  - [x] editing depth/elevation in that panel recomputes the area's cost and the
+        estimate live; Remove deletes the area
 
 ## Notes / refs
 
@@ -36,3 +40,9 @@ decide what to buy.
   [B4](B4-draw-mulch-beds.md) (mulch beds, earlier in delivery order) is
   actually the first story to need the yd³-by-depth case read; B2 reuses that,
   adding the plain per-ft² case for pavers themselves.
+- **`AreaInspector`** (`slp-ui`) is the drawn-area counterpart of
+  `ObjectInspector`: it floats in the first empty yard corner when a shape or
+  circle is selected, resolves the area's material through the catalog for its
+  name/category/cost, and hosts B2.3's live depth/elevation edits + Remove.
+  Extending the same panel to structural areas (house, deck) — the rest of the
+  "metadata panels for all areas" ask — is a follow-up.

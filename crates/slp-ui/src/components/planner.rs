@@ -10,14 +10,15 @@
 use leptos::prelude::*;
 use slp_core::{
     CatalogItem, Circle, Commit, Coord, Corner, CurveEdge, Deck, DeckLevel, FootprintShape, House,
-    ItemStatus, Object, Plan, Point, PriceUnit, Shape, StepRun, Tool, are_adjacent, commit_kind,
-    delete_node, dragged_center, free_corner, heading, insert_node_between, nearest_wall,
-    object_at, opening_from_nodes, snap_node, snap_to_grid, take_off,
+    ItemStatus, Object, Plan, Point, PriceUnit, Shape, StepRun, Tool, are_adjacent, boundary_area,
+    circle_area, commit_kind, content_points, delete_node, dragged_center, free_corner, heading,
+    insert_node_between, nearest_wall, object_at, opening_from_nodes, snap_node, snap_to_grid,
+    take_off,
 };
 
 use super::{
-    CanvasMetrics, EstimatePanel, Footprint, Modifiers, NumberField, ObjectInspector,
-    ObjectPalette, Toggle, ToolButton, ToolGroup, Yard, YardControls,
+    AreaInspector, CanvasMetrics, EstimatePanel, Footprint, Modifiers, NumberField,
+    ObjectInspector, ObjectPalette, Toggle, ToolButton, ToolGroup, Yard, YardControls,
 };
 
 /// Pixels per foot in the SVG user space.
@@ -808,6 +809,57 @@ fn planner_body() -> impl IntoView {
         }
     });
 
+    // The area inspector's edit callbacks act on whichever drawn area is
+    // selected — a `Shape` (boundary) or a `Circle` — since only one can be
+    // selected at a time.
+    let set_area_elevation = Callback::new(move |v: f64| {
+        if let Some(i) = selected_shape.get_untracked() {
+            shapes.update(|list| {
+                if let Some(s) = list.get_mut(i) {
+                    s.elevation = v;
+                }
+            });
+        } else if let Some(i) = selected_circle.get_untracked() {
+            circles.update(|list| {
+                if let Some(c) = list.get_mut(i) {
+                    c.elevation = v;
+                }
+            });
+        }
+    });
+    let set_area_depth = Callback::new(move |v: f64| {
+        if let Some(i) = selected_shape.get_untracked() {
+            shapes.update(|list| {
+                if let Some(s) = list.get_mut(i) {
+                    s.depth_in = Some(v);
+                }
+            });
+        } else if let Some(i) = selected_circle.get_untracked() {
+            circles.update(|list| {
+                if let Some(c) = list.get_mut(i) {
+                    c.depth_in = Some(v);
+                }
+            });
+        }
+    });
+    let delete_selected_area = Callback::new(move |()| {
+        if let Some(i) = selected_shape.get_untracked() {
+            shapes.update(|v| {
+                if i < v.len() {
+                    v.remove(i);
+                }
+            });
+            selected_shape.set(None);
+        } else if let Some(i) = selected_circle.get_untracked() {
+            circles.update(|v| {
+                if i < v.len() {
+                    v.remove(i);
+                }
+            });
+            selected_circle.set(None);
+        }
+    });
+
     // Remove the selected shape's selected node (refused, per `delete_node`,
     // if it would leave the shape below its 3-node drawable minimum).
     let delete_selected_node = Callback::new(move |()| {
@@ -1084,45 +1136,17 @@ fn planner_body() -> impl IntoView {
                     let object = objs.get(i)?.clone();
                     let item = catalog.get().iter().find(|c| c.id == object.catalog_ref).cloned();
                     let m = metrics.get();
-                    // Pick the corner in world feet, sizing the probe to the
-                    // window's real footprint via the measured px-per-foot.
-                    let corner = if m.px_ft > 0.0 {
-                        // Content the window should avoid: house + deck vertices
-                        // and object centers.
-                        let mut points: Vec<Point> =
-                            corners.get().iter().map(|c| Point::new(c.x, c.y)).collect();
-                        points.extend(
-                            deck.get()
-                                .iter()
-                                .flat_map(|l| l.corners.iter().map(|c| Point::new(c.x, c.y))),
-                        );
-                        points.extend(objs.iter().map(|o| Point::new(o.x, o.y)));
-                        free_corner(
-                            &points,
-                            width.get(),
-                            depth.get(),
-                            INSPECTOR_W_PX / m.px_ft,
-                            INSPECTOR_H_PX / m.px_ft,
-                        )
-                    } else {
-                        Corner::Nw
-                    };
-                    // The grid's screen rect (viewport px) from the measured
-                    // metrics; the window is fixed-positioned exactly inside the
-                    // chosen corner (the grid excludes the scale-bar strip, so
-                    // bottom corners clear it).
-                    let mgn = INSPECTOR_MARGIN_PX;
-                    let grid_w = width.get() * m.px_ft;
-                    let grid_h = depth.get() * m.px_ft;
-                    let (left_edge, right_edge) = (m.left + mgn, m.left + grid_w - INSPECTOR_W_PX - mgn);
-                    let (top_edge, bottom_edge) = (m.top + mgn, m.top + grid_h - INSPECTOR_H_PX - mgn);
-                    let (top, left) = match corner {
-                        Corner::Nw => (top_edge, left_edge),
-                        Corner::Ne => (top_edge, right_edge),
-                        Corner::Sw => (bottom_edge, left_edge),
-                        Corner::Se => (bottom_edge, right_edge),
-                    };
-                    let style = format!("top: {top}px; left: {left}px;");
+                    // Avoid every placed/drawn feature — house, deck, objects,
+                    // and drawn areas (shapes + circles).
+                    let points = content_points(
+                        &corners.get(),
+                        &deck.get(),
+                        &objs,
+                        &shapes.get(),
+                        &circles.get(),
+                    );
+                    let (corner, style) =
+                        inspector_placement(&points, width.get(), depth.get(), &m);
                     Some(
                         view! {
                             <ObjectInspector
@@ -1185,11 +1209,176 @@ fn planner_body() -> impl IntoView {
                         },
                     )
                 }}
+                // When a drawn area (a mulch bed / paver patio) is selected,
+                // float its inspector in the first empty corner.
+                {move || {
+                    let area = selected_area(
+                        selected_shape.get(),
+                        selected_circle.get(),
+                        &shapes.get(),
+                        &circles.get(),
+                        &catalog.get(),
+                    )?;
+                    let m = metrics.get();
+                    // Avoid every placed/drawn feature (including other areas),
+                    // exactly like the object inspector.
+                    let points = content_points(
+                        &corners.get(),
+                        &deck.get(),
+                        &objects.get(),
+                        &shapes.get(),
+                        &circles.get(),
+                    );
+                    let (corner, style) =
+                        inspector_placement(&points, width.get(), depth.get(), &m);
+                    Some(
+                        view! {
+                            <AreaInspector
+                                title=area.title
+                                category=area.category
+                                area_ft2=area.area_ft2
+                                elevation=area.elevation
+                                depth=area.depth
+                                show_depth=area.show_depth
+                                cost=area.cost
+                                corner=corner
+                                style=style
+                                on_elevation=set_area_elevation
+                                on_depth=set_area_depth
+                                on_delete=delete_selected_area
+                            />
+                        },
+                    )
+                }}
             </div>
             // The estimate appears alongside the canvas once there's a catalog.
             {move || { (!catalog.get().is_empty()).then(|| view! { <EstimatePanel bom=bom /> }) }}
         </div>
     }
+}
+
+/// The corner + inline `top/left` style for a floating inspector window:
+/// picks the first empty yard corner (avoiding `avoid` content points, sized
+/// to the window via the measured px-per-foot) and positions the window inside
+/// the grid's screen rect. Shared by the object and area inspectors.
+fn inspector_placement(
+    avoid: &[Point],
+    yard_w: f64,
+    yard_d: f64,
+    m: &CanvasMetrics,
+) -> (Corner, String) {
+    let corner = if m.px_ft > 0.0 {
+        free_corner(
+            avoid,
+            yard_w,
+            yard_d,
+            INSPECTOR_W_PX / m.px_ft,
+            INSPECTOR_H_PX / m.px_ft,
+        )
+    } else {
+        Corner::Nw
+    };
+    let mgn = INSPECTOR_MARGIN_PX;
+    let grid_w = yard_w * m.px_ft;
+    let grid_h = yard_d * m.px_ft;
+    let (left_edge, right_edge) = (m.left + mgn, m.left + grid_w - INSPECTOR_W_PX - mgn);
+    let (top_edge, bottom_edge) = (m.top + mgn, m.top + grid_h - INSPECTOR_H_PX - mgn);
+    let (top, left) = match corner {
+        Corner::Nw => (top_edge, left_edge),
+        Corner::Ne => (top_edge, right_edge),
+        Corner::Sw => (bottom_edge, left_edge),
+        Corner::Se => (bottom_edge, right_edge),
+    };
+    (corner, format!("top: {top}px; left: {left}px;"))
+}
+
+/// The display data the area inspector needs for the currently selected drawn
+/// area, resolved from its material through the catalog.
+struct AreaInfo {
+    title: String,
+    category: Option<String>,
+    area_ft2: f64,
+    elevation: f64,
+    depth: f64,
+    /// Show the editable depth field — true for a volume-priced material.
+    show_depth: bool,
+    /// This area's material cost, if priced.
+    cost: Option<f64>,
+}
+
+/// Resolve the selected `Shape`/`Circle` (only one can be selected) into the
+/// area inspector's display data: material name/category, enclosed area, cost
+/// (per its material's `price_unit`), and its editable elevation/depth. `None`
+/// when nothing is selected.
+fn selected_area(
+    sel_shape: Option<usize>,
+    sel_circle: Option<usize>,
+    shapes: &[Shape],
+    circles: &[Circle],
+    catalog: &[CatalogItem],
+) -> Option<AreaInfo> {
+    let (material_ref, elevation, depth, area_ft2) = if let Some(i) = sel_shape {
+        let s = shapes.get(i)?;
+        (
+            s.material_ref.as_deref(),
+            s.elevation,
+            s.depth_in.unwrap_or(0.0),
+            shape_area_ft2(s),
+        )
+    } else if let Some(i) = sel_circle {
+        let c = circles.get(i)?;
+        (
+            c.material_ref.as_deref(),
+            c.elevation,
+            c.depth_in.unwrap_or(0.0),
+            circle_area(c.radius_ft),
+        )
+    } else {
+        return None;
+    };
+    let item = material_ref.and_then(|m| catalog.iter().find(|c| c.id == m));
+    let title = item
+        .and_then(|i| i.name.clone())
+        .unwrap_or_else(|| "Area".to_string());
+    let category = item.and_then(|i| i.category.clone());
+    let price_unit = item.map(|i| i.price_unit.clone());
+    let unit_price = item.and_then(|i| i.unit_price);
+    let show_depth = price_unit == Some(PriceUnit::per_cubic_yard);
+    // Cost of this one area, by its material's pricing: per-ft² of surface, or
+    // per-yd³ of volume at its depth (`yd³ = ft²·in/324`).
+    let cost = match (&price_unit, unit_price) {
+        (Some(PriceUnit::per_square_foot), Some(p)) => Some(area_ft2 * p),
+        (Some(PriceUnit::per_cubic_yard), Some(p)) => Some(area_ft2 * depth / 324.0 * p),
+        _ => None,
+    };
+    Some(AreaInfo {
+        title,
+        category,
+        area_ft2,
+        elevation,
+        depth,
+        show_depth,
+        cost,
+    })
+}
+
+/// A shape's enclosed area (ft²), accounting for any arc/curve edges — the UI
+/// counterpart of `slp_core`'s internal shape-area helper.
+fn shape_area_ft2(s: &Shape) -> f64 {
+    let curves: Vec<(usize, Point, Point)> = s
+        .curves
+        .iter()
+        .filter_map(|c| {
+            usize::try_from(c.edge).ok().map(|e| {
+                (
+                    e,
+                    Point::new(c.control1.x, c.control1.y),
+                    Point::new(c.control2.x, c.control2.y),
+                )
+            })
+        })
+        .collect();
+    boundary_area(&s.corners, &s.bulges, &curves)
 }
 
 /// A toolbar button for `t`, wired to the shared `pick` callback and highlighting
