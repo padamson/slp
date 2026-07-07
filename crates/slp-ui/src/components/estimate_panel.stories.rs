@@ -1,7 +1,7 @@
 //! theoria story for `EstimatePanel`. Compiled only under the `stories` feature.
 
 use leptos::prelude::*;
-use slp_core::{BillOfMaterials, LineItem};
+use slp_core::{BillOfMaterials, LineItem, PriceUnit};
 
 use super::EstimatePanel;
 use theoria::Story;
@@ -9,17 +9,34 @@ use theoria::Story;
 pub fn stories() -> Vec<Story> {
     vec![
         Story::new("Panels/EstimatePanel/Populated", || {
-            let line = |catalog_ref: &str, name: &str, qty: u32, unit: f64| LineItem {
-                catalog_ref: catalog_ref.to_string(),
-                name: Some(name.to_string()),
-                qty,
-                unit_price: unit,
-                line_total: f64::from(qty) * unit,
-            };
+            let line =
+                |catalog_ref: &str, name: &str, quantity: f64, unit: PriceUnit, price: f64| {
+                    LineItem {
+                        catalog_ref: catalog_ref.to_string(),
+                        name: Some(name.to_string()),
+                        quantity,
+                        unit,
+                        unit_price: price,
+                        line_total: quantity * price,
+                    }
+                };
             let lines = vec![
-                line("lounge-chair", "Lounge chair", 4, 199.0),
-                line("outdoor-sofa", "Outdoor sofa", 1, 899.0),
-                line("dining-table", "Dining table", 1, 649.0),
+                line(
+                    "lounge-chair",
+                    "Lounge chair",
+                    4.0,
+                    PriceUnit::per_item,
+                    199.0,
+                ),
+                line(
+                    "outdoor-sofa",
+                    "Outdoor sofa",
+                    1.0,
+                    PriceUnit::per_item,
+                    899.0,
+                ),
+                line("mulch", "Mulch", 2.3, PriceUnit::per_cubic_yard, 40.0),
+                line("paver", "Pavers", 120.0, PriceUnit::per_square_foot, 6.0),
             ];
             let grand_total = lines.iter().map(|l| l.line_total).sum();
             let bom = BillOfMaterials { lines, grand_total };

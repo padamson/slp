@@ -266,6 +266,7 @@ pub fn Yard(
                     <Shapes
                         t=t
                         shapes=shapes.get()
+                        catalog=catalog.get()
                         selected=selected_shape.get()
                         selected_nodes=selected_nodes.get()
                         on_shape_press=on_shape_press
@@ -282,6 +283,7 @@ pub fn Yard(
                     <Circles
                         t=t
                         circles=circles.get()
+                        catalog=catalog.get()
                         selected=selected_circle.get()
                         on_circle_press=on_circle_press
                         on_handle_press=on_circle_handle_press

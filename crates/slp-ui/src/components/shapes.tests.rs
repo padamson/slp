@@ -1,9 +1,10 @@
 //! dokime component tests for `Shapes` (drawn paver/mulch/… areas).
 
 use leptos::prelude::*;
-use slp_core::{Coord, CurveEdge, Shape};
+use slp_core::{CatalogItem, Coord, CurveEdge, Shape};
 
 use super::{Shapes, Transform};
+use crate::style::{MULCH_FILL, SHAPE_FILL};
 
 fn t() -> Transform {
     Transform {
@@ -24,6 +25,8 @@ fn square(elevation: f64) -> Shape {
         elevation,
         bulges: Vec::new(),
         curves: Vec::new(),
+        material_ref: None,
+        depth_in: None,
     }
 }
 
@@ -99,6 +102,30 @@ fn a_bowed_edge_changes_the_reported_area() {
 }
 
 #[test]
+fn a_mulch_bed_renders_in_the_mulch_color() {
+    // A shape whose material resolves (through the catalog) to a "mulch-bed"
+    // category fills mulch brown; an uncategorized area fills the default.
+    let mut mulch = CatalogItem::new("mulch".to_string());
+    mulch.category = Some("mulch-bed".to_string());
+    let catalog = vec![mulch];
+
+    let mut bed = square(0.0);
+    bed.material_ref = Some("mulch".to_string());
+    let cat = catalog.clone();
+    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![bed] catalog=cat /> });
+    assert!(html.contains(MULCH_FILL), "the mulch bed fills mulch brown");
+
+    // An uncategorized area (no material_ref) keeps the neutral default fill.
+    let plain = dokime::render(move || {
+        view! { <Shapes t=t() shapes=vec![square(0.0)] catalog=catalog /> }
+    });
+    assert!(
+        plain.contains(SHAPE_FILL),
+        "an uncategorized area is neutral"
+    );
+}
+
+#[test]
 fn a_curved_edge_renders_a_path_with_a_bezier_command() {
     // Give edge 0 a cubic bezier — the boundary becomes a <path> with a `C`
     // command, no <polygon>, and the reported area shifts off the straight 12.
@@ -124,6 +151,8 @@ fn skips_a_degenerate_shape_with_too_few_corners() {
         elevation: 0.0,
         bulges: Vec::new(),
         curves: Vec::new(),
+        material_ref: None,
+        depth_in: None,
     };
     let html = dokime::render(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0), degenerate] /> }

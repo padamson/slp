@@ -18,6 +18,8 @@ fn circle(elevation: f64) -> Circle {
         center: Box::new(Coord::new(5.0, 5.0)),
         elevation,
         radius_ft: 2.0,
+        material_ref: None,
+        depth_in: None,
     }
 }
 

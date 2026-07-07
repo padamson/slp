@@ -41,17 +41,38 @@ pub enum OpeningKind {
     window,
 }
 
-/// A purchasable product the user has added to the plan's catalog. Objects
-/// reference it by `id`. The footprint (`shape` + `width_ft`/`depth_ft`) and
-/// `height_ft` drive the 2D render and the future 3D view; `unit_price` drives
-/// cost. `clearance_ft`, when present, is a recommended clear radius *beyond*
-/// the footprint edge (e.g. a fire pit's keep-clear zone from combustibles).
-/// `trunk_diameter_ft`, when present, is a tree's default trunk diameter
-/// (`width_ft` is its canopy diameter) — an object placing this catalog item
-/// may override both via `Object.canopy_diameter_ft`/`trunk_diameter_ft`.
+/// What a catalog item's `unit_price` is charged per. Objects are priced
+/// per item; drawn-area materials are priced per measured quantity (a paver
+/// surface per ft², mulch/gravel per yd³ at a bed's depth, edging per
+/// linear ft).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub enum PriceUnit {
+    /// Price per yd³ of a drawn area's volume at its depth (e.g. mulch,
+    /// gravel) — `yd³ = ft²·depth_in / 324`.
+    per_cubic_yard,
+    /// Price per placed object (the default).
+    per_item,
+    /// Price per linear ft (e.g. bed edging) — not yet costed.
+    per_linear_foot,
+    /// Price per ft² of a drawn area's surface (e.g. pavers).
+    per_square_foot,
+}
+
+/// A purchasable product or material the user has added to the plan's
+/// catalog. Objects reference it by `id`; drawn areas reference a *material*
+/// by `material_ref`. The footprint (`shape` + `width_ft`/`depth_ft`) and
+/// `height_ft` drive the 2D render and the future 3D view; `unit_price`
+/// drives cost, interpreted by `price_unit` (per item, per ft², per yd³ at a
+/// bed's depth, or per linear ft). `clearance_ft`, when present, is a
+/// recommended clear radius *beyond* the footprint edge (e.g. a fire pit's
+/// keep-clear zone from combustibles). `trunk_diameter_ft`, when present, is
+/// a tree's default trunk diameter (`width_ft` is its canopy diameter) — an
+/// object placing this catalog item may override both via
+/// `Object.canopy_diameter_ft`/`trunk_diameter_ft`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CatalogItem {
-    /// Catalog category, e.g. "furniture".
+    /// Catalog category, e.g. "furniture", "mulch-bed", "paver".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
     /// Recommended clear radius, in feet, beyond the footprint edge (e.g. a fire
@@ -70,6 +91,11 @@ pub struct CatalogItem {
     /// Human-readable name for this plan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// What `unit_price` is charged per — per item (objects) or per measured
+    /// quantity of a material (per ft² of pavers, per yd³ of mulch/gravel at a
+    /// bed's depth, per linear ft of edging). Defaults to per item.
+    #[serde(default = "default_catalog_item_price_unit")]
+    pub price_unit: PriceUnit,
     /// The item's 2D footprint shape, defaulting to rectangle when absent. A
     /// `circle` (fire pit, round table) uses `width_ft` as its diameter and
     /// ignores `depth_ft`.
@@ -81,13 +107,16 @@ pub struct CatalogItem {
     /// meaning use the catalog default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trunk_diameter_ft: Option<f64>,
-    /// Price per item, in dollars.
+    /// Price per unit, in dollars; the unit is `price_unit` (per item by
+    /// default, or per ft²/yd³/linear-ft for a material).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit_price: Option<f64>,
     /// Footprint width, in feet (a circle's diameter).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub width_ft: Option<f64>,
 }
+
+fn default_catalog_item_price_unit() -> PriceUnit { PriceUnit::per_item }
 
 fn default_catalog_item_shape() -> FootprintShape { FootprintShape::rectangle }
 
@@ -100,6 +129,7 @@ impl CatalogItem {
             height_ft: None,
             id,
             name: None,
+            price_unit: PriceUnit::per_item,
             shape: FootprintShape::rectangle,
             trunk_diameter_ft: None,
             unit_price: None,
@@ -116,8 +146,17 @@ impl CatalogItem {
 pub struct Circle {
     /// A circle's center point, in feet.
     pub center: Box<Coord>,
+    /// A drawn area's material depth, in inches — used to cost a per-yd³
+    /// material by volume (`yd³ = ft²·depth_in / 324`), e.g. a mulch bed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depth_in: Option<f64>,
     /// Height in feet above grade.
     pub elevation: f64,
+    /// Id of the catalog *material* a drawn area is made of (mulch, pavers, …),
+    /// the area analogue of an object's `catalog_ref`. Absent = uncategorized
+    /// geometry with no cost.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub material_ref: Option<String>,
     /// A circle's radius, in feet.
     pub radius_ft: f64,
 }
@@ -126,7 +165,9 @@ impl Circle {
     pub fn new(center: Box<Coord>, elevation: f64, radius_ft: f64) -> Self {
         Self {
             center,
+            depth_in: None,
             elevation,
+            material_ref: None,
             radius_ft,
         }
     }
@@ -397,8 +438,17 @@ pub struct Shape {
     /// edges (straight/arc edges are absent). Empty = no curves.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub curves: Vec<CurveEdge>,
+    /// A drawn area's material depth, in inches — used to cost a per-yd³
+    /// material by volume (`yd³ = ft²·depth_in / 324`), e.g. a mulch bed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depth_in: Option<f64>,
     /// Height in feet above grade.
     pub elevation: f64,
+    /// Id of the catalog *material* a drawn area is made of (mulch, pavers, …),
+    /// the area analogue of an object's `catalog_ref`. Absent = uncategorized
+    /// geometry with no cost.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub material_ref: Option<String>,
 }
 
 impl Shape {
@@ -407,7 +457,9 @@ impl Shape {
             bulges: Vec::new(),
             corners: Vec::new(),
             curves: Vec::new(),
+            depth_in: None,
             elevation,
+            material_ref: None,
         }
     }
 }

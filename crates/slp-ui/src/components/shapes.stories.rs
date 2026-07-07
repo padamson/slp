@@ -25,6 +25,8 @@ fn rect(elevation: f64, bulges: Vec<f64>) -> Shape {
         elevation,
         bulges,
         curves: Vec::new(),
+        material_ref: None,
+        depth_in: None,
     }
 }
 

@@ -38,6 +38,11 @@ pub const SHAPE_FILL: &str = "#c4c0a8";
 pub const SHAPE_FILL_OPACITY: &str = "0.5";
 pub const SHAPE_STROKE: &str = "#8a8568";
 
+/// A mulch bed's fill/stroke — a dark bark brown, distinct from the neutral
+/// default area look, so a mulch bed reads at a glance.
+pub const MULCH_FILL: &str = "#6b4a2f";
+pub const MULCH_STROKE: &str = "#4a3220";
+
 /// Furniture footprints' base palette — square corners, no corner markers.
 /// Status/virtual (below), selection, and overflow are independent modifiers
 /// layered on top of this.
@@ -103,6 +108,17 @@ pub struct FurnitureStyle {
     /// A double (not single) outline — rendered as two nested strokes, inset
     /// by [`DOUBLE_LINE_GAP_PX`], since it's already owned (`existing`).
     pub double: bool,
+}
+
+/// The `(fill, stroke)` a drawn area renders with, by its material category: a
+/// mulch bed reads as bark brown, every other/uncategorized area as the
+/// neutral default. More categories (pavers, gravel) join as their stories land.
+#[must_use]
+pub fn area_style(category: Option<&str>) -> (&'static str, &'static str) {
+    match category {
+        Some("mulch-bed") => (MULCH_FILL, MULCH_STROKE),
+        _ => (SHAPE_FILL, SHAPE_STROKE),
+    }
 }
 
 #[must_use]

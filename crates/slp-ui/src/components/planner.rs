@@ -10,9 +10,9 @@
 use leptos::prelude::*;
 use slp_core::{
     CatalogItem, Circle, Commit, Coord, Corner, CurveEdge, Deck, DeckLevel, FootprintShape, House,
-    ItemStatus, Object, Plan, Point, Shape, StepRun, Tool, are_adjacent, commit_kind, delete_node,
-    dragged_center, free_corner, heading, insert_node_between, nearest_wall, object_at,
-    opening_from_nodes, snap_node, snap_to_grid, take_off,
+    ItemStatus, Object, Plan, Point, PriceUnit, Shape, StepRun, Tool, are_adjacent, commit_kind,
+    delete_node, dragged_center, free_corner, heading, insert_node_between, nearest_wall,
+    object_at, opening_from_nodes, snap_node, snap_to_grid, take_off,
 };
 
 use super::{
@@ -185,12 +185,18 @@ fn planner_body() -> impl IntoView {
     let hover_at = RwSignal::new(None::<Coord>);
     // The elevation (ft) the next deck level is drawn at.
     let elevation = RwSignal::new(1.0_f64);
-    // The elevation (ft) the next drawn area is at — grade by default (a
-    // paver/mulch area usually sits flush with the yard, unlike a deck).
-    let shape_elevation = RwSignal::new(0.0_f64);
-    // The elevation (ft) the next drawn circle is at — grade by default, same
-    // reasoning as `shape_elevation`.
-    let circle_elevation = RwSignal::new(0.0_f64);
+    // The elevation (ft) the next drawn area (boundary or circle) is at —
+    // grade by default (a paver/mulch area usually sits flush with the yard,
+    // unlike a deck). Shared by both bed shapes: a bed's elevation doesn't
+    // depend on whether it's drawn as a polygon or a circle.
+    let area_elevation = RwSignal::new(0.0_f64);
+    // The material (catalog id) the next drawn area is made of — mulch by
+    // default (the only area material so far; pavers/gravel join as those
+    // stories land). Drives the drawn shape's look and how it's costed.
+    let area_material = RwSignal::new(Some("mulch".to_string()));
+    // The depth (inches) of the next drawn area's material — used to cost a
+    // per-yd³ material (mulch) by volume. 3 in is a typical mulch depth.
+    let area_depth = RwSignal::new(3.0_f64);
     // Placement engine state: the active tool, the nodes placed this gesture,
     // and the previewed next node under the cursor.
     let tool = RwSignal::new(None::<Tool>);
@@ -519,13 +525,15 @@ fn planner_body() -> impl IntoView {
                     };
                     deck.update(|v| v.push(level));
                 } else if tl == Tool::Shape {
-                    // A freshly-drawn area is all straight edges — no bulges,
-                    // no curves.
+                    // A freshly-drawn area is all straight edges (no bulges/
+                    // curves), tagged with the armed area material + depth.
                     let shape = Shape {
                         corners: pl,
-                        elevation: shape_elevation.get_untracked(),
+                        elevation: area_elevation.get_untracked(),
                         bulges: Vec::new(),
                         curves: Vec::new(),
+                        material_ref: area_material.get_untracked(),
+                        depth_in: Some(area_depth.get_untracked()),
                     };
                     shapes.update(|v| v.push(shape));
                 } else {
@@ -577,11 +585,15 @@ fn planner_body() -> impl IntoView {
                 if let Some(center) = pl.first() {
                     let radius = Point::new(center.x, center.y).dist(Point::new(next.x, next.y));
                     circles.update(|v| {
-                        v.push(Circle::new(
-                            Box::new(center.clone()),
-                            circle_elevation.get_untracked(),
-                            radius,
-                        ));
+                        v.push(Circle {
+                            material_ref: area_material.get_untracked(),
+                            depth_in: Some(area_depth.get_untracked()),
+                            ..Circle::new(
+                                Box::new(center.clone()),
+                                area_elevation.get_untracked(),
+                                radius,
+                            )
+                        });
                     });
                 }
                 reset(tool, placed, preview, sticky_run);
@@ -925,13 +937,15 @@ fn planner_body() -> impl IntoView {
         tool.set(Some(Tool::Object));
     });
 
-    // The live bill of materials for the placed objects — recomputed whenever the
-    // objects or catalog change, so the estimate panel reacts as furniture is
-    // placed or removed.
+    // The live bill of materials — recomputed whenever the objects, drawn
+    // areas, or catalog change, so the estimate panel reacts as furniture is
+    // placed/removed and as mulch beds (and later paver areas) are drawn.
     let bom = Signal::derive(move || {
         take_off(&Plan {
             catalog: catalog.get(),
             objects: objects.get(),
+            shapes: shapes.get(),
+            circles: circles.get(),
             ..Default::default()
         })
     });
@@ -959,21 +973,26 @@ fn planner_body() -> impl IntoView {
                     step=0.5
                 />
             </ToolGroup>
-            <ToolGroup label="Area">
-                {tool_btn(tool, pick, Tool::Shape, "Draw area", "draw-shape")}
+            // Drawn areas are mulch beds for now (the only area material); a
+            // material picker joins this group when pavers/gravel land (B1),
+            // at which point "Area" generalizes and each drawn area is tagged
+            // with the armed material. The `draw-shape`/`draw-circle` tools are
+            // unchanged — only what they're made of + costed as.
+            <ToolGroup label="Mulch bed">
+                {tool_btn(tool, pick, Tool::Shape, "Draw bed", "draw-shape")}
+                {tool_btn(tool, pick, Tool::Circle, "Round bed", "draw-circle")}
                 <NumberField
-                    label="Elev (ft)"
-                    testid="shape-elevation"
-                    value=shape_elevation
-                    on_input=Callback::new(move |v| shape_elevation.set(v))
-                    step=0.5
+                    label="Depth (in)"
+                    testid="area-depth"
+                    value=area_depth
+                    on_input=Callback::new(move |v| area_depth.set(v))
+                    step=1.0
                 />
-                {tool_btn(tool, pick, Tool::Circle, "Draw circle", "draw-circle")}
                 <NumberField
                     label="Elev (ft)"
-                    testid="circle-elevation"
-                    value=circle_elevation
-                    on_input=Callback::new(move |v| circle_elevation.set(v))
+                    testid="area-elevation"
+                    value=area_elevation
+                    on_input=Callback::new(move |v| area_elevation.set(v))
                     step=0.5
                 />
             </ToolGroup>
@@ -1360,6 +1379,16 @@ fn starter_catalog() -> Vec<CatalogItem> {
         c.trunk_diameter_ft = Some(trunk);
         c
     };
+    // An area material (not a placeable object): drawn areas reference it by
+    // `material_ref`, and it's costed by its `price_unit` — mulch per yd³.
+    let material = |id: &str, name: &str, category: &str, unit: PriceUnit, price: f64| {
+        let mut c = CatalogItem::new(id.to_string());
+        c.name = Some(name.to_string());
+        c.category = Some(category.to_string());
+        c.price_unit = unit;
+        c.unit_price = Some(price);
+        c
+    };
     vec![
         furniture("lounge-chair", "Lounge chair", 2.5, 3.0, 2.5, 199.0),
         furniture("outdoor-sofa", "Outdoor sofa", 7.0, 3.0, 2.5, 899.0),
@@ -1389,6 +1418,15 @@ fn starter_catalog() -> Vec<CatalogItem> {
             220.0,
         ),
         tree("oak-tree", "Oak tree", 20.0, 2.0, 35.0, 350.0),
+        // Area materials, costed by measure (mulch per yd³) rather than per
+        // item — a bagged/bulk mulch at a typical ~$40/yd³ delivered.
+        material(
+            "mulch",
+            "Mulch",
+            "mulch-bed",
+            PriceUnit::per_cubic_yard,
+            40.0,
+        ),
     ]
 }
 

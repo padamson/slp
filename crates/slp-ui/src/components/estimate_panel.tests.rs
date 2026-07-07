@@ -1,7 +1,7 @@
 //! dokime component tests for `EstimatePanel`.
 
 use leptos::prelude::*;
-use slp_core::{BillOfMaterials, LineItem};
+use slp_core::{BillOfMaterials, LineItem, PriceUnit};
 
 use super::EstimatePanel;
 
@@ -9,9 +9,21 @@ fn line(catalog_ref: &str, name: Option<&str>, qty: u32, unit: f64) -> LineItem 
     LineItem {
         catalog_ref: catalog_ref.to_string(),
         name: name.map(ToString::to_string),
-        qty,
+        quantity: f64::from(qty),
+        unit: PriceUnit::per_item,
         unit_price: unit,
         line_total: f64::from(qty) * unit,
+    }
+}
+
+fn material_line(name: &str, quantity: f64, unit: PriceUnit, unit_price: f64) -> LineItem {
+    LineItem {
+        catalog_ref: name.to_lowercase(),
+        name: Some(name.to_string()),
+        quantity,
+        unit,
+        unit_price,
+        line_total: quantity * unit_price,
     }
 }
 
@@ -51,6 +63,22 @@ fn a_line_falls_back_to_its_id_when_unnamed() {
         html.contains("side-table"),
         "the catalog id labels the row when there's no name"
     );
+}
+
+#[test]
+fn a_material_line_reads_its_quantity_in_its_own_measure() {
+    // A mulch line reads yd³; a paver line reads ft² — not a bare count.
+    let bom = BillOfMaterials {
+        lines: vec![
+            material_line("Mulch", 0.74, PriceUnit::per_cubic_yard, 40.0),
+            material_line("Pavers", 100.0, PriceUnit::per_square_foot, 6.0),
+        ],
+        grand_total: 629.6,
+    };
+    let html =
+        dokime::render(move || view! { <EstimatePanel bom=Signal::derive(move || bom.clone()) /> });
+    assert!(html.contains("0.7 yd³"), "mulch quantity in yd³");
+    assert!(html.contains("100 ft²"), "paver quantity in ft²");
 }
 
 #[test]

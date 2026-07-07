@@ -15,23 +15,32 @@ actually want them.
 
 ## Vertical slices
 
-- **B4.0 — a mulch bed is a costed area**
-  - [ ] the mulch tool places an [F3](F3-draw-edit-shapes.md) boundary or
-        circle, tagged category `mulch-bed`; it renders filled in a mulch color
-  - [ ] a **depth** (in) is set on the bed (a sensible default, e.g. 3 in,
-        editable)
-  - [ ] `slp-core::takeoff` reports the bed's volume — `yd³ = ft²·depth_in/324`
-        (the same formula already noted for gravel/sand in
-        [B2](B2-area-cost.md)) — and its cost from a mulch `unit_price` per
-        yd³; unit + mutation tested
-  - [ ] the estimate panel shows a mulch line (yd³ × $/yd³) alongside every
-        other category
-- **B4.1 — live editing**
-  - [ ] moving/inserting/deleting a bed's boundary nodes ([F3.1](F3-draw-edit-shapes.md))
-        recomputes its area, volume, and cost live
-  - [ ] editing the bed's depth recomputes volume/cost live
-  - [ ] e2e: draw a mulch bed, set its depth, confirm the estimate's mulch line;
-        reshape the bed and confirm the line updates
+- **B4.0 — a mulch bed is a costed area** ✅ *done*
+  - [x] a drawn area (boundary or circle) is tagged with the armed **material**
+        via `Shape`/`Circle.material_ref` (mulch by default — the only area
+        material so far); the "Area" toolbar group is now "Mulch bed" (Draw
+        bed / Round bed, same `draw-shape`/`draw-circle` tools). A material
+        *picker* joins the group when pavers/gravel land ([B1](B1-draw-paver-area.md))
+  - [x] it renders filled in a **mulch color** — the fill is resolved from the
+        material's catalog category (`mulch-bed` → bark brown), so pavers etc.
+        get their own look for free later
+  - [x] a **depth** (in) is set on the bed via a toolbar field (default 3 in),
+        stored as `Shape`/`Circle.depth_in`
+  - [x] `slp-core::takeoff` reports the bed's volume — `yd³ = ft²·depth_in/324`
+        — and its cost from the mulch material's `unit_price` (per yd³, via the
+        new `CatalogItem.price_unit`); a per-ft² path is in place for pavers
+        too. Unit + mutation tested (0 missed on `takeoff.rs`)
+  - [x] the estimate panel shows a **Mulch** line reading its quantity in yd³
+        (not a bare count) alongside every object line, in the grand total
+- **B4.1 — live editing** ✅ *done (reactive); reshape-of-arc/curve caveat*
+  - [x] moving a bed's boundary nodes ([F3.1](F3-draw-edit-shapes.md))
+        recomputes its area → volume → cost live (the estimate derives from the
+        reactive `shapes`/`circles` signals). Inserting/deleting a node resets
+        the bed's arc/curve edges to straight (F3.1/F3.2/F3.3 interim) but
+        still recomputes cost
+  - [x] editing the bed's depth recomputes volume/cost live
+  - [x] e2e: draw a mulch bed, set its depth, confirm the estimate's Mulch line
+        (yd³ × $) and a non-zero total; persists across a reload
 
 ## Notes / refs
 

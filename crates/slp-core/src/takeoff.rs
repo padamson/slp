@@ -1,26 +1,35 @@
-//! Cost take-off: turn a plan's placed objects into a priced bill of materials.
+//! Cost take-off: turn a plan into a priced bill of materials.
 //!
-//! The take-off answers "what do I buy, and what does it cost?" — it counts only
-//! objects that are both **planned** (`status`) and **real** (`!is_virtual`).
-//! `existing` objects are already owned, so they're excluded regardless of
-//! `is_virtual`; a `virtual` object is a what-if ghost duplicate, never a
-//! second real item, so it's excluded regardless of `status`.
+//! Two kinds of catalog entry are costed, chosen by each item's `price_unit`:
+//! **objects** (priced per item) and drawn-area **materials** (priced per ft²
+//! of surface, or per yd³ of volume at a bed's depth). An object line counts
+//! only placements that are both **planned** (`status`) and **real**
+//! (`!is_virtual`): `existing` objects are already owned, and a `virtual`
+//! object is a what-if ghost, never a second real item. A material line sums
+//! the area (or volume) of every drawn `Shape`/`Circle` whose `material_ref`
+//! names it.
 
-use crate::generated::slp::{ItemStatus, Plan};
+use crate::generated::slp::{ItemStatus, Plan, PriceUnit};
+use crate::{Point, Shape, boundary_area, circle_area};
 
-/// One line of the bill of materials: a catalog item, how many *planned*
-/// placements reference it, and the dollars those placements add up to.
+/// One line of the bill of materials: a catalog item/material, the measured
+/// quantity referencing it (a count of objects, ft² of surface, or yd³ of
+/// volume — `unit` says which), and the dollars it adds up to.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LineItem {
-    /// The catalog item's `id` — the key objects reference via `catalog_ref`.
+    /// The catalog item's `id` — objects reference it via `catalog_ref`, drawn
+    /// areas via `material_ref`.
     pub catalog_ref: String,
     /// The catalog item's display name, if it has one.
     pub name: Option<String>,
-    /// Number of planned objects placing this item.
-    pub qty: u32,
-    /// Price per item, in dollars; `0.0` when the catalog item has no price.
+    /// The measured quantity: a whole number of objects for a per-item line,
+    /// or a ft²/yd³ measure for a material line (`unit` disambiguates).
+    pub quantity: f64,
+    /// What `quantity` measures (and `unit_price` is charged per).
+    pub unit: PriceUnit,
+    /// Price per unit, in dollars; `0.0` when the catalog item has no price.
     pub unit_price: f64,
-    /// `qty × unit_price`, in dollars.
+    /// `quantity × unit_price`, in dollars.
     pub line_total: f64,
 }
 
@@ -37,41 +46,113 @@ pub struct BillOfMaterials {
 
 /// Cost take-off for a plan.
 ///
-/// Counts only placements that are both **planned** and **real**
-/// (`!is_virtual`): `existing` objects are shown on the plan but already
-/// owned, and `virtual` objects are what-if ghosts, never a second real item —
-/// both are excluded regardless of the other flag. Objects whose `catalog_ref`
-/// matches no catalog item are excluded too (you can't price what isn't in the
-/// catalog). Lines come out in catalog order; a catalog item with no counted
-/// placements yields no line. A catalog item with no `unit_price` is priced at
-/// `0.0`.
+/// Each catalog item is costed per its `price_unit`: a per-item line counts the
+/// **planned** and **real** (`!is_virtual`) objects referencing it (`existing`
+/// objects are already owned and `virtual` ones are ghosts — both excluded); a
+/// per-ft²/per-yd³ material line sums the surface area / volume of every drawn
+/// `Shape`/`Circle` whose `material_ref` names it. Lines come out in catalog
+/// order; an item with no counted quantity yields no line. A catalog item with
+/// no `unit_price` is priced at `0.0`. (Per-linear-ft materials aren't costed
+/// yet — they yield no line.)
 #[must_use]
 pub fn take_off(plan: &Plan) -> BillOfMaterials {
     let mut lines = Vec::new();
     let mut grand_total = 0.0;
     for item in &plan.catalog {
-        let mut qty: u32 = 0;
-        for object in &plan.objects {
-            let counts = object.status == ItemStatus::planned && !object.is_virtual;
-            if counts && object.catalog_ref == item.id {
-                qty += 1;
-            }
-        }
-        if qty == 0 {
+        let quantity = match item.price_unit {
+            PriceUnit::per_item => object_count(plan, &item.id),
+            PriceUnit::per_square_foot => material_area(plan, &item.id),
+            PriceUnit::per_cubic_yard => material_volume(plan, &item.id),
+            PriceUnit::per_linear_foot => 0.0,
+        };
+        if quantity <= 0.0 {
             continue;
         }
         let unit_price = item.unit_price.unwrap_or(0.0);
-        let line_total = f64::from(qty) * unit_price;
+        let line_total = quantity * unit_price;
         grand_total += line_total;
         lines.push(LineItem {
             catalog_ref: item.id.clone(),
             name: item.name.clone(),
-            qty,
+            quantity,
+            unit: item.price_unit.clone(),
             unit_price,
             line_total,
         });
     }
     BillOfMaterials { lines, grand_total }
+}
+
+/// The number of **planned** and **real** objects placing catalog item `id`.
+fn object_count(plan: &Plan, id: &str) -> f64 {
+    let n = plan
+        .objects
+        .iter()
+        .filter(|o| o.status == ItemStatus::planned && !o.is_virtual && o.catalog_ref == id)
+        .count();
+    // A plan never holds anywhere near `u32::MAX` objects, so the saturating
+    // conversion is exact; `f64::from(u32)` is then lossless.
+    f64::from(u32::try_from(n).unwrap_or(u32::MAX))
+}
+
+/// The total surface area (ft²) of every drawn `Shape`/`Circle` made of
+/// material `id`.
+fn material_area(plan: &Plan, id: &str) -> f64 {
+    let shapes: f64 = plan
+        .shapes
+        .iter()
+        .filter(|s| s.material_ref.as_deref() == Some(id))
+        .map(shape_area)
+        .sum();
+    let circles: f64 = plan
+        .circles
+        .iter()
+        .filter(|c| c.material_ref.as_deref() == Some(id))
+        .map(|c| circle_area(c.radius_ft))
+        .sum();
+    shapes + circles
+}
+
+/// The total volume (yd³) of every drawn `Shape`/`Circle` made of material
+/// `id`, each at its own depth — `yd³ = ft²·depth_in / 324`.
+fn material_volume(plan: &Plan, id: &str) -> f64 {
+    let shapes: f64 = plan
+        .shapes
+        .iter()
+        .filter(|s| s.material_ref.as_deref() == Some(id))
+        .map(|s| volume_yd3(shape_area(s), s.depth_in.unwrap_or(0.0)))
+        .sum();
+    let circles: f64 = plan
+        .circles
+        .iter()
+        .filter(|c| c.material_ref.as_deref() == Some(id))
+        .map(|c| volume_yd3(circle_area(c.radius_ft), c.depth_in.unwrap_or(0.0)))
+        .sum();
+    shapes + circles
+}
+
+/// A shape's enclosed area (ft²), accounting for any arc/curve edges.
+fn shape_area(s: &Shape) -> f64 {
+    let curves: Vec<(usize, Point, Point)> = s
+        .curves
+        .iter()
+        .filter_map(|c| {
+            usize::try_from(c.edge).ok().map(|e| {
+                (
+                    e,
+                    Point::new(c.control1.x, c.control1.y),
+                    Point::new(c.control2.x, c.control2.y),
+                )
+            })
+        })
+        .collect();
+    boundary_area(&s.corners, &s.bulges, &curves)
+}
+
+/// Volume in cubic yards of a `ft²` surface at `depth_in` inches:
+/// `yd³ = ft²·depth_in / 324` (324 = 27 ft³/yd³ × 12 in/ft).
+fn volume_yd3(area_ft2: f64, depth_in: f64) -> f64 {
+    area_ft2 * depth_in / 324.0
 }
 
 #[cfg(test)]
@@ -129,10 +210,10 @@ mod tests {
         assert_eq!(bom.lines.len(), 2);
         // Lines come out in catalog order: chair, then table.
         assert_eq!(bom.lines[0].catalog_ref, "chair");
-        assert_eq!(bom.lines[0].qty, 2);
+        assert!((bom.lines[0].quantity - 2.0).abs() < 1e-9);
         assert!((bom.lines[0].line_total - 99.0).abs() < 1e-9);
         assert_eq!(bom.lines[1].catalog_ref, "table");
-        assert_eq!(bom.lines[1].qty, 1);
+        assert!((bom.lines[1].quantity - 1.0).abs() < 1e-9);
         assert!((bom.lines[1].line_total - 200.0).abs() < 1e-9);
         assert!((bom.grand_total - 299.0).abs() < 1e-9);
     }
@@ -149,7 +230,7 @@ mod tests {
             ],
         ));
         assert_eq!(bom.lines.len(), 1);
-        assert_eq!(bom.lines[0].qty, 1);
+        assert!((bom.lines[0].quantity - 1.0).abs() < 1e-9);
         assert!((bom.grand_total - 50.0).abs() < 1e-9);
     }
 
@@ -167,7 +248,7 @@ mod tests {
             ],
         ));
         assert_eq!(bom.lines.len(), 1);
-        assert_eq!(bom.lines[0].qty, 1);
+        assert!((bom.lines[0].quantity - 1.0).abs() < 1e-9);
         assert!((bom.grand_total - 50.0).abs() < 1e-9);
     }
 
@@ -179,7 +260,7 @@ mod tests {
             vec![item("chair", "Patio chair", Some(50.0))],
             vec![Object::new("chair".to_string(), 1.0, 2.0)],
         ));
-        assert_eq!(bom.lines[0].qty, 1);
+        assert!((bom.lines[0].quantity - 1.0).abs() < 1e-9);
         assert!((bom.grand_total - 50.0).abs() < 1e-9);
     }
 
@@ -195,7 +276,7 @@ mod tests {
             ],
         ));
         assert_eq!(bom.lines.len(), 1);
-        assert_eq!(bom.lines[0].qty, 1);
+        assert!((bom.lines[0].quantity - 1.0).abs() < 1e-9);
         assert!((bom.grand_total - 50.0).abs() < 1e-9);
     }
 
@@ -224,9 +305,161 @@ mod tests {
                 placed("chair", ItemStatus::planned),
             ],
         ));
-        assert_eq!(bom.lines[0].qty, 2);
+        assert!((bom.lines[0].quantity - 2.0).abs() < 1e-9);
         assert!(bom.lines[0].unit_price.abs() < 1e-9);
         assert!(bom.lines[0].line_total.abs() < 1e-9);
         assert!(bom.grand_total.abs() < 1e-9);
+    }
+
+    // --- Area/volume materials (mulch, pavers) ---
+
+    use crate::Coord;
+    use crate::generated::slp::{Circle, Shape};
+
+    fn material(id: &str, name: &str, price: f64, unit: PriceUnit) -> CatalogItem {
+        let mut c = item(id, name, Some(price));
+        c.price_unit = unit;
+        c
+    }
+
+    /// A `w`×`d` rectangular shape made of material `mat`, `depth` inches deep.
+    fn bed(mat: &str, w: f64, d: f64, depth: f64) -> Shape {
+        Shape {
+            corners: vec![
+                Coord::new(0.0, 0.0),
+                Coord::new(w, 0.0),
+                Coord::new(w, d),
+                Coord::new(0.0, d),
+            ],
+            material_ref: Some(mat.to_string()),
+            depth_in: Some(depth),
+            ..Shape::new(0.0)
+        }
+    }
+
+    fn plan_with_areas(
+        catalog: Vec<CatalogItem>,
+        shapes: Vec<Shape>,
+        circles: Vec<Circle>,
+    ) -> Plan {
+        let mut p = Plan::new(40.0, 40.0);
+        p.catalog = catalog;
+        p.shapes = shapes;
+        p.circles = circles;
+        p
+    }
+
+    #[test]
+    fn a_per_square_foot_material_sums_its_areas() {
+        // Two paver areas (10×8 = 80 ft² and 5×4 = 20 ft²) = 100 ft² × $6 = $600.
+        let bom = take_off(&plan_with_areas(
+            vec![material("paver", "Pavers", 6.0, PriceUnit::per_square_foot)],
+            vec![bed("paver", 10.0, 8.0, 0.0), bed("paver", 5.0, 4.0, 0.0)],
+            vec![],
+        ));
+        assert_eq!(bom.lines.len(), 1);
+        assert_eq!(bom.lines[0].unit, PriceUnit::per_square_foot);
+        assert!((bom.lines[0].quantity - 100.0).abs() < 1e-9, "100 ft²");
+        assert!((bom.lines[0].line_total - 600.0).abs() < 1e-9);
+        assert!((bom.grand_total - 600.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_per_square_foot_material_sums_shapes_and_circles_together() {
+        // A paver shape (10×8 = 80 ft²) AND a paver circle (radius 4 →
+        // π·16 ≈ 50.27 ft²) both count toward the one paver line, summed — so
+        // the circle's area must be added (not dropped or subtracted).
+        let circle = Circle {
+            material_ref: Some("paver".to_string()),
+            depth_in: Some(0.0),
+            ..Circle::new(Box::new(Coord::new(20.0, 20.0)), 0.0, 4.0)
+        };
+        let bom = take_off(&plan_with_areas(
+            vec![material("paver", "Pavers", 6.0, PriceUnit::per_square_foot)],
+            vec![bed("paver", 10.0, 8.0, 0.0)],
+            vec![circle],
+        ));
+        let expected = 80.0 + circle_area(4.0);
+        assert!(
+            (bom.lines[0].quantity - expected).abs() < 1e-9,
+            "shape 80 ft² + circle {:.2} ft² = {expected:.2}, got {}",
+            circle_area(4.0),
+            bom.lines[0].quantity
+        );
+    }
+
+    #[test]
+    fn a_per_cubic_yard_material_costs_by_volume_at_its_depth() {
+        // A 10×8 = 80 ft² mulch bed, 3 in deep: yd³ = 80·3/324 = 0.7407…;
+        // × $40/yd³ ≈ $29.63.
+        let bom = take_off(&plan_with_areas(
+            vec![material("mulch", "Mulch", 40.0, PriceUnit::per_cubic_yard)],
+            vec![bed("mulch", 10.0, 8.0, 3.0)],
+            vec![],
+        ));
+        assert_eq!(bom.lines.len(), 1);
+        assert_eq!(bom.lines[0].unit, PriceUnit::per_cubic_yard);
+        let yd3 = 80.0 * 3.0 / 324.0;
+        assert!((bom.lines[0].quantity - yd3).abs() < 1e-9);
+        assert!((bom.lines[0].line_total - yd3 * 40.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_circle_bed_contributes_its_disk_volume() {
+        // A round mulch bed, radius 4 ft (area π·16 ≈ 50.27 ft²), 3 in deep.
+        let circle = Circle {
+            material_ref: Some("mulch".to_string()),
+            depth_in: Some(3.0),
+            ..Circle::new(Box::new(Coord::new(10.0, 10.0)), 0.0, 4.0)
+        };
+        let bom = take_off(&plan_with_areas(
+            vec![material("mulch", "Mulch", 40.0, PriceUnit::per_cubic_yard)],
+            vec![],
+            vec![circle],
+        ));
+        let yd3 = circle_area(4.0) * 3.0 / 324.0;
+        assert!((bom.lines[0].quantity - yd3).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_material_with_no_beds_yields_no_line() {
+        let bom = take_off(&plan_with_areas(
+            vec![material("mulch", "Mulch", 40.0, PriceUnit::per_cubic_yard)],
+            vec![],
+            vec![],
+        ));
+        assert!(bom.lines.is_empty());
+    }
+
+    #[test]
+    fn a_bed_of_a_different_material_is_not_counted() {
+        // A gravel bed doesn't add to the mulch line.
+        let bom = take_off(&plan_with_areas(
+            vec![material("mulch", "Mulch", 40.0, PriceUnit::per_cubic_yard)],
+            vec![bed("gravel", 10.0, 8.0, 3.0)],
+            vec![],
+        ));
+        assert!(bom.lines.is_empty(), "no mulch bed, so no mulch line");
+    }
+
+    #[test]
+    fn objects_and_area_materials_coexist_in_catalog_order() {
+        let bom = take_off(&{
+            let mut p = plan_with_areas(
+                vec![
+                    item("chair", "Chair", Some(50.0)),
+                    material("mulch", "Mulch", 40.0, PriceUnit::per_cubic_yard),
+                ],
+                vec![bed("mulch", 10.0, 8.0, 3.0)],
+                vec![],
+            );
+            p.objects = vec![placed("chair", ItemStatus::planned)];
+            p
+        });
+        assert_eq!(bom.lines.len(), 2);
+        assert_eq!(bom.lines[0].catalog_ref, "chair");
+        assert_eq!(bom.lines[0].unit, PriceUnit::per_item);
+        assert_eq!(bom.lines[1].catalog_ref, "mulch");
+        assert_eq!(bom.lines[1].unit, PriceUnit::per_cubic_yard);
     }
 }

@@ -25,7 +25,7 @@ pub use clearance::{circle_overlaps_circle, circle_overlaps_polygon, circle_over
 pub use corner::{Corner, free_corner};
 pub use generated::slp::{
     CatalogItem, Circle, Coord, CurveEdge, Deck, DeckLevel, FootprintShape, House, ItemStatus,
-    Object, Opening, OpeningKind, Plan, Shape, StepRun,
+    Object, Opening, OpeningKind, Plan, PriceUnit, Shape, StepRun,
 };
 pub use geom::{
     Point, area, circle_area, footprint_corners, heading, point_in_polygon, polyline_length,

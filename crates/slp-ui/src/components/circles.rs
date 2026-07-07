@@ -10,18 +10,26 @@
 //! live. Its size reads as a diameter (⌀), matching how a round object's does.
 
 use leptos::prelude::*;
-use slp_core::{Circle, circle_area};
+use slp_core::{CatalogItem, Circle, circle_area};
 
 use super::Transform;
-use crate::style::{SELECTED_FILL, SELECTED_STROKE, SHAPE_FILL, SHAPE_FILL_OPACITY, SHAPE_STROKE};
+use super::shapes::area_category;
+use crate::style::{SELECTED_FILL, SELECTED_STROKE, SHAPE_FILL_OPACITY, area_style};
 
 /// A selected circle's resize-handle radius (px).
 const HANDLE_R: f64 = 5.0;
 
+// `catalog` is a plain owned prop (a small list), only read to resolve each
+// circle's material category — not worth a borrow + lifetime.
+#[allow(clippy::needless_pass_by_value)]
 #[component]
 pub fn Circles(
     t: Transform,
     circles: Vec<Circle>,
+    /// The plan catalog, used to resolve each circle's `material_ref` to its
+    /// material category (mulch, paver, …) for the fill color.
+    #[prop(optional)]
+    catalog: Vec<CatalogItem>,
     /// The index (into `circles`) of the currently selected circle, if any.
     #[prop(default = None)]
     selected: Option<usize>,
@@ -37,7 +45,16 @@ pub fn Circles(
         .enumerate()
         .map(|(i, c)| {
             let is_selected = selected == Some(i);
-            circle_view(t, c, i, is_selected, on_circle_press, on_handle_press)
+            let category = area_category(&catalog, c.material_ref.as_deref());
+            circle_view(
+                t,
+                c,
+                i,
+                is_selected,
+                category,
+                on_circle_press,
+                on_handle_press,
+            )
         })
         .collect::<Vec<_>>();
     (!items.is_empty()).then(|| {
@@ -53,12 +70,13 @@ pub fn Circles(
 /// `object_view`): Edition 2024's RPIT lifetime-capture rules mean a borrow
 /// here would tie the returned `impl IntoView` to that borrow, which the
 /// caller (a short-lived local in the iterator closure above) can't satisfy.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
 fn circle_view(
     t: Transform,
     circle: Circle,
     i: usize,
     is_selected: bool,
+    category: Option<String>,
     on_circle_press: Option<Callback<usize>>,
     on_handle_press: Option<Callback<()>>,
 ) -> impl IntoView {
@@ -66,6 +84,7 @@ fn circle_view(
         center,
         elevation,
         radius_ft,
+        ..
     } = circle;
     let (cx, cy) = (t.sx(center.x), t.sy(center.y));
     let r_px = radius_ft * t.px_ft;
@@ -76,15 +95,14 @@ fn circle_view(
     } else {
         format!("{ft2:.0} ft² · ⌀{diameter:.0} ft · {elevation:+.1} ft")
     };
-    let fill = if is_selected {
-        SELECTED_FILL
-    } else {
-        SHAPE_FILL
-    };
+    // Unselected look from the material category (mulch vs. default); a
+    // selection tint overrides it while selected.
+    let (cat_fill, cat_stroke) = area_style(category.as_deref());
+    let fill = if is_selected { SELECTED_FILL } else { cat_fill };
     let stroke = if is_selected {
         SELECTED_STROKE
     } else {
-        SHAPE_STROKE
+        cat_stroke
     };
     let mut class = String::from("circle-area");
     if is_selected {

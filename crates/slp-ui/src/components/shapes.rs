@@ -22,10 +22,23 @@
 //! renders it and reports presses.
 
 use leptos::prelude::*;
-use slp_core::{Coord, CurveEdge, Point, Shape, arc_svg, boundary_area};
+use slp_core::{CatalogItem, Coord, CurveEdge, Point, Shape, arc_svg, boundary_area};
 
 use super::Transform;
-use crate::style::{SELECTED_FILL, SELECTED_STROKE, SHAPE_FILL, SHAPE_FILL_OPACITY, SHAPE_STROKE};
+use crate::style::{
+    SELECTED_FILL, SELECTED_STROKE, SHAPE_FILL, SHAPE_FILL_OPACITY, SHAPE_STROKE, area_style,
+};
+
+/// The material category of a drawn area, resolved from its `material_ref`
+/// through the catalog — drives its fill/stroke look (mulch vs. default).
+/// Shared with `circles` (a `Circle` resolves its category the same way).
+pub(crate) fn area_category(catalog: &[CatalogItem], material_ref: Option<&str>) -> Option<String> {
+    let material_ref = material_ref?;
+    catalog
+        .iter()
+        .find(|c| c.id == material_ref)
+        .and_then(|c| c.category.clone())
+}
 
 /// A selected shape's node-handle radius (px) — bigger than the plain corner
 /// marker so it reads as a drag target.
@@ -73,6 +86,10 @@ fn edge_controls(
 pub fn Shapes(
     t: Transform,
     shapes: Vec<Shape>,
+    /// The plan catalog, used to resolve each area's `material_ref` to its
+    /// material category (mulch, paver, …) for the fill color.
+    #[prop(optional)]
+    catalog: Vec<CatalogItem>,
     /// The index (into `shapes`) of the currently selected shape, if any — its
     /// corners render as interactive node handles instead of plain markers.
     #[prop(default = None)]
@@ -116,11 +133,13 @@ pub fn Shapes(
             } else {
                 Vec::new()
             };
+            let category = area_category(&catalog, s.material_ref.as_deref());
             shape_view(
                 t,
                 s,
                 i,
                 is_selected,
+                category,
                 nodes,
                 on_shape_press,
                 on_node_press,
@@ -156,6 +175,7 @@ fn shape_view(
     shape: Shape,
     i: usize,
     is_selected: bool,
+    category: Option<String>,
     selected_nodes: Vec<usize>,
     on_shape_press: Option<Callback<usize>>,
     on_node_press: Option<Callback<usize>>,
@@ -169,6 +189,7 @@ fn shape_view(
         elevation,
         bulges,
         curves,
+        ..
     } = shape;
     // Straight edges render as line segments; any arc or curve makes the whole
     // boundary a path (arc `A` / bezier `C` commands for the curved edges).
@@ -325,15 +346,15 @@ fn shape_view(
     } else {
         format!("{ft2:.0} ft² · {elevation:+.1} ft")
     };
-    let fill = if is_selected {
-        SELECTED_FILL
-    } else {
-        SHAPE_FILL
-    };
+    // The unselected look comes from the area's material category (mulch is
+    // bark brown, uncategorized is the neutral default); a selection tint
+    // overrides it while selected.
+    let (cat_fill, cat_stroke) = area_style(category.as_deref());
+    let fill = if is_selected { SELECTED_FILL } else { cat_fill };
     let stroke = if is_selected {
         SELECTED_STROKE
     } else {
-        SHAPE_STROKE
+        cat_stroke
     };
     let mut class = String::from("shape");
     if is_selected {

@@ -39,19 +39,23 @@ classes:
 
   CatalogItem:
     description: |-
-      A purchasable product the user has added to the plan's catalog. Objects
-      reference it by `id`. The footprint (`shape` + `width_ft`/`depth_ft`) and
-      `height_ft` drive the 2D render and the future 3D view; `unit_price` drives
-      cost. `clearance_ft`, when present, is a recommended clear radius *beyond*
-      the footprint edge (e.g. a fire pit's keep-clear zone from combustibles).
-      `trunk_diameter_ft`, when present, is a tree's default trunk diameter
-      (`width_ft` is its canopy diameter) — an object placing this catalog item
-      may override both via `Object.canopy_diameter_ft`/`trunk_diameter_ft`.
+      A purchasable product or material the user has added to the plan's
+      catalog. Objects reference it by `id`; drawn areas reference a *material*
+      by `material_ref`. The footprint (`shape` + `width_ft`/`depth_ft`) and
+      `height_ft` drive the 2D render and the future 3D view; `unit_price`
+      drives cost, interpreted by `price_unit` (per item, per ft², per yd³ at a
+      bed's depth, or per linear ft). `clearance_ft`, when present, is a
+      recommended clear radius *beyond* the footprint edge (e.g. a fire pit's
+      keep-clear zone from combustibles). `trunk_diameter_ft`, when present, is
+      a tree's default trunk diameter (`width_ft` is its canopy diameter) — an
+      object placing this catalog item may override both via
+      `Object.canopy_diameter_ft`/`trunk_diameter_ft`.
     slots:
       - id
       - name
       - category
       - unit_price
+      - price_unit
       - shape
       - width_ft
       - depth_ft
@@ -180,6 +184,8 @@ classes:
       - bulges
       - curves
       - elevation
+      - material_ref
+      - depth_in
     slot_usage:
       elevation:
         required: true
@@ -212,6 +218,8 @@ classes:
       - center
       - radius_ft
       - elevation
+      - material_ref
+      - depth_in
     slot_usage:
       center:
         required: true
@@ -280,10 +288,29 @@ slots:
   id:
     description: Stable identifier for a catalog item.
   category:
-    description: Catalog category, e.g. "furniture".
+    description: Catalog category, e.g. "furniture", "mulch-bed", "paver".
   unit_price:
     range: double
-    description: Price per item, in dollars.
+    description: |-
+      Price per unit, in dollars; the unit is `price_unit` (per item by
+      default, or per ft²/yd³/linear-ft for a material).
+  price_unit:
+    range: PriceUnit
+    ifabsent: PriceUnit(per_item)
+    description: |-
+      What `unit_price` is charged per — per item (objects) or per measured
+      quantity of a material (per ft² of pavers, per yd³ of mulch/gravel at a
+      bed's depth, per linear ft of edging). Defaults to per item.
+  material_ref:
+    description: |-
+      Id of the catalog *material* a drawn area is made of (mulch, pavers, …),
+      the area analogue of an object's `catalog_ref`. Absent = uncategorized
+      geometry with no cost.
+  depth_in:
+    range: double
+    description: |-
+      A drawn area's material depth, in inches — used to cost a per-yd³
+      material by volume (`yd³ = ft²·depth_in / 324`), e.g. a mulch bed.
   shape:
     range: FootprintShape
     ifabsent: FootprintShape(rectangle)
@@ -439,6 +466,24 @@ enums:
         description: A `width_ft` × `depth_ft` rectangle (the default).
       circle:
         description: A circle of diameter `width_ft` (fire pits, round tables).
+
+  PriceUnit:
+    description: |-
+      What a catalog item's `unit_price` is charged per. Objects are priced
+      per item; drawn-area materials are priced per measured quantity (a paver
+      surface per ft², mulch/gravel per yd³ at a bed's depth, edging per
+      linear ft).
+    permissible_values:
+      per_item:
+        description: Price per placed object (the default).
+      per_square_foot:
+        description: Price per ft² of a drawn area's surface (e.g. pavers).
+      per_cubic_yard:
+        description: |-
+          Price per yd³ of a drawn area's volume at its depth (e.g. mulch,
+          gravel) — `yd³ = ft²·depth_in / 324`.
+      per_linear_foot:
+        description: Price per linear ft (e.g. bed edging) — not yet costed.
 
   ItemStatus:
     description: |-

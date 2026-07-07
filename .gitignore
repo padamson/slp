@@ -4,9 +4,10 @@
 **/target/
 **/dist
 
-# cargo-mutants output (current run + rotated previous run)
-/mutants.out/
-/mutants.out.old/
+# cargo-mutants output (current run + rotated previous run) — any dir, since a
+# run's temp build tree can drop it under a member crate too.
+mutants.out/
+mutants.out.old/
 
 # Ingested material binaries — provenance lives in materials/manifest.toml,
 # but the asset files themselves are NEVER committed (copyright/IP). See docs/PLAN.md.
