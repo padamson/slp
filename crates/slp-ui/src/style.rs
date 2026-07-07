@@ -43,6 +43,11 @@ pub const SHAPE_STROKE: &str = "#8a8568";
 pub const MULCH_FILL: &str = "#6b4a2f";
 pub const MULCH_STROKE: &str = "#4a3220";
 
+/// A paver surface's fill/stroke — a cool stone gray, distinct from mulch's
+/// brown and the neutral default.
+pub const PAVER_FILL: &str = "#9a9ca0";
+pub const PAVER_STROKE: &str = "#6c6e72";
+
 /// Furniture footprints' base palette — square corners, no corner markers.
 /// Status/virtual (below), selection, and overflow are independent modifiers
 /// layered on top of this.
@@ -117,6 +122,7 @@ pub struct FurnitureStyle {
 pub fn area_style(category: Option<&str>) -> (&'static str, &'static str) {
     match category {
         Some("mulch-bed") => (MULCH_FILL, MULCH_STROKE),
+        Some("paver") => (PAVER_FILL, PAVER_STROKE),
         _ => (SHAPE_FILL, SHAPE_STROKE),
     }
 }

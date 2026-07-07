@@ -973,14 +973,16 @@ fn planner_body() -> impl IntoView {
                     step=0.5
                 />
             </ToolGroup>
-            // Drawn areas are mulch beds for now (the only area material); a
-            // material picker joins this group when pavers/gravel land (B1),
-            // at which point "Area" generalizes and each drawn area is tagged
-            // with the armed material. The `draw-shape`/`draw-circle` tools are
-            // unchanged — only what they're made of + costed as.
-            <ToolGroup label="Mulch bed">
-                {tool_btn(tool, pick, Tool::Shape, "Draw bed", "draw-shape")}
-                {tool_btn(tool, pick, Tool::Circle, "Round bed", "draw-circle")}
+            // A drawn area is tagged with the armed material (mulch or paver);
+            // that drives its look (mulch brown vs. paver gray) and how it's
+            // costed (mulch per yd³ by depth, pavers per ft²). The
+            // `draw-shape`/`draw-circle` tools draw either as a boundary or a
+            // circle; more materials join the picker as their stories land.
+            <ToolGroup label="Area">
+                {material_btn(area_material, "mulch", "Mulch", "area-mat-mulch")}
+                {material_btn(area_material, "paver", "Pavers", "area-mat-paver")}
+                {tool_btn(tool, pick, Tool::Shape, "Draw area", "draw-shape")}
+                {tool_btn(tool, pick, Tool::Circle, "Round area", "draw-circle")}
                 <NumberField
                     label="Depth (in)"
                     testid="area-depth"
@@ -1203,6 +1205,26 @@ fn tool_btn(
     view! { <ToolButton label=label testid=testid active=active on_pick=Callback::new(move |()| pick.run(t)) /> }
 }
 
+/// A material-picker toggle: arms `area_material` to the catalog id `id`, so
+/// the next drawn area is tagged with (and looks/costs like) that material.
+/// Highlights when it's the armed material.
+fn material_btn(
+    area_material: RwSignal<Option<String>>,
+    id: &'static str,
+    label: &'static str,
+    testid: &'static str,
+) -> impl IntoView {
+    let active = Signal::derive(move || area_material.get().as_deref() == Some(id));
+    view! {
+        <ToolButton
+            label=label
+            testid=testid
+            active=active
+            on_pick=Callback::new(move |()| area_material.set(Some(id.to_string())))
+        />
+    }
+}
+
 /// The deck level whose nearest edge is closest to `anchor` (where a step run
 /// attaches) — its elevation is the run's drop.
 fn nearest_level(levels: &[DeckLevel], anchor: &Coord) -> Option<DeckLevel> {
@@ -1418,8 +1440,9 @@ fn starter_catalog() -> Vec<CatalogItem> {
             220.0,
         ),
         tree("oak-tree", "Oak tree", 20.0, 2.0, 35.0, 350.0),
-        // Area materials, costed by measure (mulch per yd³) rather than per
-        // item — a bagged/bulk mulch at a typical ~$40/yd³ delivered.
+        // Area materials, costed by measure rather than per item: mulch per
+        // yd³ (a bagged/bulk mulch at a typical ~$40/yd³ delivered), pavers
+        // per ft² of surface (~$8/ft² for the pavers themselves).
         material(
             "mulch",
             "Mulch",
@@ -1427,6 +1450,7 @@ fn starter_catalog() -> Vec<CatalogItem> {
             PriceUnit::per_cubic_yard,
             40.0,
         ),
+        material("paver", "Pavers", "paver", PriceUnit::per_square_foot, 8.0),
     ]
 }
 

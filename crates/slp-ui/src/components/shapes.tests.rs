@@ -4,7 +4,7 @@ use leptos::prelude::*;
 use slp_core::{CatalogItem, Coord, CurveEdge, Shape};
 
 use super::{Shapes, Transform};
-use crate::style::{MULCH_FILL, SHAPE_FILL};
+use crate::style::{MULCH_FILL, PAVER_FILL, SHAPE_FILL};
 
 fn t() -> Transform {
     Transform {
@@ -123,6 +123,21 @@ fn a_mulch_bed_renders_in_the_mulch_color() {
         plain.contains(SHAPE_FILL),
         "an uncategorized area is neutral"
     );
+}
+
+#[test]
+fn a_paver_area_renders_in_the_paver_color() {
+    // A shape whose material resolves to a "paver" category fills paver gray,
+    // distinct from mulch's brown.
+    let mut paver = CatalogItem::new("paver".to_string());
+    paver.category = Some("paver".to_string());
+
+    let mut area = square(0.0);
+    area.material_ref = Some("paver".to_string());
+    let html =
+        dokime::render(move || view! { <Shapes t=t() shapes=vec![area] catalog=vec![paver] /> });
+    assert!(html.contains(PAVER_FILL), "the paver area fills paver gray");
+    assert!(!html.contains(MULCH_FILL), "not the mulch color");
 }
 
 #[test]
