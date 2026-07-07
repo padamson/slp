@@ -2,7 +2,7 @@
 //! feature.
 
 use leptos::prelude::*;
-use slp_core::CatalogItem;
+use slp_core::{CatalogItem, PriceUnit};
 
 use super::CatalogPanel;
 use theoria::Story;
@@ -11,6 +11,9 @@ fn noop_str() -> Callback<String> {
     Callback::new(|_| {})
 }
 fn noop_f64() -> Callback<f64> {
+    Callback::new(|_| {})
+}
+fn noop_pu() -> Callback<PriceUnit> {
     Callback::new(|_| {})
 }
 fn noop() -> Callback<()> {
@@ -48,6 +51,8 @@ pub fn stories() -> Vec<Story> {
                     on_name=noop_str()
                     on_category=noop_str()
                     on_price=noop_f64()
+                    on_price_unit=noop_pu()
+                    on_add=noop()
                     on_width=noop_f64()
                     on_depth=noop_f64()
                     on_height=noop_f64()
@@ -65,6 +70,8 @@ pub fn stories() -> Vec<Story> {
                     on_name=noop_str()
                     on_category=noop_str()
                     on_price=noop_f64()
+                    on_price_unit=noop_pu()
+                    on_add=noop()
                     on_width=noop_f64()
                     on_depth=noop_f64()
                     on_height=noop_f64()

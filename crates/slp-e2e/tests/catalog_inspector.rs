@@ -132,3 +132,92 @@ async fn edits_a_catalog_item_and_propagates_to_placed_objects() -> Result<()> {
     browser.close().await.context("close browser")?;
     Ok(())
 }
+
+#[tokio::test]
+async fn adds_and_authors_a_material_that_persists() -> Result<()> {
+    // B3.0: hand-add a catalog material, set its name/price/price_unit, and
+    // confirm it survives a reload — the prerequisite for composing an area from
+    // materials you added yourself.
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
+        return Ok(());
+    }
+
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = browser.new_page().await.context("new page")?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    // Open the catalog inspector and add a new material.
+    page.locator("[data-testid='edit-catalog']")
+        .await
+        .click(None)
+        .await
+        .context("open the catalog inspector")?;
+    page.locator("[data-testid='catalog-add']")
+        .await
+        .click(None)
+        .await
+        .context("add a new material")?;
+    expect(page.locator("[data-testid='catalog-editor']").await)
+        .to_be_visible()
+        .await
+        .context("the new item is selected for editing")?;
+
+    // Author it: a per-yd³ river gravel at $60.
+    page.locator("[data-testid='catalog-name']")
+        .await
+        .fill("River gravel", None)
+        .await
+        .context("name the material")?;
+    page.locator("[data-testid='catalog-price']")
+        .await
+        .fill("60", None)
+        .await
+        .context("price the material")?;
+    let unit = page.locator("[data-testid='catalog-price-unit']").await;
+    unit.select_option("per_cubic_yard", None)
+        .await
+        .context("price it per cubic yard")?;
+    assert_eq!(
+        unit.input_value(None).await?,
+        "per_cubic_yard",
+        "the price unit is set"
+    );
+
+    // Reload — the authored material persists (catalog rides localStorage).
+    page.reload(None).await.context("reload the page")?;
+    page.locator("[data-testid='edit-catalog']")
+        .await
+        .click(None)
+        .await
+        .context("reopen the catalog inspector")?;
+    let row = page.locator("[data-testid='catalog-row-material-1']").await;
+    expect(row.clone())
+        .to_have_count(1)
+        .await
+        .context("the added material survived the reload")?;
+    let row_text = row.text_content().await?.unwrap_or_default();
+    assert!(row_text.contains("River gravel"), "authored name persisted: {row_text}");
+    assert!(row_text.contains("$60"), "authored price persisted: {row_text}");
+    // Its price unit persisted too.
+    row.click(None).await.context("reselect the material")?;
+    assert_eq!(
+        page.locator("[data-testid='catalog-price-unit']")
+            .await
+            .input_value(None)
+            .await?,
+        "per_cubic_yard",
+        "the price unit persisted"
+    );
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}

@@ -18,6 +18,7 @@ mod object_palette;
 mod placement;
 mod planner;
 mod scale_bar;
+mod select_field;
 mod shapes;
 mod steps;
 mod text_field;
@@ -45,6 +46,7 @@ pub use object_palette::ObjectPalette;
 pub use placement::Placement;
 pub use planner::Planner;
 pub use scale_bar::{DEFAULT_LENGTH_FT, ScaleBar};
+pub use select_field::SelectField;
 pub use shapes::Shapes;
 pub use steps::Steps;
 pub use text_field::TextField;
@@ -228,6 +230,9 @@ mod planner_stories;
 #[path = "scale_bar.stories.rs"]
 mod scale_bar_stories;
 #[cfg(feature = "stories")]
+#[path = "select_field.stories.rs"]
+mod select_field_stories;
+#[cfg(feature = "stories")]
 #[path = "shapes.stories.rs"]
 mod shapes_stories;
 #[cfg(feature = "stories")]
@@ -288,6 +293,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(toggle_stories::stories());
     s.extend(number_field_stories::stories());
     s.extend(text_field_stories::stories());
+    s.extend(select_field_stories::stories());
     s.extend(tool_group_stories::stories());
     s.extend(yard_controls_stories::stories());
     s
@@ -341,6 +347,9 @@ mod planner_tests;
 #[cfg(test)]
 #[path = "scale_bar.tests.rs"]
 mod scale_bar_tests;
+#[cfg(test)]
+#[path = "select_field.tests.rs"]
+mod select_field_tests;
 #[cfg(test)]
 #[path = "shapes.tests.rs"]
 mod shapes_tests;

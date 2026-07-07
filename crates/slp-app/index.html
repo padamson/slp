@@ -393,6 +393,11 @@
         margin: 0;
         font-size: 15px;
       }
+      .catalog-head-actions {
+        display: flex;
+        gap: 6px;
+      }
+      .catalog-add,
       .catalog-close {
         font: inherit;
         font-size: 12px;
@@ -401,6 +406,10 @@
         border-radius: 6px;
         background: #fff;
         cursor: pointer;
+      }
+      .catalog-add {
+        border-color: #2b6cb0;
+        color: #2b6cb0;
       }
       .catalog-list {
         display: flex;
@@ -438,15 +447,17 @@
         border-top: 1px solid #e3dccb;
       }
       .catalog-editor .text-field,
-      .catalog-editor .number-field {
+      .catalog-editor .number-field,
+      .catalog-editor .select-field {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 6px;
         color: #6b6557;
       }
-      .catalog-editor input {
-        width: 120px;
+      .catalog-editor input,
+      .catalog-editor select {
+        width: 128px;
         font: inherit;
         padding: 3px 6px;
         border: 1px solid #e3dccb;

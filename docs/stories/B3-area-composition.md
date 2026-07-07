@@ -16,15 +16,16 @@ and each area is composed independently, not locked to one recipe per paver type
 
 ## Vertical slices
 
-- **B3.0 — add & author materials** *(prereq; advances [M4.2](M4-M5-material-ingestion.md)'s
+- **B3.0 — add & author materials** ✅ *(prereq; advances [M4.2](M4-M5-material-ingestion.md)'s
   manual-authoring path)*
-  - [ ] an **"Add material"** button in the catalog inspector hand-adds a new
-        catalog item (name, category, price, dimensions) — so there's a *second*
-        gravel / an alternate paver to compose with, no ingestion/network needed
-  - [ ] a **`price_unit` control** (the `Select` from B3.3) so a hand-added
-        material can be per-item / per-ft² / per-yd³ / per-linear-ft — a gravel
-        is per-yd³, a paver per-ft² ([M4.3](M4-M5-material-ingestion.md)'s
-        deferred bit)
+  - [x] an **"+ Add"** button in the catalog inspector hand-adds a new catalog
+        item (first free `material-N` id, then edited like any item) — so there's
+        a *second* gravel / an alternate paver to compose with; persists with the
+        plan (e2e-covered), no ingestion/network needed
+  - [x] a **`price_unit` control** (the `SelectField` from B3.3, pulled forward)
+        so a hand-added material can be per-item / per-ft² / per-yd³ /
+        per-linear-ft — a gravel is per-yd³, a paver per-ft² ([M4.3](M4-M5-material-ingestion.md)'s
+        deferred bit, now done)
 - **B3.1 — per-area composition (schema + core)**
   - [ ] `Shape`/`Circle` gain `courses: Vec<Course>` (`Course = {material_ref,
         depth_in}`) — the ordered sub-layers beneath the surface `material_ref`
@@ -36,10 +37,11 @@ and each area is composed independently, not locked to one recipe per paver type
   - [ ] drawing a paver area copies the catalog paver's default courses (gravel
         base 4″ + bedding sand 1″) into the area's `courses`, so it starts right
         and is then edited independently
-- **B3.3 — `Select` primitive**
-  - [ ] a controlled labeled dropdown (choose a catalog material by id from a
-        filtered list) — the string-choice counterpart of `NumberField`/`TextField`,
-        reused by the composition editor *and* B3.0's `price_unit` control
+- **B3.3 — `SelectField` primitive** ✅ *(built with B3.0)*
+  - [x] a controlled labeled dropdown (`(value, label)` options, selected value
+        server-rendered) — the string-choice counterpart of `NumberField`/
+        `TextField`, reused by B3.0's `price_unit` control and (next) the
+        composition editor's material picker
 - **B3.4 — composition editor in the area inspector**
   - [ ] a paver area's inspector shows its **course list** — one row per layer
         (material `Select` + thickness `NumberField`), with add/remove-layer

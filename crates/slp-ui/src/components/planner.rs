@@ -930,6 +930,26 @@ fn planner_body() -> impl IntoView {
         Callback::new(move |v: f64| edit_selected_catalog(&|c| c.depth_ft = Some(v)));
     let set_catalog_height =
         Callback::new(move |v: f64| edit_selected_catalog(&|c| c.height_ft = Some(v)));
+    let set_catalog_price_unit =
+        Callback::new(move |u: PriceUnit| edit_selected_catalog(&|c| c.price_unit = u.clone()));
+    // Hand-add a blank catalog item (a new material to author), give it the
+    // first free `material-N` id, and select it for editing.
+    let add_material = Callback::new(move |()| {
+        let id = catalog.with_untracked(|list| {
+            // `list.len() + 1` distinct candidates guarantees a free one (only
+            // `list.len()` ids are taken), so the search is bounded.
+            (1..=list.len() + 1)
+                .map(|n| format!("material-{n}"))
+                .find(|id| !list.iter().any(|c| c.id == *id))
+                .unwrap_or_else(|| "material".to_string())
+        });
+        let mut item = CatalogItem::new(id.clone());
+        item.name = Some("New material".to_string());
+        item.category = Some("material".to_string());
+        item.unit_price = Some(0.0);
+        catalog.update(|list| list.push(item));
+        catalog_selected.set(Some(id));
+    });
 
     // Remove the selected shape's selected node (refused, per `delete_node`,
     // if it would leave the shape below its 3-node drawable minimum).
@@ -1420,6 +1440,8 @@ fn planner_body() -> impl IntoView {
                             on_name=set_catalog_name
                             on_category=set_catalog_category
                             on_price=set_catalog_price
+                            on_price_unit=set_catalog_price_unit
+                            on_add=add_material
                             on_width=set_catalog_width
                             on_depth=set_catalog_depth
                             on_height=set_catalog_height

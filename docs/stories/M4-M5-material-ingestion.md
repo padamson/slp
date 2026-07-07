@@ -51,8 +51,8 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         plan's catalog, select one, edit its name/category/price and footprint
         dimensions (width/depth/height) directly. Built on a new reusable
         `TextField` primitive (the string counterpart of `NumberField`).
-  - [ ] `price_unit` and image editing not yet wired (needs a select control /
-        the ingestion asset path) — a follow-up
+  - [x] `price_unit` is now editable via a `SelectField` dropdown
+        ([B3.0](B3-area-composition.md)); image editing is still open (M4.4)
   - [x] editing a catalog item's footprint/price updates every object already
         placed from it (they reference it by `catalog_ref`, not a copy) — the
         estimate reprices and the footprint re-renders live (e2e-covered)

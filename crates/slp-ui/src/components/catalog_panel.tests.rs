@@ -1,7 +1,7 @@
 //! dokime component tests for `CatalogPanel`.
 
 use leptos::prelude::*;
-use slp_core::CatalogItem;
+use slp_core::{CatalogItem, PriceUnit};
 
 use super::CatalogPanel;
 
@@ -9,6 +9,9 @@ fn noop_str() -> Callback<String> {
     Callback::new(|_| {})
 }
 fn noop_f64() -> Callback<f64> {
+    Callback::new(|_| {})
+}
+fn noop_pu() -> Callback<PriceUnit> {
     Callback::new(|_| {})
 }
 fn noop() -> Callback<()> {
@@ -38,6 +41,8 @@ fn panel(catalog: Vec<CatalogItem>, selected: Option<String>) -> String {
                 on_name=noop_str()
                 on_category=noop_str()
                 on_price=noop_f64()
+                on_price_unit=noop_pu()
+                on_add=noop()
                 on_width=noop_f64()
                 on_depth=noop_f64()
                 on_height=noop_f64()
@@ -87,7 +92,30 @@ fn the_selected_item_opens_an_editor_with_its_fields() {
 }
 
 #[test]
-fn has_a_close_button() {
+fn the_editor_has_a_price_unit_control_reflecting_the_item() {
+    let mut mulch = item("mulch", "Mulch", 40.0);
+    mulch.price_unit = PriceUnit::per_cubic_yard;
+    let html = panel(vec![mulch], Some("mulch".to_string()));
+    assert!(
+        html.contains(r#"data-testid="catalog-price-unit""#),
+        "the price-unit dropdown"
+    );
+    // The item's per-yd³ unit is the selected option.
+    assert!(
+        html.contains(r#"value="per_cubic_yard" selected"#),
+        "the current price_unit is selected"
+    );
+}
+
+#[test]
+fn has_add_and_close_buttons() {
     let html = panel(vec![item("chair", "Lounge chair", 199.0)], None);
-    assert!(html.contains(r#"data-testid="catalog-close""#));
+    assert!(
+        html.contains(r#"data-testid="catalog-add""#),
+        "an add-material button"
+    );
+    assert!(
+        html.contains(r#"data-testid="catalog-close""#),
+        "a close button"
+    );
 }

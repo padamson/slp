@@ -7,9 +7,41 @@
 //! item's price or size reprices and re-renders every object placed from it.
 
 use leptos::prelude::*;
-use slp_core::CatalogItem;
+use slp_core::{CatalogItem, PriceUnit};
 
-use super::{NumberField, TextField};
+use super::{NumberField, SelectField, TextField};
+
+/// The `price_unit` id an area material / object is costed by — the string the
+/// `SelectField` round-trips.
+fn price_unit_id(unit: &PriceUnit) -> &'static str {
+    match unit {
+        PriceUnit::per_square_foot => "per_square_foot",
+        PriceUnit::per_cubic_yard => "per_cubic_yard",
+        PriceUnit::per_linear_foot => "per_linear_foot",
+        // per_item, and any future variant, id as per-item.
+        _ => "per_item",
+    }
+}
+
+/// Parse a `price_unit` id back to its enum (unknown → per-item).
+fn price_unit_from_id(id: &str) -> PriceUnit {
+    match id {
+        "per_square_foot" => PriceUnit::per_square_foot,
+        "per_cubic_yard" => PriceUnit::per_cubic_yard,
+        "per_linear_foot" => PriceUnit::per_linear_foot,
+        _ => PriceUnit::per_item,
+    }
+}
+
+/// The `price_unit` choices, `(id, label)`, for the editor's dropdown.
+fn price_unit_options() -> Vec<(String, String)> {
+    vec![
+        ("per_item".to_string(), "Per item".to_string()),
+        ("per_square_foot".to_string(), "Per ft²".to_string()),
+        ("per_cubic_yard".to_string(), "Per yd³".to_string()),
+        ("per_linear_foot".to_string(), "Per linear ft".to_string()),
+    ]
+}
 
 #[allow(clippy::too_many_arguments)]
 #[component]
@@ -28,6 +60,10 @@ pub fn CatalogPanel(
     on_category: Callback<String>,
     /// Set the selected item's unit price (dollars).
     on_price: Callback<f64>,
+    /// Set the selected item's price unit (per item / ft² / yd³ / linear ft).
+    on_price_unit: Callback<PriceUnit>,
+    /// Add a new (blank) catalog item and select it for editing.
+    on_add: Callback<()>,
     /// Set the selected item's footprint width / diameter (ft).
     on_width: Callback<f64>,
     /// Set the selected item's footprint depth (ft).
@@ -41,13 +77,22 @@ pub fn CatalogPanel(
         <aside class="catalog-panel" data-testid="catalog-panel">
             <header class="catalog-panel-head">
                 <h2>"Catalog"</h2>
-                <button
-                    class="catalog-close"
-                    data-testid="catalog-close"
-                    on:click=move |_| on_close.run(())
-                >
-                    "Close"
-                </button>
+                <div class="catalog-head-actions">
+                    <button
+                        class="catalog-add"
+                        data-testid="catalog-add"
+                        on:click=move |_| on_add.run(())
+                    >
+                        "+ Add"
+                    </button>
+                    <button
+                        class="catalog-close"
+                        data-testid="catalog-close"
+                        on:click=move |_| on_close.run(())
+                    >
+                        "Close"
+                    </button>
+                </div>
             </header>
             <div class="catalog-list">
                 {move || {
@@ -85,6 +130,15 @@ pub fn CatalogPanel(
                                 step=1.0
                                 min=0.0
                                 on_input=on_price
+                            />
+                            <SelectField
+                                label="Priced"
+                                testid="catalog-price-unit"
+                                value=price_unit_id(&item.price_unit).to_string()
+                                options=price_unit_options()
+                                on_change=Callback::new(move |id: String| {
+                                    on_price_unit.run(price_unit_from_id(&id));
+                                })
                             />
                             <NumberField
                                 label="Width (ft)"
