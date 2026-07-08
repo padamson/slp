@@ -108,6 +108,29 @@ fn the_editor_has_a_price_unit_control_reflecting_the_item() {
 }
 
 #[test]
+fn a_bulk_material_offers_an_aggregate_toggle() {
+    // A per-yd³ material can be marked a sub-base aggregate; a per-item object
+    // cannot (the toggle is hidden).
+    let mut gravel = item("gravel", "Gravel", 55.0);
+    gravel.price_unit = PriceUnit::per_cubic_yard;
+    let html = panel(vec![gravel], Some("gravel".to_string()));
+    assert!(
+        html.contains(r#"data-testid="catalog-aggregate""#),
+        "a bulk material offers the aggregate toggle"
+    );
+
+    let chair_html = panel(
+        vec![item("chair", "Chair", 199.0)],
+        Some("chair".to_string()),
+    );
+    assert_eq!(
+        dokime::count(&chair_html, r#"data-testid="catalog-aggregate""#),
+        0,
+        "a per-item object has no aggregate toggle"
+    );
+}
+
+#[test]
 fn has_add_and_close_buttons() {
     let html = panel(vec![item("chair", "Lounge chair", 199.0)], None);
     assert!(

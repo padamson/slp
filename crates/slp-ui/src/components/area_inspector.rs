@@ -10,9 +10,9 @@
 //! plan, so the estimate updates as you type.
 
 use leptos::prelude::*;
-use slp_core::{Corner, ItemStatus};
+use slp_core::{Corner, Course, ItemStatus};
 
-use super::NumberField;
+use super::{CourseEditor, NumberField};
 
 /// Short name for the corner the window floats in (for `data-corner`).
 fn corner_name(corner: Corner) -> &'static str {
@@ -76,9 +76,41 @@ pub fn AreaInspector(
     /// Set a structure's build status — only meaningful in structure mode.
     #[prop(default = Callback::new(|_: ItemStatus| {}))]
     on_status: Callback<ItemStatus>,
+    /// A drawn surface's sub-base courses (a paver's gravel/sand), editable.
+    /// Empty hides the composition editor (a mulch bed, a structure).
+    #[prop(default = Vec::new())]
+    courses: Vec<Course>,
+    /// Materials a course may use, `(id, label)` — the catalog's bulk materials.
+    #[prop(default = Vec::new())]
+    material_options: Vec<(String, String)>,
+    /// Set course `i`'s material.
+    #[prop(default = Callback::new(|_: (usize, String)| {}))]
+    on_course_material: Callback<(usize, String)>,
+    /// Set course `i`'s thickness (in).
+    #[prop(default = Callback::new(|_: (usize, f64)| {}))]
+    on_course_depth: Callback<(usize, f64)>,
+    /// Append a course.
+    #[prop(default = Callback::new(|()| {}))]
+    on_course_add: Callback<()>,
+    /// Remove course `i`.
+    #[prop(default = Callback::new(|_: usize| {}))]
+    on_course_remove: Callback<usize>,
     /// Remove the region from the plan.
     on_delete: Callback<()>,
 ) -> impl IntoView {
+    // A surface with a sub-base shows its composition editor.
+    let course_editor = (!courses.is_empty()).then(|| {
+        view! {
+            <CourseEditor
+                courses=courses
+                material_options=material_options
+                on_material=on_course_material
+                on_depth=on_course_depth
+                on_add=on_course_add
+                on_remove=on_course_remove
+            />
+        }
+    });
     let dash = || "—".to_string();
     let area_label = format!("{area_ft2:.0} ft²");
     let cost_display = cost.map_or_else(dash, |c| format!("${c:.2}"));
@@ -162,6 +194,7 @@ pub fn AreaInspector(
                         }
                     })}
             </div>
+            {course_editor}
             <button
                 class="inspector-delete"
                 data-testid="delete-area"

@@ -9,11 +9,11 @@
 
 use leptos::prelude::*;
 use slp_core::{
-    CatalogItem, Circle, Commit, Coord, Corner, CurveEdge, Deck, DeckLevel, FootprintShape, House,
-    ItemStatus, Object, Plan, Point, PriceUnit, Shape, StepRun, Tool, are_adjacent, boundary_area,
-    circle_area, commit_kind, content_points, delete_node, dragged_center, free_corner, heading,
-    insert_node_between, nearest_wall, object_at, opening_from_nodes, snap_node, snap_to_grid,
-    take_off,
+    CatalogItem, Circle, Commit, Coord, Corner, Course, CurveEdge, Deck, DeckLevel, FootprintShape,
+    House, ItemStatus, Object, Plan, Point, PriceUnit, Shape, StepRun, Tool, are_adjacent,
+    boundary_area, circle_area, commit_kind, content_points, default_courses, delete_node,
+    dragged_center, free_corner, heading, insert_node_between, nearest_wall, object_at,
+    opening_from_nodes, snap_node, snap_to_grid, take_off,
 };
 
 use super::{
@@ -530,17 +530,18 @@ fn planner_body() -> impl IntoView {
                     deck.update(|v| v.push(level));
                 } else if tl == Tool::Shape {
                     // A freshly-drawn area is all straight edges (no bulges/
-                    // curves), tagged with the armed area material + depth.
+                    // curves), tagged with the armed area material + depth, and
+                    // seeded with that material's default sub-base courses (a
+                    // paver's gravel + sand) so its composition is editable.
+                    let material = area_material.get_untracked();
                     let shape = Shape {
                         corners: pl,
                         elevation: area_elevation.get_untracked(),
                         bulges: Vec::new(),
                         curves: Vec::new(),
-                        material_ref: area_material.get_untracked(),
+                        courses: seed_courses(&catalog.get_untracked(), material.as_deref()),
+                        material_ref: material,
                         depth_in: Some(area_depth.get_untracked()),
-                        // Fresh area: no sub-base courses yet (falls back to the
-                        // material's catalog default when costed).
-                        courses: Vec::new(),
                     };
                     shapes.update(|v| v.push(shape));
                 } else {
@@ -591,9 +592,11 @@ fn planner_body() -> impl IntoView {
                 // the second (the release point that just finished the gesture).
                 if let Some(center) = pl.first() {
                     let radius = Point::new(center.x, center.y).dist(Point::new(next.x, next.y));
+                    let material = area_material.get_untracked();
                     circles.update(|v| {
                         v.push(Circle {
-                            material_ref: area_material.get_untracked(),
+                            courses: seed_courses(&catalog.get_untracked(), material.as_deref()),
+                            material_ref: material,
                             depth_in: Some(area_depth.get_untracked()),
                             ..Circle::new(
                                 Box::new(center.clone()),
@@ -866,6 +869,57 @@ fn planner_body() -> impl IntoView {
         }
     });
 
+    // Composition editor: edit the selected area's sub-base `courses`. Apply
+    // `edit` to whichever of the shape/circle is selected.
+    let edit_selected_courses = move |edit: &dyn Fn(&mut Vec<Course>)| {
+        if let Some(i) = selected_shape.get_untracked() {
+            shapes.update(|v| {
+                if let Some(s) = v.get_mut(i) {
+                    edit(&mut s.courses);
+                }
+            });
+        } else if let Some(i) = selected_circle.get_untracked() {
+            circles.update(|v| {
+                if let Some(c) = v.get_mut(i) {
+                    edit(&mut c.courses);
+                }
+            });
+        }
+    };
+    let set_course_material = Callback::new(move |(i, id): (usize, String)| {
+        edit_selected_courses(&|courses| {
+            if let Some(c) = courses.get_mut(i) {
+                c.material_ref.clone_from(&id);
+            }
+        });
+    });
+    let set_course_depth = Callback::new(move |(i, d): (usize, f64)| {
+        edit_selected_courses(&|courses| {
+            if let Some(c) = courses.get_mut(i) {
+                c.depth_in = d;
+            }
+        });
+    });
+    let remove_course = Callback::new(move |i: usize| {
+        edit_selected_courses(&|courses| {
+            if i < courses.len() {
+                courses.remove(i);
+            }
+        });
+    });
+    // A new layer defaults to the first bulk material at 2 in (a no-op when the
+    // catalog has no bulk material to lay down).
+    let add_course = Callback::new(move |()| {
+        let default_material = course_materials(&catalog.get_untracked())
+            .first()
+            .map(|(id, _)| id.clone());
+        edit_selected_courses(&|courses| {
+            if let Some(id) = default_material.clone() {
+                courses.push(Course::new(2.0, id));
+            }
+        });
+    });
+
     // Structure (house / deck level) inspector edits. The house has one status
     // and no elevation; a deck level has both.
     let set_house_status = Callback::new(move |s: ItemStatus| house_status.set(s));
@@ -935,6 +989,8 @@ fn planner_body() -> impl IntoView {
         Callback::new(move |v: f64| edit_selected_catalog(&|c| c.height_ft = Some(v)));
     let set_catalog_price_unit =
         Callback::new(move |u: PriceUnit| edit_selected_catalog(&|c| c.price_unit = u.clone()));
+    let set_catalog_aggregate =
+        Callback::new(move |v: bool| edit_selected_catalog(&|c| c.is_aggregate = Some(v)));
     // Hand-add a blank catalog item (a new material to author), give it the
     // first free `material-N` id, and select it for editing.
     let add_material = Callback::new(move |()| {
@@ -1350,6 +1406,12 @@ fn planner_body() -> impl IntoView {
                                 cost=area.cost
                                 corner=corner
                                 style=style
+                                courses=area.courses
+                                material_options=course_materials(&catalog.get())
+                                on_course_material=set_course_material
+                                on_course_depth=set_course_depth
+                                on_course_add=add_course
+                                on_course_remove=remove_course
                                 on_elevation=set_area_elevation
                                 on_depth=set_area_depth
                                 on_delete=delete_selected_area
@@ -1449,6 +1511,7 @@ fn planner_body() -> impl IntoView {
                             on_category=set_catalog_category
                             on_price=set_catalog_price
                             on_price_unit=set_catalog_price_unit
+                            on_aggregate=set_catalog_aggregate
                             on_add=add_material
                             on_width=set_catalog_width
                             on_depth=set_catalog_depth
@@ -1509,6 +1572,9 @@ struct AreaInfo {
     show_depth: bool,
     /// This area's material cost, if priced.
     cost: Option<f64>,
+    /// This area's own sub-base courses (a paver's gravel/sand), for the
+    /// composition editor. Empty for a mulch bed / bare surface.
+    courses: Vec<Course>,
 }
 
 /// Resolve the selected `Shape`/`Circle` (only one can be selected) into the
@@ -1522,13 +1588,14 @@ fn selected_area(
     circles: &[Circle],
     catalog: &[CatalogItem],
 ) -> Option<AreaInfo> {
-    let (material_ref, elevation, depth, area_ft2) = if let Some(i) = sel_shape {
+    let (material_ref, elevation, depth, area_ft2, courses) = if let Some(i) = sel_shape {
         let s = shapes.get(i)?;
         (
             s.material_ref.as_deref(),
             s.elevation,
             s.depth_in.unwrap_or(0.0),
             shape_area_ft2(s),
+            s.courses.clone(),
         )
     } else if let Some(i) = sel_circle {
         let c = circles.get(i)?;
@@ -1537,6 +1604,7 @@ fn selected_area(
             c.elevation,
             c.depth_in.unwrap_or(0.0),
             circle_area(c.radius_ft),
+            c.courses.clone(),
         )
     } else {
         return None;
@@ -1557,17 +1625,18 @@ fn selected_area(
     let cost = match (&price_unit, unit_price) {
         (Some(PriceUnit::per_square_foot), Some(p)) => {
             let mut total = area_ft2 * p;
-            if let Some(i) = item {
+            // The area's own sub-base courses, or the material's catalog
+            // defaults when it has none — matching how `take_off` costs them.
+            let effective = if courses.is_empty() {
+                item.map(default_courses).unwrap_or_default()
+            } else {
+                courses.clone()
+            };
+            for course in &effective {
                 total += course_cost(
                     catalog,
-                    i.base_material_ref.as_deref(),
-                    i.base_depth_in,
-                    area_ft2,
-                );
-                total += course_cost(
-                    catalog,
-                    i.bedding_material_ref.as_deref(),
-                    i.bedding_depth_in,
+                    Some(&course.material_ref),
+                    Some(course.depth_in),
                     area_ft2,
                 );
             }
@@ -1584,6 +1653,7 @@ fn selected_area(
         depth,
         show_depth,
         cost,
+        courses,
     })
 }
 
@@ -1792,6 +1862,28 @@ fn non_empty(s: &str) -> Option<String> {
     (!s.is_empty()).then(|| s.to_string())
 }
 
+/// The default sub-base courses for a freshly-drawn area of material
+/// `material_ref` — its catalog item's [`default_courses`] (a paver's gravel +
+/// sand), or empty when the material has none / isn't in the catalog.
+fn seed_courses(catalog: &[CatalogItem], material_ref: Option<&str>) -> Vec<Course> {
+    material_ref
+        .and_then(|m| catalog.iter().find(|c| c.id == m))
+        .map(default_courses)
+        .unwrap_or_default()
+}
+
+/// The catalog's **aggregate** materials as `(id, label)` — the loose fill a
+/// sub-base course can be made of (gravel, sand, stone dust, …). Surface/bed
+/// materials like mulch are excluded, so they're never offered as a paver
+/// course.
+fn course_materials(catalog: &[CatalogItem]) -> Vec<(String, String)> {
+    catalog
+        .iter()
+        .filter(|c| c.is_aggregate == Some(true))
+        .map(|c| (c.id.clone(), c.name.clone().unwrap_or_else(|| c.id.clone())))
+        .collect()
+}
+
 /// The status hint for the active tool.
 fn hint(tool: Option<Tool>) -> &'static str {
     match tool {
@@ -1908,21 +2000,30 @@ fn starter_catalog() -> Vec<CatalogItem> {
             paver
         },
         // The paver sub-base courses, costed per yd³ (typical bulk/delivered
-        // prices): crushed gravel base, then bedding sand.
-        material(
-            "paver-base",
-            "Gravel base",
-            "paver-base",
-            PriceUnit::per_cubic_yard,
-            55.0,
-        ),
-        material(
-            "paver-sand",
-            "Bedding sand",
-            "paver-sand",
-            PriceUnit::per_cubic_yard,
-            42.0,
-        ),
+        // prices): crushed gravel base, then bedding sand. Both are aggregates,
+        // so they're offered when composing an area's build-up (mulch is not).
+        {
+            let mut c = material(
+                "paver-base",
+                "Gravel base",
+                "paver-base",
+                PriceUnit::per_cubic_yard,
+                55.0,
+            );
+            c.is_aggregate = Some(true);
+            c
+        },
+        {
+            let mut c = material(
+                "paver-sand",
+                "Bedding sand",
+                "paver-sand",
+                PriceUnit::per_cubic_yard,
+                42.0,
+            );
+            c.is_aggregate = Some(true);
+            c
+        },
     ]
 }
 

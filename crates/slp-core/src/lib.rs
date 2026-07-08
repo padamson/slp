@@ -24,8 +24,8 @@ pub use boundary::{are_adjacent, delete_node, insert_node_between};
 pub use clearance::{circle_overlaps_circle, circle_overlaps_polygon, circle_overlaps_segment};
 pub use corner::{Corner, content_points, free_corner};
 pub use generated::slp::{
-    CatalogItem, Circle, Coord, CurveEdge, Deck, DeckLevel, FootprintShape, House, ItemStatus,
-    Object, Opening, OpeningKind, Plan, PriceUnit, Shape, StepRun,
+    CatalogItem, Circle, Coord, Course, CurveEdge, Deck, DeckLevel, FootprintShape, House,
+    ItemStatus, Object, Opening, OpeningKind, Plan, PriceUnit, Shape, StepRun,
 };
 pub use geom::{
     Point, area, circle_area, footprint_corners, heading, point_in_polygon, polyline_length,
@@ -34,5 +34,5 @@ pub use geom::{
 pub use pick::object_at;
 pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node, step_outward, step_run};
 pub use snap::{dragged_center, snap_ortho, snap_to_grid};
-pub use takeoff::{BillOfMaterials, LineItem, take_off};
+pub use takeoff::{BillOfMaterials, LineItem, default_courses, take_off};
 pub use wall::{nearest_wall, opening_segment, point_along, project_onto};

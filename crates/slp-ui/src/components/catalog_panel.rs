@@ -9,7 +9,7 @@
 use leptos::prelude::*;
 use slp_core::{CatalogItem, PriceUnit};
 
-use super::{NumberField, SelectField, TextField};
+use super::{NumberField, SelectField, TextField, Toggle};
 
 /// The `price_unit` id an area material / object is costed by — the string the
 /// `SelectField` round-trips.
@@ -43,7 +43,7 @@ fn price_unit_options() -> Vec<(String, String)> {
     ]
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 #[component]
 pub fn CatalogPanel(
     /// Every item in the plan's catalog.
@@ -64,6 +64,9 @@ pub fn CatalogPanel(
     on_price_unit: Callback<PriceUnit>,
     /// Add a new (blank) catalog item and select it for editing.
     on_add: Callback<()>,
+    /// Set whether the selected item is a sub-base aggregate (a course material).
+    #[prop(default = Callback::new(|_: bool| {}))]
+    on_aggregate: Callback<bool>,
     /// Set the selected item's footprint width / diameter (ft).
     on_width: Callback<f64>,
     /// Set the selected item's footprint depth (ft).
@@ -140,6 +143,19 @@ pub fn CatalogPanel(
                                     on_price_unit.run(price_unit_from_id(&id));
                                 })
                             />
+                            // A bulk (per-yd³) material can be marked a sub-base
+                            // aggregate, making it selectable as a paver course.
+                            {(item.price_unit == PriceUnit::per_cubic_yard)
+                                .then(|| {
+                                    view! {
+                                        <Toggle
+                                            label="Sub-base aggregate"
+                                            testid="catalog-aggregate"
+                                            checked=item.is_aggregate == Some(true)
+                                            on_toggle=on_aggregate
+                                        />
+                                    }
+                                })}
                             <NumberField
                                 label="Width (ft)"
                                 testid="catalog-width"

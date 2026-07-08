@@ -1,7 +1,7 @@
 //! dokime component tests for `AreaInspector`.
 
 use leptos::prelude::*;
-use slp_core::{Corner, ItemStatus};
+use slp_core::{Corner, Course, ItemStatus};
 
 use super::AreaInspector;
 
@@ -165,6 +165,64 @@ fn a_house_shows_status_but_hides_elevation() {
         0,
         "the house hides the elevation field"
     );
+}
+
+#[test]
+fn a_paver_area_with_courses_shows_the_composition_editor() {
+    let html = dokime::render(move || {
+        view! {
+            <AreaInspector
+                title="Pavers".to_string()
+                category=Some("paver".to_string())
+                area_ft2=100.0
+                elevation=0.0
+                depth=0.0
+                cost=Some(1234.0)
+                corner=Corner::Ne
+                courses=vec![
+                    Course::new(4.0, "gravel".to_string()),
+                    Course::new(1.0, "sand".to_string()),
+                ]
+                material_options=vec![
+                    ("gravel".to_string(), "Gravel base".to_string()),
+                    ("sand".to_string(), "Bedding sand".to_string()),
+                ]
+                on_elevation=noop_f64()
+                on_depth=noop_f64()
+                on_delete=noop()
+            />
+        }
+    });
+    assert!(
+        html.contains(r#"data-testid="course-editor""#),
+        "the composition editor"
+    );
+    assert!(
+        html.contains(r#"data-testid="course-row-0""#),
+        "a course row"
+    );
+    assert!(html.contains(r#"data-testid="course-add""#), "add-layer");
+}
+
+#[test]
+fn an_area_without_courses_hides_the_composition_editor() {
+    // A mulch bed (no courses) has no composition editor.
+    let html = dokime::render(move || {
+        view! {
+            <AreaInspector
+                title="Mulch".to_string()
+                area_ft2=50.0
+                elevation=0.0
+                depth=3.0
+                show_depth=true
+                corner=Corner::Se
+                on_elevation=noop_f64()
+                on_depth=noop_f64()
+                on_delete=noop()
+            />
+        }
+    });
+    assert_eq!(dokime::count(&html, r#"data-testid="course-editor""#), 0);
 }
 
 #[test]

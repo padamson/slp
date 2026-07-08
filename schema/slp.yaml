@@ -66,6 +66,7 @@ classes:
       - base_depth_in
       - bedding_material_ref
       - bedding_depth_in
+      - is_aggregate
     slot_usage:
       id:
         required: true
@@ -349,6 +350,15 @@ slots:
     description: |-
       Thickness of the bedding layer, in inches, for a material with a
       `bedding_material_ref` (e.g. a paver's ~1 in of sand) — `yd³ = ft²·in/324`.
+  is_aggregate:
+    range: boolean
+    ifabsent: boolean(false)
+    description: |-
+      Whether this material is a loose **aggregate** — crushed gravel, sand,
+      stone dust — usable as a sub-base *course* layer beneath a drawn surface.
+      Only aggregates are offered when composing an area's build-up; a surface or
+      bed material (pavers, mulch) is not, so mulch is never laid under a paver.
+      Defaults to false.
   depth_in:
     range: double
     description: |-

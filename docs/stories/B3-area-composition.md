@@ -34,25 +34,34 @@ and each area is composed independently, not locked to one recipe per paver type
         catalog paver's base/bedding template (B2.2), so existing plans keep
         costing correctly — unit-tested (two patios on different gravels;
         courses override the template; circle areas too) + mutation-tested
-- **B3.2 — seed a default composition on draw**
-  - [ ] drawing a paver area copies the catalog paver's default courses (gravel
-        base 4″ + bedding sand 1″) into the area's `courses`, so it starts right
-        and is then edited independently
+- **B3.2 — seed a default composition on draw** ✅
+  - [x] `slp_core::default_courses(item)` derives a surface material's base +
+        bedding courses (used by both `take_off`'s fallback and draw-time
+        seeding — one source of truth); unit- + mutation-tested
+  - [x] drawing a paver area copies those default courses (gravel base 4″ +
+        bedding sand 1″) into the area's `courses`, so it starts right and is
+        then edited independently
 - **B3.3 — `SelectField` primitive** ✅ *(built with B3.0)*
   - [x] a controlled labeled dropdown (`(value, label)` options, selected value
         server-rendered) — the string-choice counterpart of `NumberField`/
         `TextField`, reused by B3.0's `price_unit` control and (next) the
         composition editor's material picker
-- **B3.4 — composition editor in the area inspector**
-  - [ ] a paver area's inspector shows its **course list** — one row per layer
-        (material `Select` + thickness `NumberField`), with add/remove-layer
-  - [ ] editing a course recomputes that area's cost and the estimate live
-        (extends [B2.3](B2-area-cost.md)); replaces B2.2's catalog-level base/
-        bedding fields
-- **B3.5 — e2e + verify**
-  - [ ] two paver areas set to different gravels/thicknesses → the estimate
-        itemizes each gravel separately with the right volume, and editing one
-        area's composition leaves the other untouched
+- **B3.4 — composition editor in the area inspector** ✅
+  - [x] a paver area's inspector shows its **course list** (`CourseEditor`) —
+        one row per layer (material `SelectField` + thickness `NumberField`),
+        with add-layer + per-row remove
+  - [x] editing a course (material or depth) recomputes that area's cost and the
+        estimate live (extends [B2.3](B2-area-cost.md)); the inspector's all-in
+        Cost now costs the area's own courses, not B2.2's catalog template
+  - [x] a course only offers **aggregate** materials (`CatalogItem.is_aggregate`
+        — gravel, sand, stone dust), never a surface/bed material like mulch; a
+        per-yd³ material you add can be marked an aggregate via a toggle in the
+        catalog editor, and a new layer defaults to a gravel aggregate
+- **B3.5 — e2e + verify** ✅ *(folded into B3.4)*
+  - [x] e2e: draw a paver → its editor is seeded with base + bedding → deepen
+        the base (gravel volume grows) → swap its material to sand (the gravel
+        line leaves the estimate) → remove/add a layer. Per-area courses are
+        proven independent by B3.1's unit test (two patios, different gravels).
 
 ## Notes / refs
 

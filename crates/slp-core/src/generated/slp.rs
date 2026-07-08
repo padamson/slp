@@ -109,6 +109,16 @@ pub struct CatalogItem {
     pub height_ft: Option<f64>,
     /// Stable identifier for a catalog item.
     pub id: String,
+    // WARNING: slot `is_aggregate` declares `ifabsent: boolean(false)` which
+//          does not resolve to a known default; field falls
+//          back to `Option<T>` with no default.
+    /// Whether this material is a loose **aggregate** — crushed gravel, sand,
+    /// stone dust — usable as a sub-base *course* layer beneath a drawn surface.
+    /// Only aggregates are offered when composing an area's build-up; a surface or
+    /// bed material (pavers, mulch) is not, so mulch is never laid under a paver.
+    /// Defaults to false.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_aggregate: Option<bool>,
     /// Human-readable name for this plan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -153,6 +163,7 @@ impl CatalogItem {
             depth_ft: None,
             height_ft: None,
             id,
+            is_aggregate: None,
             name: None,
             price_unit: PriceUnit::per_item,
             shape: FootprintShape::rectangle,

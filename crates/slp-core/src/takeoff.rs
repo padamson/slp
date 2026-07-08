@@ -127,25 +127,41 @@ fn material_volume(plan: &Plan, id: &str) -> f64 {
             volume += volume_yd3(area_ft2, own_depth);
         }
         // The sub-base beneath a surface: this area's own courses when it has
-        // them, else the surface material's catalog default courses.
-        if courses.is_empty() {
-            if let Some(surface) = material_ref.and_then(|m| catalog_item(plan, m)) {
-                if surface.base_material_ref.as_deref() == Some(id) {
-                    volume += volume_yd3(area_ft2, surface.base_depth_in.unwrap_or(0.0));
-                }
-                if surface.bedding_material_ref.as_deref() == Some(id) {
-                    volume += volume_yd3(area_ft2, surface.bedding_depth_in.unwrap_or(0.0));
-                }
-            }
+        // them, else its surface material's catalog default courses.
+        let fallback;
+        let effective: &[Course] = if courses.is_empty() {
+            fallback = material_ref
+                .and_then(|m| catalog_item(plan, m))
+                .map(default_courses)
+                .unwrap_or_default();
+            &fallback
         } else {
-            for course in courses {
-                if course.material_ref == id {
-                    volume += volume_yd3(area_ft2, course.depth_in);
-                }
+            courses
+        };
+        for course in effective {
+            if course.material_ref == id {
+                volume += volume_yd3(area_ft2, course.depth_in);
             }
         }
     }
     volume
+}
+
+/// The default sub-base courses a drawn area inherits from its surface material:
+/// the catalog item's base course then bedding course, when it declares them (a
+/// paver's ~4 in gravel then ~1 in sand). Empty for a material with no sub-base
+/// (a mulch bed, a bare surface). A freshly-drawn paver area is seeded with
+/// these, and an area left with no `courses` of its own is costed by them.
+#[must_use]
+pub fn default_courses(item: &CatalogItem) -> Vec<Course> {
+    let mut courses = Vec::new();
+    if let (Some(base), Some(depth)) = (&item.base_material_ref, item.base_depth_in) {
+        courses.push(Course::new(depth, base.clone()));
+    }
+    if let (Some(bed), Some(depth)) = (&item.bedding_material_ref, item.bedding_depth_in) {
+        courses.push(Course::new(depth, bed.clone()));
+    }
+    courses
 }
 
 /// Every drawn area's `(material_ref, area ft², own depth_in, courses)` — shapes
@@ -611,6 +627,24 @@ mod tests {
         let mut s = bed("paver", w, d, 0.0);
         s.courses = courses;
         s
+    }
+
+    #[test]
+    fn default_courses_are_a_surface_materials_base_then_bedding() {
+        let paver = paver_on("gravel", 4.0, "sand", 1.0);
+        let courses = default_courses(&paver);
+        assert_eq!(courses.len(), 2, "base + bedding");
+        assert_eq!(courses[0].material_ref, "gravel");
+        assert!((courses[0].depth_in - 4.0).abs() < 1e-9);
+        assert_eq!(courses[1].material_ref, "sand");
+        assert!((courses[1].depth_in - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_material_with_no_sub_base_has_no_default_courses() {
+        // Mulch (no base/bedding refs) yields an empty course list.
+        let mulch = material("mulch", "Mulch", 40.0, PriceUnit::per_cubic_yard);
+        assert!(default_courses(&mulch).is_empty());
     }
 
     #[test]
