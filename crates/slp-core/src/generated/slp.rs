@@ -171,6 +171,11 @@ impl CatalogItem {
 pub struct Circle {
     /// A circle's center point, in feet.
     pub center: Box<Coord>,
+    /// A drawn area's ordered sub-layers beneath its surface material — a paver's
+    /// gravel base then bedding sand — each a `{material_ref, depth_in}`. Empty =
+    /// fall back to the surface material's catalog default courses (B2.2).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub courses: Vec<Course>,
     /// A drawn area's material depth, in inches — used to cost a per-yd³
     /// material by volume (`yd³ = ft²·depth_in / 324`), e.g. a mulch bed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -190,6 +195,7 @@ impl Circle {
     pub fn new(center: Box<Coord>, elevation: f64, radius_ft: f64) -> Self {
         Self {
             center,
+            courses: Vec::new(),
             depth_in: None,
             elevation,
             material_ref: None,
@@ -213,6 +219,31 @@ impl Coord {
         Self {
             x,
             y,
+        }
+    }
+}
+
+/// One sub-layer beneath a drawn surface — a paver's compacted gravel base or
+/// its bedding sand: the catalog material it's made of and its thickness in
+/// inches. An area's ordered `courses` are its build-up, held **per area**, so
+/// two patios can sit on different gravels at different depths. Costed by
+/// volume, `yd³ = ft²·depth_in / 324`.
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+pub struct Course {
+    /// A drawn area's material depth, in inches — used to cost a per-yd³
+    /// material by volume (`yd³ = ft²·depth_in / 324`), e.g. a mulch bed.
+    pub depth_in: f64,
+    /// Id of the catalog *material* a drawn area is made of (mulch, pavers, …),
+    /// the area analogue of an object's `catalog_ref`. Absent = uncategorized
+    /// geometry with no cost.
+    pub material_ref: String,
+}
+
+impl Course {
+    pub fn new(depth_in: f64, material_ref: String) -> Self {
+        Self {
+            depth_in,
+            material_ref,
         }
     }
 }
@@ -459,6 +490,11 @@ pub struct Shape {
     /// Ordered corner points of a closed outline (house wall or deck level).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub corners: Vec<Coord>,
+    /// A drawn area's ordered sub-layers beneath its surface material — a paver's
+    /// gravel base then bedding sand — each a `{material_ref, depth_in}`. Empty =
+    /// fall back to the surface material's catalog default courses (B2.2).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub courses: Vec<Course>,
     /// Cubic-Bézier edges of a `Shape` — a sparse list naming only the curved
     /// edges (straight/arc edges are absent). Empty = no curves.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -481,6 +517,7 @@ impl Shape {
         Self {
             bulges: Vec::new(),
             corners: Vec::new(),
+            courses: Vec::new(),
             curves: Vec::new(),
             depth_in: None,
             elevation,

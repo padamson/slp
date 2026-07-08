@@ -26,13 +26,14 @@ and each area is composed independently, not locked to one recipe per paver type
         so a hand-added material can be per-item / per-ft² / per-yd³ /
         per-linear-ft — a gravel is per-yd³, a paver per-ft² ([M4.3](M4-M5-material-ingestion.md)'s
         deferred bit, now done)
-- **B3.1 — per-area composition (schema + core)**
-  - [ ] `Shape`/`Circle` gain `courses: Vec<Course>` (`Course = {material_ref,
+- **B3.1 — per-area composition (schema + core)** ✅
+  - [x] `Shape`/`Circle` gain `courses: Vec<Course>` (`Course = {material_ref,
         depth_in}`) — the ordered sub-layers beneath the surface `material_ref`
-  - [ ] `take_off` costs each area's **own** courses per material
-        (`yd³ = ft²·in/324`), replacing B2.2's catalog-driven base/bedding lookup;
-        an area with empty `courses` falls back to the catalog paver's template so
-        existing plans keep costing correctly — mutation-tested, 0 missed
+  - [x] `take_off` costs each area's **own** courses per material
+        (`yd³ = ft²·in/324`); an area with empty `courses` falls back to the
+        catalog paver's base/bedding template (B2.2), so existing plans keep
+        costing correctly — unit-tested (two patios on different gravels;
+        courses override the template; circle areas too) + mutation-tested
 - **B3.2 — seed a default composition on draw**
   - [ ] drawing a paver area copies the catalog paver's default courses (gravel
         base 4″ + bedding sand 1″) into the area's `courses`, so it starts right

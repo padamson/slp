@@ -538,6 +538,9 @@ fn planner_body() -> impl IntoView {
                         curves: Vec::new(),
                         material_ref: area_material.get_untracked(),
                         depth_in: Some(area_depth.get_untracked()),
+                        // Fresh area: no sub-base courses yet (falls back to the
+                        // material's catalog default when costed).
+                        courses: Vec::new(),
                     };
                     shapes.update(|v| v.push(shape));
                 } else {

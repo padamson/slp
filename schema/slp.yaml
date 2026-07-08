@@ -190,8 +190,25 @@ classes:
       - elevation
       - material_ref
       - depth_in
+      - courses
     slot_usage:
       elevation:
+        required: true
+
+  Course:
+    description: |-
+      One sub-layer beneath a drawn surface — a paver's compacted gravel base or
+      its bedding sand: the catalog material it's made of and its thickness in
+      inches. An area's ordered `courses` are its build-up, held **per area**, so
+      two patios can sit on different gravels at different depths. Costed by
+      volume, `yd³ = ft²·depth_in / 324`.
+    slots:
+      - material_ref
+      - depth_in
+    slot_usage:
+      material_ref:
+        required: true
+      depth_in:
         required: true
 
   CurveEdge:
@@ -224,6 +241,7 @@ classes:
       - elevation
       - material_ref
       - depth_in
+      - courses
     slot_usage:
       center:
         required: true
@@ -415,6 +433,14 @@ slots:
     description: |-
       Cubic-Bézier edges of a `Shape` — a sparse list naming only the curved
       edges (straight/arc edges are absent). Empty = no curves.
+  courses:
+    range: Course
+    multivalued: true
+    inlined_as_list: true
+    description: |-
+      A drawn area's ordered sub-layers beneath its surface material — a paver's
+      gravel base then bedding sand — each a `{material_ref, depth_in}`. Empty =
+      fall back to the surface material's catalog default courses (B2.2).
   edge:
     range: integer
     description: Index of the boundary edge (from node `edge` to node `edge + 1`).

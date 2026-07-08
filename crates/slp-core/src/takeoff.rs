@@ -9,7 +9,7 @@
 //! the area (or volume) of every drawn `Shape`/`Circle` whose `material_ref`
 //! names it.
 
-use crate::generated::slp::{CatalogItem, ItemStatus, Plan, PriceUnit};
+use crate::generated::slp::{CatalogItem, Course, ItemStatus, Plan, PriceUnit};
 use crate::{Point, Shape, boundary_area, circle_area};
 
 /// One line of the bill of materials: a catalog item/material, the measured
@@ -115,38 +115,48 @@ fn material_area(plan: &Plan, id: &str) -> f64 {
 
 /// The total volume (yd³) of material `id` across the plan: every drawn area
 /// made *of* it (at that area's own depth, e.g. a mulch or gravel bed), **plus**
-/// — when `id` is the base or bedding course of a surface material like pavers —
-/// the base/bedding volume beneath every drawn area of that surface, at the
-/// surface material's declared course depth. All by `yd³ = ft²·depth_in / 324`.
+/// its volume as a sub-layer beneath a surface. The sub-layers come from each
+/// area's **own** `courses` (per-area composition); an area with no courses
+/// falls back to its surface material's catalog default base/bedding (B2.2).
+/// All by `yd³ = ft²·depth_in / 324`.
 fn material_volume(plan: &Plan, id: &str) -> f64 {
     let mut volume = 0.0;
-    for (material_ref, area_ft2, own_depth) in area_measures(plan) {
+    for (material_ref, area_ft2, own_depth, courses) in area_measures(plan) {
         // A bed literally made of `id` (mulch, gravel), at its own depth.
         if material_ref == Some(id) {
             volume += volume_yd3(area_ft2, own_depth);
         }
-        // A surface (paver) area whose material names `id` as its base or
-        // bedding course contributes that course's volume beneath it.
-        if let Some(surface) = material_ref.and_then(|m| catalog_item(plan, m)) {
-            if surface.base_material_ref.as_deref() == Some(id) {
-                volume += volume_yd3(area_ft2, surface.base_depth_in.unwrap_or(0.0));
+        // The sub-base beneath a surface: this area's own courses when it has
+        // them, else the surface material's catalog default courses.
+        if courses.is_empty() {
+            if let Some(surface) = material_ref.and_then(|m| catalog_item(plan, m)) {
+                if surface.base_material_ref.as_deref() == Some(id) {
+                    volume += volume_yd3(area_ft2, surface.base_depth_in.unwrap_or(0.0));
+                }
+                if surface.bedding_material_ref.as_deref() == Some(id) {
+                    volume += volume_yd3(area_ft2, surface.bedding_depth_in.unwrap_or(0.0));
+                }
             }
-            if surface.bedding_material_ref.as_deref() == Some(id) {
-                volume += volume_yd3(area_ft2, surface.bedding_depth_in.unwrap_or(0.0));
+        } else {
+            for course in courses {
+                if course.material_ref == id {
+                    volume += volume_yd3(area_ft2, course.depth_in);
+                }
             }
         }
     }
     volume
 }
 
-/// Every drawn area's `(material_ref, area ft², own depth_in)` — shapes then
-/// circles — the raw inputs for area/volume take-off.
-fn area_measures(plan: &Plan) -> Vec<(Option<&str>, f64, f64)> {
+/// Every drawn area's `(material_ref, area ft², own depth_in, courses)` — shapes
+/// then circles — the raw inputs for area/volume take-off.
+fn area_measures(plan: &Plan) -> Vec<(Option<&str>, f64, f64, &[Course])> {
     let shapes = plan.shapes.iter().map(|s| {
         (
             s.material_ref.as_deref(),
             shape_area(s),
             s.depth_in.unwrap_or(0.0),
+            s.courses.as_slice(),
         )
     });
     let circles = plan.circles.iter().map(|c| {
@@ -154,6 +164,7 @@ fn area_measures(plan: &Plan) -> Vec<(Option<&str>, f64, f64)> {
             c.material_ref.as_deref(),
             circle_area(c.radius_ft),
             c.depth_in.unwrap_or(0.0),
+            c.courses.as_slice(),
         )
     });
     shapes.chain(circles).collect()
@@ -591,6 +602,105 @@ mod tests {
             .unwrap();
         let expected = circle_area(5.0) * 4.0 / 324.0;
         assert!((gravel.quantity - expected).abs() < 1e-9);
+    }
+
+    // --- Per-area composition: an area's own `courses` (B3.1) ---
+
+    /// A `w`×`d` paver patio whose sub-base is the given explicit `courses`.
+    fn paver_with_courses(w: f64, d: f64, courses: Vec<Course>) -> Shape {
+        let mut s = bed("paver", w, d, 0.0);
+        s.courses = courses;
+        s
+    }
+
+    #[test]
+    fn each_area_uses_its_own_courses_for_its_sub_base() {
+        // Two patios on different gravels at different depths — the whole point
+        // of per-area composition. A (100 ft²) on 6 in gravel-a; B (50 ft²) on
+        // 4 in gravel-b: each gravel line is only its own patio's volume.
+        let a = paver_with_courses(10.0, 10.0, vec![Course::new(6.0, "gravel-a".into())]);
+        let b = paver_with_courses(5.0, 10.0, vec![Course::new(4.0, "gravel-b".into())]);
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Pavers", 6.0, PriceUnit::per_square_foot),
+                material("gravel-a", "Gravel A", 50.0, PriceUnit::per_cubic_yard),
+                material("gravel-b", "Gravel B", 60.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![a, b],
+            vec![],
+        ));
+        let ga = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "gravel-a")
+            .unwrap();
+        let gb = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "gravel-b")
+            .unwrap();
+        assert!(
+            (ga.quantity - 100.0 * 6.0 / 324.0).abs() < 1e-9,
+            "patio A's gravel"
+        );
+        assert!(
+            (gb.quantity - 50.0 * 4.0 / 324.0).abs() < 1e-9,
+            "patio B's gravel"
+        );
+    }
+
+    #[test]
+    fn an_areas_courses_override_the_catalog_template() {
+        // The paver's catalog default is 4 in gravel + 1 in sand, but this area
+        // declares its own single 6 in gravel course — the area's courses win,
+        // and the template's sand (absent from the courses) is not costed.
+        let area = paver_with_courses(10.0, 10.0, vec![Course::new(6.0, "gravel".into())]);
+        let bom = take_off(&plan_with_areas(
+            vec![
+                paver_on("gravel", 4.0, "sand", 1.0),
+                material("gravel", "Gravel", 50.0, PriceUnit::per_cubic_yard),
+                material("sand", "Sand", 30.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![area],
+            vec![],
+        ));
+        let gravel = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "gravel")
+            .unwrap();
+        assert!(
+            (gravel.quantity - 100.0 * 6.0 / 324.0).abs() < 1e-9,
+            "the area's 6 in course, not the catalog's 4 in template"
+        );
+        assert!(
+            bom.lines.iter().all(|l| l.catalog_ref != "sand"),
+            "the template's bedding sand is ignored once the area sets its own courses"
+        );
+    }
+
+    #[test]
+    fn a_circle_area_with_courses_costs_them_too() {
+        let mut circle = Circle {
+            material_ref: Some("paver".to_string()),
+            depth_in: Some(0.0),
+            ..Circle::new(Box::new(Coord::new(20.0, 20.0)), 0.0, 5.0)
+        };
+        circle.courses = vec![Course::new(5.0, "gravel".into())];
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Pavers", 6.0, PriceUnit::per_square_foot),
+                material("gravel", "Gravel", 50.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![],
+            vec![circle],
+        ));
+        let gravel = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "gravel")
+            .unwrap();
+        assert!((gravel.quantity - circle_area(5.0) * 5.0 / 324.0).abs() < 1e-9);
     }
 
     #[test]

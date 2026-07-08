@@ -27,6 +27,7 @@ fn square(elevation: f64) -> Shape {
         curves: Vec::new(),
         material_ref: None,
         depth_in: None,
+        courses: Vec::new(),
     }
 }
 
@@ -168,6 +169,7 @@ fn skips_a_degenerate_shape_with_too_few_corners() {
         curves: Vec::new(),
         material_ref: None,
         depth_in: None,
+        courses: Vec::new(),
     };
     let html = dokime::render(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0), degenerate] /> }
