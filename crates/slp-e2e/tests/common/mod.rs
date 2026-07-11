@@ -5,8 +5,9 @@
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use axum::Router;
 use playwright_rs::protocol::click::KeyboardModifier;
 use playwright_rs::{ClickOptions, Locator, Page, Position, expect};
@@ -36,13 +37,22 @@ pub async fn serve(dist: &PathBuf) -> Result<(SocketAddr, tokio::task::JoinHandl
 }
 
 /// The yard's rendered pixels-per-foot (the grid spans the full canvas width).
+/// Polls the yard's box: under CI's parallel-test contention the WASM app's
+/// layout can lag the page load, so racing a single `bounding_box()` call
+/// intermittently sees a not-yet-laid-out (or zero-width) yard.
 pub async fn measure_ppf(yard: &Locator) -> Result<f64> {
-    let bbox = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
-    Ok(bbox.width / YARD_W)
+    let start = Instant::now();
+    loop {
+        if let Some(bbox) = yard.bounding_box().await.context("measure the yard")?
+            && bbox.width > 0.0
+        {
+            return Ok(bbox.width / YARD_W);
+        }
+        if start.elapsed() >= Duration::from_secs(10) {
+            return Err(anyhow!("yard never laid out with a non-zero bounding box"));
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
 }
 
 /// Click the yard at world feet `(fx, fy)` — origin south-west, north is up.

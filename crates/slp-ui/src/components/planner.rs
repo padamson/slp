@@ -11,10 +11,14 @@ use leptos::prelude::*;
 use slp_core::{
     CatalogItem, Circle, Commit, Coord, Corner, Course, CurveEdge, Deck, DeckLevel, FootprintShape,
     House, ItemStatus, Object, Plan, Point, PriceUnit, Shape, StepRun, Tool, are_adjacent,
-    boundary_area, circle_area, commit_kind, content_points, default_courses, delete_node,
-    dragged_center, free_corner, heading, insert_node_between, nearest_wall, object_at,
-    opening_from_nodes, snap_node, snap_to_grid, take_off,
+    boundary_area, circle_area, commit_kind, content_points, default_courses, dragged_center,
+    free_corner, heading, insert_node_between, nearest_wall, object_at, opening_from_nodes,
+    snap_node, snap_to_grid, take_off,
 };
+// Only the csr keydown handler deletes a node, so its slp-core helper is
+// imported there too (keeps a native build free of an unused-import warning).
+#[cfg(feature = "csr")]
+use slp_core::delete_node;
 
 use super::{
     AreaInspector, CanvasMetrics, CatalogPanel, EstimatePanel, Footprint, Modifiers, NumberField,
@@ -1016,7 +1020,10 @@ fn planner_body() -> impl IntoView {
     });
 
     // Remove the selected shape's selected node (refused, per `delete_node`,
-    // if it would leave the shape below its 3-node drawable minimum).
+    // if it would leave the shape below its 3-node drawable minimum). Only the
+    // csr keydown handler below uses it, so gate the definition to match — it's
+    // otherwise an unused-variable warning in a native (non-`csr`) build.
+    #[cfg(feature = "csr")]
     let delete_selected_node = Callback::new(move |()| {
         if let (Some(si), [ni]) = (
             selected_shape.get_untracked(),
@@ -1597,7 +1604,8 @@ fn selected_area(
             shape_area_ft2(s),
             s.courses.clone(),
         )
-    } else if let Some(i) = sel_circle {
+    } else {
+        let i = sel_circle?;
         let c = circles.get(i)?;
         (
             c.material_ref.as_deref(),
@@ -1606,8 +1614,6 @@ fn selected_area(
             circle_area(c.radius_ft),
             c.courses.clone(),
         )
-    } else {
-        return None;
     };
     let item = material_ref.and_then(|m| catalog.iter().find(|c| c.id == m));
     let title = item
