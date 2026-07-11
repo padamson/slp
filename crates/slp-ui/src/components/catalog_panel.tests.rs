@@ -142,6 +142,10 @@ fn the_editor_shows_an_image_field_and_previews_a_set_image() {
         "an image field"
     );
     assert!(
+        plain.contains(r#"data-testid="catalog-image-file""#),
+        "a file-upload input"
+    );
+    assert!(
         plain.contains(r#"data-testid="catalog-tile-width""#),
         "a tile-width field"
     );

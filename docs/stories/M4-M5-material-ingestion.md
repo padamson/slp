@@ -74,8 +74,10 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         user-added images are stored **inline as a data-URI** (round-trips
         through `localStorage`/export); the M4.0 `asset` cache-path stays for
         *ingested* full-res binaries (M4.1), never committed.
-  - [ ] attach via **file upload** (browser `<input type=file>` → data-URI) is a
-        follow-up; today you paste a URL / data-URI into the Image field
+  - [x] attach via **file upload**: a reusable `FileInput` primitive reads the
+        picked file to a data-URI (browser `FileReader`, `csr`-gated; a no-op on
+        SSR) and sets the image — so you pick a photo file rather than pasting a
+        URI. e2e-covered via an in-memory `FilePayload` (no fixture on disk).
   - [ ] **thumbnail**: the flat color swatch in the catalog panel, the Area
         tool's material picker, and the area inspector becomes the actual
         material photo when one is present (flat color as fallback)

@@ -9,6 +9,7 @@ mod course_editor;
 mod deck;
 mod door;
 mod estimate_panel;
+mod file_input;
 mod furnishings;
 mod grid;
 mod house;
@@ -38,6 +39,7 @@ pub use course_editor::CourseEditor;
 pub use deck::Deck;
 pub use door::Door;
 pub use estimate_panel::EstimatePanel;
+pub use file_input::FileInput;
 pub use furnishings::Furnishings;
 pub use grid::Grid;
 pub use house::House;
@@ -205,6 +207,9 @@ mod door_stories;
 #[path = "estimate_panel.stories.rs"]
 mod estimate_panel_stories;
 #[cfg(feature = "stories")]
+#[path = "file_input.stories.rs"]
+mod file_input_stories;
+#[cfg(feature = "stories")]
 #[path = "furnishings.stories.rs"]
 mod furnishings_stories;
 #[cfg(feature = "stories")]
@@ -279,6 +284,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(deck_stories::stories());
     s.extend(furnishings_stories::stories());
     s.extend(estimate_panel_stories::stories());
+    s.extend(file_input_stories::stories());
     s.extend(object_inspector_stories::stories());
     s.extend(object_palette_stories::stories());
     s.extend(steps_stories::stories());
@@ -326,6 +332,9 @@ mod door_tests;
 #[cfg(test)]
 #[path = "estimate_panel.tests.rs"]
 mod estimate_panel_tests;
+#[cfg(test)]
+#[path = "file_input.tests.rs"]
+mod file_input_tests;
 #[cfg(test)]
 #[path = "furnishings.tests.rs"]
 mod furnishings_tests;

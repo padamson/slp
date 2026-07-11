@@ -29,6 +29,14 @@ web-sys = { version = "0.3", optional = true, features = [
     "MouseEvent",
     "EventTarget",
     "ResizeObserver",
+    # Read a picked image file to a data URI (FileInput, csr only).
+    "Event",
+    "HtmlInputElement",
+    "FileList",
+    "File",
+    "Blob",
+    "FileReader",
+    "ProgressEvent",
 ] }
 # Cast a click's currentTarget to an Element (csr only).
 wasm-bindgen = { version = "0.2", optional = true }

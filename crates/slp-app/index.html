@@ -448,12 +448,19 @@
       }
       .catalog-editor .text-field,
       .catalog-editor .number-field,
-      .catalog-editor .select-field {
+      .catalog-editor .select-field,
+      .catalog-editor .file-input {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 6px;
         color: #6b6557;
+      }
+      /* The file picker keeps its native button; don't box it like a text input. */
+      .catalog-editor .file-input input {
+        width: auto;
+        border: none;
+        padding: 0;
       }
       .catalog-editor input,
       .catalog-editor select {

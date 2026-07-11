@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow};
 use common::{dist_dir, measure_ppf, place, serve};
-use playwright_rs::protocol::Playwright;
+use playwright_rs::protocol::{FilePayload, Playwright};
 use playwright_rs::{Locator, expect};
 
 /// Poll a locator's `text_content` until it equals `want` or times out.
@@ -205,6 +205,65 @@ async fn sets_a_material_image_that_previews_and_persists() -> Result<()> {
             .await?,
         img,
         "the image persisted across a reload"
+    );
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn uploads_a_material_image_from_a_file() -> Result<()> {
+    // M4.4: pick an image file → it's read to a data: URI and previewed. Uses an
+    // in-memory payload so the test needs no fixture on disk.
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
+        return Ok(());
+    }
+
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = browser.new_page().await.context("new page")?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    page.locator("[data-testid='edit-catalog']")
+        .await
+        .click(None)
+        .await
+        .context("open the catalog inspector")?;
+    page.locator("[data-testid='catalog-row-paver']")
+        .await
+        .click(None)
+        .await
+        .context("select the paver material")?;
+
+    // Upload a file — its bytes need not be a real PNG for the FileReader→data-URI
+    // path; we only assert the resulting data:image/png preview appears.
+    page.locator("[data-testid='catalog-image-file']")
+        .await
+        .set_input_files_payload(
+            FilePayload::new("swatch.png", "image/png", b"stand-in-image-bytes".to_vec()),
+            None,
+        )
+        .await
+        .context("upload an image file")?;
+
+    let preview = page.locator("[data-testid='catalog-image-preview']").await;
+    expect(preview.clone())
+        .to_have_count(1)
+        .await
+        .context("the uploaded file is read and previewed")?;
+    let src = preview.get_attribute("src").await?.unwrap_or_default();
+    assert!(
+        src.starts_with("data:image/png"),
+        "the file was read into a data:image/png URI, got: {}",
+        src.chars().take(32).collect::<String>()
     );
 
     browser.close().await.context("close browser")?;

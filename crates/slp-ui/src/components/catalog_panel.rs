@@ -9,7 +9,7 @@
 use leptos::prelude::*;
 use slp_core::{CatalogItem, PriceUnit};
 
-use super::{NumberField, SelectField, TextField, Toggle};
+use super::{FileInput, NumberField, SelectField, TextField, Toggle};
 
 /// The `price_unit` id an area material / object is costed by — the string the
 /// `SelectField` round-trips.
@@ -195,6 +195,13 @@ pub fn CatalogPanel(
                                 value=item.image.clone().unwrap_or_default()
                                 placeholder="image URL or data URI"
                                 on_input=on_image
+                            />
+                            // …or upload a file (read to a data URI).
+                            <FileInput
+                                label="Upload"
+                                testid="catalog-image-file"
+                                accept="image/*"
+                                on_file=on_image
                             />
                             <NumberField
                                 label="Tile W (ft)"
