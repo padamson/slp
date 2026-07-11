@@ -995,6 +995,12 @@ fn planner_body() -> impl IntoView {
         Callback::new(move |u: PriceUnit| edit_selected_catalog(&|c| c.price_unit = u.clone()));
     let set_catalog_aggregate =
         Callback::new(move |v: bool| edit_selected_catalog(&|c| c.is_aggregate = Some(v)));
+    let set_catalog_image =
+        Callback::new(move |v: String| edit_selected_catalog(&|c| c.image = non_empty(&v)));
+    let set_catalog_tile_width =
+        Callback::new(move |v: f64| edit_selected_catalog(&|c| c.tile_width_ft = Some(v)));
+    let set_catalog_tile_depth =
+        Callback::new(move |v: f64| edit_selected_catalog(&|c| c.tile_depth_ft = Some(v)));
     // Hand-add a blank catalog item (a new material to author), give it the
     // first free `material-N` id, and select it for editing.
     let add_material = Callback::new(move |()| {
@@ -1519,6 +1525,9 @@ fn planner_body() -> impl IntoView {
                             on_price=set_catalog_price
                             on_price_unit=set_catalog_price_unit
                             on_aggregate=set_catalog_aggregate
+                            on_image=set_catalog_image
+                            on_tile_width=set_catalog_tile_width
+                            on_tile_depth=set_catalog_tile_depth
                             on_add=add_material
                             on_width=set_catalog_width
                             on_depth=set_catalog_depth

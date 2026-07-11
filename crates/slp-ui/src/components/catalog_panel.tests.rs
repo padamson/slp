@@ -131,6 +131,43 @@ fn a_bulk_material_offers_an_aggregate_toggle() {
 }
 
 #[test]
+fn the_editor_shows_an_image_field_and_previews_a_set_image() {
+    // No image → the field is there but no preview.
+    let plain = panel(
+        vec![item("chair", "Chair", 199.0)],
+        Some("chair".to_string()),
+    );
+    assert!(
+        plain.contains(r#"data-testid="catalog-image""#),
+        "an image field"
+    );
+    assert!(
+        plain.contains(r#"data-testid="catalog-tile-width""#),
+        "a tile-width field"
+    );
+    assert!(
+        plain.contains(r#"data-testid="catalog-tile-depth""#),
+        "a tile-depth field"
+    );
+    assert_eq!(
+        dokime::count(&plain, r#"data-testid="catalog-image-preview""#),
+        0,
+        "no preview without an image"
+    );
+
+    // With an image → a preview <img> shows it.
+    let mut paver = item("paver", "Pavers", 8.0);
+    let src = "data:image/png;base64,iVBORw0KGgo=";
+    paver.image = Some(src.to_string());
+    let with_img = panel(vec![paver], Some("paver".to_string()));
+    assert!(
+        with_img.contains(r#"data-testid="catalog-image-preview""#),
+        "a preview appears"
+    );
+    assert!(with_img.contains(src), "the preview points at the image");
+}
+
+#[test]
 fn has_add_and_close_buttons() {
     let html = panel(vec![item("chair", "Lounge chair", 199.0)], None);
     assert!(

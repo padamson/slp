@@ -109,6 +109,14 @@ pub struct CatalogItem {
     pub height_ft: Option<f64>,
     /// Stable identifier for a catalog item.
     pub id: String,
+    /// A photo of the material, shown as its swatch in the catalog/picker/
+    /// inspector and tiled across a drawn surface made of it. A user-added image
+    /// is stored inline as a `data:` URI so it round-trips with the plan through
+    /// localStorage and the exported file; a plain URL also works. (Ingested
+    /// full-res binaries live in the gitignored `materials/cache/` via `asset`,
+    /// never inline — see M4.) Absent = the flat category color.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
     // WARNING: slot `is_aggregate` declares `ifabsent: boolean(false)` which
 //          does not resolve to a known default; field falls
 //          back to `Option<T>` with no default.
@@ -132,6 +140,18 @@ pub struct CatalogItem {
     /// ignores `depth_ft`.
     #[serde(default = "default_catalog_item_shape")]
     pub shape: FootprintShape,
+    /// The real-world **north–south** span of `image` in feet — how deep the
+    /// photo's unit is on the ground — the companion to `tile_width_ft`. Absent/0
+    /// = a sensible default tile size.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tile_depth_ft: Option<f64>,
+    /// The real-world **east–west** span of `image` in feet — how wide the
+    /// photo's
+    /// unit is on the ground — so it tiles a surface to scale. Paired with
+    /// `tile_depth_ft` (they can differ: a paver unit is often rectangular).
+    /// Absent/0 = a sensible default tile size.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tile_width_ft: Option<f64>,
     /// Trunk diameter, in feet (a tree's canopy uses `width_ft`). On a catalog
     /// item this is the species default, absent for non-tree categories; on a
     /// placed object it overrides that default for this particular tree, absent
@@ -163,10 +183,13 @@ impl CatalogItem {
             depth_ft: None,
             height_ft: None,
             id,
+            image: None,
             is_aggregate: None,
             name: None,
             price_unit: PriceUnit::per_item,
             shape: FootprintShape::rectangle,
+            tile_depth_ft: None,
+            tile_width_ft: None,
             trunk_diameter_ft: None,
             unit_price: None,
             width_ft: None,

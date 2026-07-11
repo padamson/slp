@@ -67,6 +67,9 @@ classes:
       - bedding_material_ref
       - bedding_depth_in
       - is_aggregate
+      - image
+      - tile_width_ft
+      - tile_depth_ft
     slot_usage:
       id:
         required: true
@@ -359,6 +362,27 @@ slots:
       Only aggregates are offered when composing an area's build-up; a surface or
       bed material (pavers, mulch) is not, so mulch is never laid under a paver.
       Defaults to false.
+  image:
+    description: |-
+      A photo of the material, shown as its swatch in the catalog/picker/
+      inspector and tiled across a drawn surface made of it. A user-added image
+      is stored inline as a `data:` URI so it round-trips with the plan through
+      localStorage and the exported file; a plain URL also works. (Ingested
+      full-res binaries live in the gitignored `materials/cache/` via `asset`,
+      never inline — see M4.) Absent = the flat category color.
+  tile_width_ft:
+    range: double
+    description: |-
+      The real-world **east–west** span of `image` in feet — how wide the photo's
+      unit is on the ground — so it tiles a surface to scale. Paired with
+      `tile_depth_ft` (they can differ: a paver unit is often rectangular).
+      Absent/0 = a sensible default tile size.
+  tile_depth_ft:
+    range: double
+    description: |-
+      The real-world **north–south** span of `image` in feet — how deep the
+      photo's unit is on the ground — the companion to `tile_width_ft`. Absent/0
+      = a sensible default tile size.
   depth_in:
     range: double
     description: |-

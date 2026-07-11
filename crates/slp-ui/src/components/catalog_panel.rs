@@ -67,6 +67,15 @@ pub fn CatalogPanel(
     /// Set whether the selected item is a sub-base aggregate (a course material).
     #[prop(default = Callback::new(|_: bool| {}))]
     on_aggregate: Callback<bool>,
+    /// Set the selected item's image (a `data:` URI or URL).
+    #[prop(default = Callback::new(|_: String| {}))]
+    on_image: Callback<String>,
+    /// Set the image tile's real-world east–west span (ft).
+    #[prop(default = Callback::new(|_: f64| {}))]
+    on_tile_width: Callback<f64>,
+    /// Set the image tile's real-world north–south span (ft).
+    #[prop(default = Callback::new(|_: f64| {}))]
+    on_tile_depth: Callback<f64>,
     /// Set the selected item's footprint width / diameter (ft).
     on_width: Callback<f64>,
     /// Set the selected item's footprint depth (ft).
@@ -180,6 +189,44 @@ pub fn CatalogPanel(
                                 min=0.0
                                 on_input=on_height
                             />
+                            <TextField
+                                label="Image"
+                                testid="catalog-image"
+                                value=item.image.clone().unwrap_or_default()
+                                placeholder="image URL or data URI"
+                                on_input=on_image
+                            />
+                            <NumberField
+                                label="Tile W (ft)"
+                                testid="catalog-tile-width"
+                                value=item.tile_width_ft.unwrap_or(0.0)
+                                step=0.5
+                                min=0.0
+                                on_input=on_tile_width
+                            />
+                            <NumberField
+                                label="Tile D (ft)"
+                                testid="catalog-tile-depth"
+                                value=item.tile_depth_ft.unwrap_or(0.0)
+                                step=0.5
+                                min=0.0
+                                on_input=on_tile_depth
+                            />
+                            // A live preview of the material photo, when set.
+                            {item
+                                .image
+                                .clone()
+                                .filter(|s| !s.is_empty())
+                                .map(|src| {
+                                    view! {
+                                        <img
+                                            class="catalog-image-preview"
+                                            data-testid="catalog-image-preview"
+                                            src=src
+                                            alt="material preview"
+                                        />
+                                    }
+                                })}
                         </div>
                     },
                 )

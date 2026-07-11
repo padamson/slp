@@ -134,6 +134,84 @@ async fn edits_a_catalog_item_and_propagates_to_placed_objects() -> Result<()> {
 }
 
 #[tokio::test]
+async fn sets_a_material_image_that_previews_and_persists() -> Result<()> {
+    // M4.4: give a material a photo (a data: URI), see it previewed in the
+    // editor, and confirm it survives a reload.
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
+        return Ok(());
+    }
+
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = browser.new_page().await.context("new page")?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    // A 1×1 transparent PNG, so it's self-contained (no network in the test).
+    let img = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+    // Open the catalog inspector, edit the Pavers material, set its image.
+    page.locator("[data-testid='edit-catalog']")
+        .await
+        .click(None)
+        .await
+        .context("open the catalog inspector")?;
+    page.locator("[data-testid='catalog-row-paver']")
+        .await
+        .click(None)
+        .await
+        .context("select the paver material")?;
+    page.locator("[data-testid='catalog-image']")
+        .await
+        .fill(img, None)
+        .await
+        .context("set the material image")?;
+
+    // The editor previews it.
+    let preview = page.locator("[data-testid='catalog-image-preview']").await;
+    expect(preview.clone())
+        .to_have_count(1)
+        .await
+        .context("the image previews in the editor")?;
+    assert_eq!(
+        preview.get_attribute("src").await?.as_deref(),
+        Some(img),
+        "the preview shows the set image"
+    );
+
+    // Reload — the image persists on the catalog item.
+    page.reload(None).await.context("reload the page")?;
+    page.locator("[data-testid='edit-catalog']")
+        .await
+        .click(None)
+        .await
+        .context("reopen the catalog inspector")?;
+    page.locator("[data-testid='catalog-row-paver']")
+        .await
+        .click(None)
+        .await
+        .context("reselect the paver material")?;
+    assert_eq!(
+        page.locator("[data-testid='catalog-image']")
+            .await
+            .input_value(None)
+            .await?,
+        img,
+        "the image persisted across a reload"
+    );
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+#[tokio::test]
 async fn adds_and_authors_a_material_that_persists() -> Result<()> {
     // B3.0: hand-add a catalog material, set its name/price/price_unit, and
     // confirm it survives a reload — the prerequisite for composing an area from

@@ -66,13 +66,16 @@ so that my estimate reflects things I can actually buy, not placeholder data.
 - **M4.4 — material images (visualization + surface tiling)** — *`PLAN.md` §2:
   "a material = {image(s), real dimensions, unit price, provenance}", feeding
   "both 2D tiling and 3D albedo".*
-  - [ ] a material carries an image: the `asset` ref (M4.0) plus a **real-world
-        tile size** (how many feet the image spans, for scale). When adding/
-        editing a material, attach an image — a user upload or a URL/cache path.
-        [design fork: a small thumbnail inline (data-URI, portable through
-        `localStorage`/export) vs. a `materials/cache/` path or IndexedDB blob
-        for large/ingested assets — recommend inline thumbnail + cache-path for
-        full-res; never commit the binary]
+  - [x] a material carries an image: `CatalogItem.image` (a `data:` URI or URL)
+        plus `tile_width_ft` + `tile_depth_ft` (the photo's **real-world E–W ×
+        N–S span**, so a rectangular unit like a paver tiles undistorted). The
+        catalog editor has an Image field + Tile W/D fields and previews the set
+        image; it persists with the plan (e2e-covered). Storage decision:
+        user-added images are stored **inline as a data-URI** (round-trips
+        through `localStorage`/export); the M4.0 `asset` cache-path stays for
+        *ingested* full-res binaries (M4.1), never committed.
+  - [ ] attach via **file upload** (browser `<input type=file>` → data-URI) is a
+        follow-up; today you paste a URL / data-URI into the Image field
   - [ ] **thumbnail**: the flat color swatch in the catalog panel, the Area
         tool's material picker, and the area inspector becomes the actual
         material photo when one is present (flat color as fallback)
