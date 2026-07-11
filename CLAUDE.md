@@ -40,6 +40,10 @@ cargo test -p dokime        # dokime's own self-tests
 cargo test -p slp-ui        # slp-ui components (rendered via dokime)
 cargo test -p theoria       # theoria's Gallery UI (rendered via dokime)
 
+# Both hot-reload dev servers at once (planner + gallery), auto-picking free
+# ports if 8080/8081 are taken; Ctrl-C stops both:
+./scripts/dev.sh                        # or ./scripts/dev.sh 9000 to start higher
+
 # Manual local testing of the PLANNER (hot reload at http://localhost:8080)
 cd crates/slp-app && trunk serve
 cd crates/slp-app && trunk build        # one-off build to dist/
