@@ -37,10 +37,10 @@ async fn wait_text(loc: &Locator, want: &str) -> Result<()> {
 async fn wait_attr_f64(loc: &Locator, attr: &str, pred: impl Fn(f64) -> bool) -> Result<f64> {
     let start = Instant::now();
     loop {
-        if let Some(v) = loc.get_attribute(attr).await?.and_then(|s| s.parse().ok()) {
-            if pred(v) {
-                return Ok(v);
-            }
+        if let Some(v) = loc.get_attribute(attr).await?.and_then(|s| s.parse().ok())
+            && pred(v)
+        {
+            return Ok(v);
         }
         if start.elapsed() >= Duration::from_secs(5) {
             return Err(anyhow!("attribute '{attr}' never satisfied the predicate"));
