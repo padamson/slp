@@ -98,7 +98,11 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         `Shapes` and `Circles`; one e2e draws a textured polygon *and* circle.
         Textured surfaces render opaque by design (a real material occludes the
         grid/deck beneath; select the area to see through it while editing).
-- **M5.0 — swap & compare**
+- **M5.0 — swap & compare** — *nice-to-have; deferred. Not on the critical
+  path to "decide what to buy": the estimate already reprices live when a
+  catalog item is edited (M4.3), so comparing alternatives works today by
+  editing the item or drawing a second option. Pick this up only if in-place
+  swap-and-preview earns its keep.*
   - [ ] from a selected placed object, browse the catalog for an alternative in
         the same category and preview the swap (footprint + cost delta) before
         committing
