@@ -16,23 +16,65 @@ can back it up, share it, or start a fresh what-if copy.
 
 ## Vertical slices
 
-- **G1.0 — export the plan to a file**
-  - [ ] a "Save to file" control serializes the current `Plan` (the same
-        `serde_json` shape `localStorage` already round-trips) and downloads it
-        as `<plan-name-or-default>.slp.json`
-  - [ ] `localStorage` autosave (today's behavior) is unchanged — G1 adds an
-        explicit file export alongside it, not a replacement
-- **G1.1 — import a plan from a file**
-  - [ ] a "Load from file" control reads a user-picked `.slp.json`, validates
-        it (panschema-generated `serde` types reject malformed shapes rather
-        than silently half-loading), and replaces the current plan
-  - [ ] a malformed/incompatible file shows an error and leaves the current
-        plan untouched — never a half-applied state
-  - [ ] e2e: export the current plan, reload the app (clearing in-memory
-        state), import the exported file, and confirm the yard/house/deck/
-        catalog/objects all match what was saved
+- **G1.0 — export the plan to a file** ✅
+  - [x] a **Save** control serializes the current `Plan` (the same `serde_json`
+        shape `localStorage` already round-trips) and downloads it as
+        `<plan-name-or-default>.slp.json` (`slp_core::plan_filename` slugifies
+        the plan name; mutation-tested)
+  - [x] `localStorage` autosave (today's behavior) is unchanged — G1 adds an
+        explicit file export alongside it. The plan-assembly is now one
+        `current_plan()` closure shared by the autosave and the export.
+- **G1.1 — import a plan from a file** ✅
+  - [x] an **Open** control reads a user-picked `.slp.json` via a hidden
+        `<input type="file">`, validates it (`serde` rejects malformed/wrong
+        shapes — `plan_file::parse_plan`), and replaces the whole plan
+        (`apply_plan` fans it back out to every signal + resets selection)
+  - [x] a malformed/incompatible file shows an inline error and leaves the
+        current plan untouched — never a half-applied state
+  - [x] e2e: Save the plan to a download, clear `localStorage` + reload
+        (fresh default plan), Open the saved file, and confirm the yard width
+        and placed object come back; a second e2e covers the malformed-file
+        error path
+- **G1.2 — a named current file: Save vs. Save As (multiple files)**
+  - [ ] where the **File System Access API** is available (Chromium), **Save
+        As** opens the native save dialog so the user names/places the
+        `.slp.json`; SLP remembers that file handle as the *current file* and
+        writes to it. Calling Save As again makes a *different* file — the user
+        can keep as many plans as they like.
+  - [ ] **Save** writes back to the current file with no dialog once one is
+        chosen; with no current file it behaves as Save As. The current file
+        name is shown so the user knows what Save targets.
+  - [ ] where the API is absent (Firefox/Safari), Save/Save As gracefully fall
+        back to the G1.0 download (the browser's own dialog names the file) and
+        Open to the `<input type="file">` picker — same portability, no
+        write-in-place or remembered handle.
+- **G1.3 — reopen the last file on startup**
+  - [ ] the current file's handle is persisted (IndexedDB) so a return visit can
+        reopen it. On startup, if the browser still holds read permission for
+        that handle, SLP loads it **silently** (the closest a sandboxed web app
+        can get to "open my file automatically").
+  - [ ] where the browser requires a fresh gesture (permission lapsed, or a
+        different origin/profile), SLP shows a one-click **"Reopen &lt;name&gt;"**
+        affordance instead of loading silently — a browser-security boundary, not
+        a bug: a page cannot read a disk file without a gesture or a standing
+        grant. `localStorage` autosave still restores the working plan with no
+        gesture, as today.
 
 ## Notes / refs
+
+- **Browser sandbox: no silent disk access without a grant.** A CSR/WASM app
+  cannot scan the user's filesystem for a "default save location" and read it
+  on load — the platform forbids it. The **File System Access API** is the only
+  path to a real, named, re-openable file, and even it needs a user gesture to
+  *first* grant a handle; startup reopen is silent only while that grant
+  persists (Chromium remembers it per-origin for a while), else it's one click.
+  This is why G1.3 is "reopen the last file (silent when permitted, one-click
+  otherwise)" rather than "auto-load a file off disk."
+- **Testability.** The download + `<input type="file">` fallback (G1.0/G1.1) is
+  fully Playwright-drivable and is what the round-trip e2e exercises. The File
+  System Access API path (G1.2/G1.3) uses native pickers and OS-file writes that
+  Playwright can't drive, so it's covered by feature-detected code + dokime
+  (control presence), not e2e — noted here so the coverage gap is explicit.
 
 - **No new schema.** The file *is* `Plan` — the same LinkML/panschema-generated
   type `localStorage` already serializes. G1 is a UI affordance (download/file-

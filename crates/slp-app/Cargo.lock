@@ -1381,6 +1381,7 @@ dependencies = [
 name = "slp-ui"
 version = "0.1.0"
 dependencies = [
+ "js-sys",
  "leptos",
  "send_wrapper",
  "serde_json",

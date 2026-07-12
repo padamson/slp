@@ -47,6 +47,8 @@ const INSPECTOR_MARGIN_PX: f64 = 10.0;
 /// `localStorage` key for the persisted plan (only used in the browser build).
 #[cfg(feature = "csr")]
 const STORAGE_KEY: &str = "slp:plan";
+/// DOM id of the hidden `<input type="file">` the Open control drives (G1).
+const PLAN_FILE_INPUT_ID: &str = "plan-file-input";
 
 /// An in-progress move: which object is being dragged, and the offset (feet)
 /// from the cursor to the object's center at grab time, so the object follows
@@ -218,8 +220,11 @@ fn planner_body() -> impl IntoView {
     let grid_snap = RwSignal::new(true);
     let ortho = RwSignal::new(true);
 
-    // Persist whenever the yard size or the committed plan changes.
-    Effect::new(move |_| {
+    // Assemble the current `Plan` from every reactive source — the one place
+    // the scattered signals are gathered into a whole plan, reused by the
+    // `localStorage` autosave and by file export (G1). Reads via `.get()` so
+    // it both tracks (in an effect) and reads (in an event handler).
+    let current_plan = move || {
         let cs = corners.get();
         let os = openings.get();
         let house = (!cs.is_empty() || !os.is_empty()).then(|| {
@@ -237,7 +242,7 @@ fn planner_body() -> impl IntoView {
                 steps: st,
             })
         });
-        save_plan(&Plan {
+        Plan {
             yard_width: width.get(),
             yard_depth: depth.get(),
             house,
@@ -247,8 +252,82 @@ fn planner_body() -> impl IntoView {
             shapes: shapes.get(),
             circles: circles.get(),
             ..Default::default()
-        });
+        }
+    };
+
+    // Persist to localStorage whenever any source changes.
+    Effect::new(move |_| save_plan(&current_plan()));
+
+    // Replace the whole plan from a loaded file (G1): fan a `Plan` back out to
+    // every reactive source (the inverse of `current_plan`) and reset transient
+    // selection/drawing state so nothing dangles at a now-stale index.
+    let apply_plan = move |p: Plan| {
+        set_width.set(p.yard_width);
+        set_depth.set(p.yard_depth);
+        let (cs, os, hs) = p.house.map_or_else(
+            || (Vec::new(), Vec::new(), ItemStatus::existing),
+            |h| {
+                let House {
+                    corners,
+                    openings,
+                    structure_status,
+                } = *h;
+                (corners, openings, structure_status)
+            },
+        );
+        corners.set(cs);
+        openings.set(os);
+        house_status.set(hs);
+        let (levels, sts) = p
+            .deck
+            .map(|d| {
+                let Deck { levels, steps, .. } = *d;
+                (levels, steps)
+            })
+            .unwrap_or_default();
+        deck.set(levels);
+        steps.set(sts);
+        // An empty catalog is re-seeded with the starter set, mirroring startup.
+        let cat = if p.catalog.is_empty() {
+            starter_catalog()
+        } else {
+            p.catalog
+        };
+        selected_id.set(cat.first().map_or_else(String::new, |c| c.id.clone()));
+        catalog.set(cat);
+        objects.set(p.objects);
+        shapes.set(p.shapes);
+        circles.set(p.circles);
+        // Drop every selection/drag/tool so nothing references a stale index.
+        selected_shape.set(None);
+        selected_nodes.set(Vec::new());
+        selected_circle.set(None);
+        selected_deck.set(None);
+        house_selected.set(false);
+        selected.set(None);
+        catalog_selected.set(None);
+        tool.set(None);
+        placed.set(Vec::new());
+    };
+
+    // A message when a picked file isn't a valid plan (cleared on a good load).
+    let load_error = RwSignal::new(None::<String>);
+    // Save the current plan to a `.slp.json` file (a download).
+    let save_to_file = Callback::new(move |()| {
+        let _ = crate::plan_file::download_plan(&current_plan());
     });
+    // Open the hidden file input's native picker.
+    let open_file = Callback::new(move |()| crate::plan_file::open_file_dialog(PLAN_FILE_INPUT_ID));
+    // A file was picked: parse it, then replace the plan (or report why not).
+    let on_file_change = move |ev: leptos::ev::Event| {
+        crate::plan_file::load_from_event(&ev, move |res| match res {
+            Ok(p) => {
+                load_error.set(None);
+                apply_plan(p);
+            }
+            Err(e) => load_error.set(Some(e)),
+        });
+    };
 
     // Snap the cursor to where the next node would land, for the active tool.
     // Steps snap to a deck edge (the nearest level); openings to the house.
@@ -1178,6 +1257,29 @@ fn planner_body() -> impl IntoView {
         </header>
         <YardControls width=width set_width=set_width depth=depth set_depth=set_depth />
         <div class="tools">
+            <ToolGroup label="File">
+                <ToolButton
+                    label="Save"
+                    testid="save-plan"
+                    active=Signal::derive(|| false)
+                    on_pick=save_to_file
+                />
+                <ToolButton
+                    label="Open"
+                    testid="open-plan"
+                    active=Signal::derive(|| false)
+                    on_pick=open_file
+                />
+                // Hidden picker the Open button drives; loads the chosen plan.
+                <input
+                    type="file"
+                    id=PLAN_FILE_INPUT_ID
+                    data-testid="plan-file-input"
+                    accept=".slp.json,.json,application/json"
+                    style="display:none"
+                    on:change=on_file_change
+                />
+            </ToolGroup>
             <ToolGroup label="House">
                 {tool_btn(tool, pick, Tool::House, "Draw house", "draw-house")}
                 {tool_btn(tool, pick, Tool::Door, "Add door", "add-door")}
@@ -1242,6 +1344,13 @@ fn planner_body() -> impl IntoView {
                 />
             </ToolGroup>
         </div>
+        // Surfaces why a picked file wouldn't load (a malformed/wrong-shape
+        // `.slp.json`); the current plan is left untouched.
+        {move || {
+            load_error
+                .get()
+                .map(|e| view! { <p class="load-error" data-testid="load-error">{e}</p> })
+        }}
         // The object palette appears once there's a catalog (seeded on load):
         // click a tile to arm it, then click the canvas to place.
         {move || {

@@ -14,8 +14,15 @@ fn renders_header_controls_tools_and_yard() {
     );
     assert_eq!(
         dokime::count(&html, "<input"),
-        7,
-        "two yard-size inputs + deck elevation + area depth + area elevation + two snap toggles"
+        8,
+        "two yard-size inputs + deck elevation + area depth + area elevation \
+         + two snap toggles + the hidden plan-file picker"
+    );
+    assert!(
+        html.contains(r#"data-testid="save-plan""#)
+            && html.contains(r#"data-testid="open-plan""#)
+            && html.contains(r#"data-testid="plan-file-input""#),
+        "the File save/open controls render"
     );
     assert!(
         html.contains(r#"data-testid="draw-house""#)

@@ -14,6 +14,7 @@ pub mod generated;
 pub mod geom;
 pub mod pick;
 pub mod place;
+pub mod plan_io;
 pub mod snap;
 pub mod takeoff;
 pub mod wall;
@@ -33,6 +34,7 @@ pub use geom::{
 };
 pub use pick::object_at;
 pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node, step_outward, step_run};
+pub use plan_io::{DEFAULT_PLAN_STEM, PLAN_EXT, plan_filename};
 pub use snap::{dragged_center, snap_ortho, snap_to_grid};
 pub use takeoff::{
     BillOfMaterials, DEFAULT_TILE_FT, LineItem, default_courses, take_off, tile_size_ft,
