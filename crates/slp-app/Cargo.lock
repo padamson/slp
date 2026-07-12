@@ -1387,6 +1387,7 @@ dependencies = [
  "serde_json",
  "slp-core",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
 ]
 

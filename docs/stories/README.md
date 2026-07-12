@@ -47,7 +47,7 @@ cross-cutting machinery folded into that point in the sequence.
 | H2 | Draw the deck (footprint, stairs, railing); flag existing | [H2](H2-draw-deck.md) | ✅ footprint (stairs/railing later) |
 | F1 | *Enabler:* select / move / reshape / delete | [F1](F1-select-move-delete.md) | 🚧 object move + delete done; geometry select/move/reshape next |
 | F2 | *Enabler:* place objects from a palette (click-to-place, modifiers, preview ghost) | [F2](F2-object-palette.md) | ✅ done |
-| G1 | *Enabler:* save/load `.slp.json` | [G1](G1-save-load-plan.md) | backlog |
+| G1 | *Enabler:* save/load `.slp.json` | [G1](G1-save-load-plan.md) | ✅ done (download/upload + File System Access API Save-As/reopen) |
 | M1–M3 | *Enabler:* materials/catalog + cost engine (folded into E1) | [E1](E1-place-furniture.md) | ✅ cost engine (headless) |
 | E1 | Place deck furniture (look + cost) | [E1](E1-place-furniture.md) | ✅ place + estimate + select/inspect/rotate + status/legend + e2e |
 | D2 | Fire pit | [D2](D2-fire-pit.md) | ✅ done |

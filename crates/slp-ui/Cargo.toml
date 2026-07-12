@@ -48,6 +48,8 @@ web-sys = { version = "0.3", optional = true, features = [
 wasm-bindgen = { version = "0.2", optional = true }
 # Build the Blob parts array for a plan download (csr only).
 js-sys = { version = "0.3", optional = true }
+# Await the File System Access API promises (window.slpFs, csr only).
+wasm-bindgen-futures = { version = "0.4", optional = true }
 # Wrap non-Send JS handles (ResizeObserver) for leptos's Send+Sync cleanup;
 # harmless on wasm's single thread (csr only).
 send_wrapper = { version = "0.6", optional = true }
@@ -56,7 +58,14 @@ send_wrapper = { version = "0.6", optional = true }
 dokime = { path = "../dokime" }
 
 [features]
-csr = ["leptos/csr", "dep:web-sys", "dep:wasm-bindgen", "dep:js-sys", "dep:send_wrapper"]
+csr = [
+    "leptos/csr",
+    "dep:web-sys",
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:wasm-bindgen-futures",
+    "dep:send_wrapper",
+]
 ssr = ["leptos/ssr"]
 hydrate = ["leptos/hydrate"]
 # Compiles the colocated `*.stories.rs` files (slp-ui components as theoria

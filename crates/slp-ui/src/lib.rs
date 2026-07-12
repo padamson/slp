@@ -19,6 +19,7 @@
 )]
 
 mod components;
+mod fs_access;
 mod plan_file;
 mod style;
 

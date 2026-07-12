@@ -25,6 +25,7 @@ use super::{
     Modifiers, NumberField, ObjectInspector, ObjectPalette, Toggle, ToolButton, ToolGroup, Yard,
     YardControls,
 };
+use crate::fs_access;
 
 /// Pixels per foot in the SVG user space.
 const PX_FT: f64 = 12.0;
@@ -312,13 +313,83 @@ fn planner_body() -> impl IntoView {
 
     // A message when a picked file isn't a valid plan (cleared on a good load).
     let load_error = RwSignal::new(None::<String>);
-    // Save the current plan to a `.slp.json` file (a download).
+    // The current file's name (File System Access API path) — `Save` writes
+    // here; shown so the user knows what Save targets. `None` = no named file.
+    let current_file = RwSignal::new(None::<String>);
+    // When startup finds a remembered file whose read permission has lapsed, its
+    // name — surfaced as a one-click "Reopen <name>" (a gesture the browser
+    // requires; a page can't silently re-read a disk file without a grant).
+    let reopen_prompt = RwSignal::new(None::<String>);
+
+    // Load a plan's text (validate → replace → adopt the file name), or report.
+    let load_text = move |name: Option<String>, text: &str| match crate::plan_file::parse_plan(text)
+    {
+        Ok(p) => {
+            load_error.set(None);
+            apply_plan(p);
+            if name.is_some() {
+                current_file.set(name);
+            }
+        }
+        Err(e) => load_error.set(Some(e)),
+    };
+
+    // Save: write in place to the current file when the File System Access API
+    // is available (Save As when there's no current file yet); else download.
     let save_to_file = Callback::new(move |()| {
-        let _ = crate::plan_file::download_plan(&current_plan());
+        let plan = current_plan();
+        if fs_access::supported() {
+            let text = serde_json::to_string_pretty(&plan).unwrap_or_default();
+            let suggested = slp_core::plan_filename(&plan);
+            leptos::task::spawn_local(async move {
+                if let Some(n) = fs_access::save_or_save_as(&text, &suggested).await {
+                    current_file.set(Some(n));
+                }
+            });
+        } else {
+            let _ = crate::plan_file::download_plan(&plan);
+        }
     });
-    // Open the hidden file input's native picker.
-    let open_file = Callback::new(move |()| crate::plan_file::open_file_dialog(PLAN_FILE_INPUT_ID));
-    // A file was picked: parse it, then replace the plan (or report why not).
+    // Save As: always prompt for a new name/location → a different file, so the
+    // user can keep as many plans as they like. Falls back to a download.
+    let save_as = Callback::new(move |()| {
+        let plan = current_plan();
+        if fs_access::supported() {
+            let text = serde_json::to_string_pretty(&plan).unwrap_or_default();
+            let suggested = slp_core::plan_filename(&plan);
+            leptos::task::spawn_local(async move {
+                if let Some(n) = fs_access::save_as(&text, &suggested).await {
+                    current_file.set(Some(n));
+                }
+            });
+        } else {
+            let _ = crate::plan_file::download_plan(&plan);
+        }
+    });
+    // Open: pick a file (File System Access API, so its handle is remembered for
+    // startup reopen) or fall back to the hidden `<input>`.
+    let open_file = Callback::new(move |()| {
+        if fs_access::supported() {
+            leptos::task::spawn_local(async move {
+                if let Some(loaded) = fs_access::open().await {
+                    load_text(Some(loaded.name), &loaded.plan);
+                }
+            });
+        } else {
+            crate::plan_file::open_file_dialog(PLAN_FILE_INPUT_ID);
+        }
+    });
+    // The "Reopen <name>" gesture: request permission, then load the last file.
+    let reopen_file = Callback::new(move |()| {
+        leptos::task::spawn_local(async move {
+            if let Some(loaded) = fs_access::reopen_grant().await {
+                load_text(Some(loaded.name), &loaded.plan);
+                reopen_prompt.set(None);
+            }
+        });
+    });
+    // The `<input>` fallback fired: parse the picked file, then replace the plan
+    // (or report why not).
     let on_file_change = move |ev: leptos::ev::Event| {
         crate::plan_file::load_from_event(&ev, move |res| match res {
             Ok(p) => {
@@ -328,6 +399,20 @@ fn planner_body() -> impl IntoView {
             Err(e) => load_error.set(Some(e)),
         });
     };
+
+    // On startup, try to reopen the last file: silently if the browser still
+    // holds read permission, else offer the one-click "Reopen <name>". No-op
+    // without the File System Access API (the localStorage autosave already
+    // restored the working plan).
+    if fs_access::supported() {
+        leptos::task::spawn_local(async move {
+            match fs_access::reopen().await {
+                Some(fs_access::Reopen::Loaded(l)) => load_text(Some(l.name), &l.plan),
+                Some(fs_access::Reopen::NeedsGesture(name)) => reopen_prompt.set(Some(name)),
+                None => {}
+            }
+        });
+    }
 
     // Snap the cursor to where the next node would land, for the active tool.
     // Steps snap to a deck edge (the nearest level); openings to the house.
@@ -1265,12 +1350,40 @@ fn planner_body() -> impl IntoView {
                     on_pick=save_to_file
                 />
                 <ToolButton
+                    label="Save As"
+                    testid="save-plan-as"
+                    active=Signal::derive(|| false)
+                    on_pick=save_as
+                />
+                <ToolButton
                     label="Open"
                     testid="open-plan"
                     active=Signal::derive(|| false)
                     on_pick=open_file
                 />
-                // Hidden picker the Open button drives; loads the chosen plan.
+                // The current file name (File System Access path); Save writes here.
+                {move || {
+                    current_file
+                        .get()
+                        .map(|n| view! { <span class="current-file" data-testid="current-file">{n}</span> })
+                }}
+                // A remembered file whose permission lapsed — one click to reopen.
+                {move || {
+                    reopen_prompt
+                        .get()
+                        .map(|n| {
+                            view! {
+                                <button
+                                    class="reopen-chip"
+                                    data-testid="reopen-file"
+                                    on:click=move |_| reopen_file.run(())
+                                >
+                                    {format!("Reopen {n}")}
+                                </button>
+                            }
+                        })
+                }}
+                // Hidden picker the Open fallback drives; loads the chosen plan.
                 <input
                     type="file"
                     id=PLAN_FILE_INPUT_ID

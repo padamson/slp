@@ -5,6 +5,123 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Simple Landscape Planner</title>
     <link data-trunk rel="rust" data-wasm-opt="z" />
+    <!--
+      File System Access API bridge (G1.2/G1.3): named Save/Save As, in-place
+      Save, and reopen-the-last-file-on-startup. Encapsulates the browser FSA +
+      IndexedDB glue behind a small promise API the WASM app calls (see
+      slp-ui `fs_access`). Defined before the wasm loads so startup reopen can
+      run on mount. Absent capability (Firefox/Safari) => slpFs.supported() is
+      false and the app uses the download/<input> fallback. Methods return a
+      JSON string or null so the Rust side parses trivially.
+    -->
+    <script>
+      (() => {
+        const DB = "slp", STORE = "handles", KEY = "current";
+        const types = [{
+          description: "SLP plan",
+          accept: { "application/json": [".slp.json", ".json"] },
+        }];
+        let handle = null, name = null;
+
+        const supported = () =>
+          typeof window.showSaveFilePicker === "function" &&
+          typeof window.showOpenFilePicker === "function";
+
+        const idb = () => new Promise((res, rej) => {
+          const r = indexedDB.open(DB, 1);
+          r.onupgradeneeded = () => r.result.createObjectStore(STORE);
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+        });
+        async function idbPut(v) {
+          const db = await idb();
+          await new Promise((res, rej) => {
+            const tx = db.transaction(STORE, "readwrite");
+            tx.objectStore(STORE).put(v, KEY);
+            tx.oncomplete = res;
+            tx.onerror = () => rej(tx.error);
+          });
+          db.close();
+        }
+        async function idbGet() {
+          const db = await idb();
+          const v = await new Promise((res, rej) => {
+            const rq = db.transaction(STORE, "readonly").objectStore(STORE).get(KEY);
+            rq.onsuccess = () => res(rq.result);
+            rq.onerror = () => rej(rq.error);
+          });
+          db.close();
+          return v;
+        }
+        async function writeTo(h, text) {
+          const w = await h.createWritable();
+          await w.write(text);
+          await w.close();
+        }
+        async function readOf(h) {
+          return await (await h.getFile()).text();
+        }
+
+        window.slpFs = {
+          supported,
+          currentName: () => name,
+          // Prompt for a name/location, write, remember + persist the handle.
+          async saveAs(text, suggestedName) {
+            try {
+              const h = await window.showSaveFilePicker({ suggestedName, types });
+              await writeTo(h, text);
+              handle = h; name = h.name; await idbPut(h);
+              return JSON.stringify({ name });
+            } catch { return null; } // user cancelled
+          },
+          // Write to the current file (no dialog); null => no current file yet.
+          async save(text) {
+            if (!handle) return null;
+            await writeTo(handle, text);
+            return JSON.stringify({ name });
+          },
+          // Pick a file to open; remember + persist the handle.
+          async open() {
+            try {
+              const [h] = await window.showOpenFilePicker({ types });
+              const text = await readOf(h);
+              handle = h; name = h.name; await idbPut(h);
+              return JSON.stringify({ name, plan: text });
+            } catch { return null; }
+          },
+          // On startup: if a handle is remembered and read permission still
+          // stands, load it silently; else report it needs a gesture.
+          async reopen() {
+            let h;
+            try { h = await idbGet(); } catch { return null; }
+            if (!h) return null;
+            handle = h; name = h.name;
+            let perm = "prompt";
+            try { perm = await h.queryPermission({ mode: "read" }); } catch {}
+            if (perm === "granted") {
+              try {
+                return JSON.stringify({ name, plan: await readOf(h), silent: true });
+              } catch { return JSON.stringify({ name, silent: false }); }
+            }
+            return JSON.stringify({ name, silent: false });
+          },
+          // The "Reopen <name>" gesture: request permission, then read.
+          async reopenGrant() {
+            if (!handle) {
+              try { handle = await idbGet(); } catch { return null; }
+            }
+            if (!handle) return null;
+            let perm = "denied";
+            try { perm = await handle.requestPermission({ mode: "read" }); } catch {}
+            if (perm !== "granted") return null;
+            try {
+              name = handle.name;
+              return JSON.stringify({ name, plan: await readOf(handle) });
+            } catch { return null; }
+          },
+        };
+      })();
+    </script>
     <style>
       body {
         margin: 0;
@@ -63,6 +180,22 @@
         gap: 20px;
         padding: 8px 22px;
         align-items: flex-start;
+      }
+      /* The current file name (File System Access path); Save targets it. */
+      .current-file {
+        align-self: center;
+        font-size: 12px;
+        color: #6b6557;
+        max-width: 160px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      /* One-click reopen of the last file when its permission has lapsed. */
+      .reopen-chip {
+        border-color: #2b6cb0 !important;
+        background: #eef4fb !important;
+        color: #2b6cb0;
       }
       /* Why a picked .slp.json wouldn't load (the current plan is untouched). */
       .load-error {

@@ -35,30 +35,35 @@ can back it up, share it, or start a fresh what-if copy.
         (fresh default plan), Open the saved file, and confirm the yard width
         and placed object come back; a second e2e covers the malformed-file
         error path
-- **G1.2 — a named current file: Save vs. Save As (multiple files)**
-  - [ ] where the **File System Access API** is available (Chromium), **Save
+- **G1.2 — a named current file: Save vs. Save As (multiple files)** ✅
+  - [x] where the **File System Access API** is available (Chromium), **Save
         As** opens the native save dialog so the user names/places the
-        `.slp.json`; SLP remembers that file handle as the *current file* and
-        writes to it. Calling Save As again makes a *different* file — the user
-        can keep as many plans as they like.
-  - [ ] **Save** writes back to the current file with no dialog once one is
-        chosen; with no current file it behaves as Save As. The current file
-        name is shown so the user knows what Save targets.
-  - [ ] where the API is absent (Firefox/Safari), Save/Save As gracefully fall
-        back to the G1.0 download (the browser's own dialog names the file) and
-        Open to the `<input type="file">` picker — same portability, no
-        write-in-place or remembered handle.
-- **G1.3 — reopen the last file on startup**
-  - [ ] the current file's handle is persisted (IndexedDB) so a return visit can
+        `.slp.json`; SLP remembers that file handle as the *current file* (name
+        shown in the toolbar) and writes to it. Calling Save As again makes a
+        *different* file — the user can keep as many plans as they like.
+  - [x] **Save** writes back to the current file with no dialog once one is
+        chosen; with no current file it behaves as Save As.
+  - [x] where the API is absent (Firefox/Safari), Save/Save As gracefully fall
+        back to the G1.0 download and Open to the `<input type="file">` picker.
+        (A `window.slpFs` bridge in `index.html` encapsulates the FSA +
+        IndexedDB glue; `slp-ui::fs_access` is the thin async Rust bridge that
+        degrades to the fallback when `slpFs` is absent.)
+- **G1.3 — reopen the last file on startup** ✅
+  - [x] the current file's handle is persisted (IndexedDB) so a return visit can
         reopen it. On startup, if the browser still holds read permission for
         that handle, SLP loads it **silently** (the closest a sandboxed web app
         can get to "open my file automatically").
-  - [ ] where the browser requires a fresh gesture (permission lapsed, or a
+  - [x] where the browser requires a fresh gesture (permission lapsed, or a
         different origin/profile), SLP shows a one-click **"Reopen &lt;name&gt;"**
         affordance instead of loading silently — a browser-security boundary, not
-        a bug: a page cannot read a disk file without a gesture or a standing
-        grant. `localStorage` autosave still restores the working plan with no
+        a bug. `localStorage` autosave still restores the working plan with no
         gesture, as today.
+  - [x] e2e (`plan_file_fsa.rs`): an `add_init_script` fake
+        `showSaveFilePicker`/`showOpenFilePicker` + fake IndexedDB drives the
+        real Save As / in-place Save / Open, silent startup reopen, and the
+        one-click Reopen-after-permission-lapse — the pattern a future
+        first-class playwright-rs FSA helper would replace (cross-repo note
+        `playwright-rust--fsa-test-helper`).
 
 ## Notes / refs
 
