@@ -23,6 +23,7 @@ mod scale_bar;
 mod select_field;
 mod shapes;
 mod steps;
+mod swatch;
 mod text_field;
 mod toggle;
 mod tool_button;
@@ -53,6 +54,7 @@ pub use scale_bar::{DEFAULT_LENGTH_FT, ScaleBar};
 pub use select_field::SelectField;
 pub use shapes::Shapes;
 pub use steps::Steps;
+pub use swatch::MaterialSwatch;
 pub use text_field::TextField;
 pub use toggle::Toggle;
 pub use tool_button::ToolButton;
@@ -249,6 +251,9 @@ mod shapes_stories;
 #[path = "steps.stories.rs"]
 mod steps_stories;
 #[cfg(feature = "stories")]
+#[path = "swatch.stories.rs"]
+mod swatch_stories;
+#[cfg(feature = "stories")]
 #[path = "text_field.stories.rs"]
 mod text_field_stories;
 #[cfg(feature = "stories")]
@@ -302,6 +307,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(legend_stories::stories());
     // Reusable controls.
     s.extend(tool_button_stories::stories());
+    s.extend(swatch_stories::stories());
     s.extend(toggle_stories::stories());
     s.extend(number_field_stories::stories());
     s.extend(text_field_stories::stories());
@@ -374,6 +380,9 @@ mod shapes_tests;
 #[cfg(test)]
 #[path = "steps.tests.rs"]
 mod steps_tests;
+#[cfg(test)]
+#[path = "swatch.tests.rs"]
+mod swatch_tests;
 #[cfg(test)]
 #[path = "text_field.tests.rs"]
 mod text_field_tests;

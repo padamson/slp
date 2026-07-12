@@ -78,9 +78,12 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         picked file to a data-URI (browser `FileReader`, `csr`-gated; a no-op on
         SSR) and sets the image — so you pick a photo file rather than pasting a
         URI. e2e-covered via an in-memory `FilePayload` (no fixture on disk).
-  - [ ] **thumbnail**: the flat color swatch in the catalog panel, the Area
-        tool's material picker, and the area inspector becomes the actual
-        material photo when one is present (flat color as fallback)
+  - [x] **thumbnail**: a reusable `MaterialSwatch` (photo when the material has
+        an image, else a flat square in its category color — the same
+        `area_style` mapping the canvas fill uses) now appears in the catalog
+        list row, the Area tool's material picker (live from the catalog
+        signal), and the area inspector's material row. e2e: set a material's
+        photo → its swatch becomes that photo in all three places.
   - [x] **surface tiling**: a drawn area (paver/mulch) fills with its surface
         material's image tiled as an SVG `<pattern>` at real-world scale
         (`patternUnits="userSpaceOnUse"`, tile = tile-width-ft × tile-depth-ft ×

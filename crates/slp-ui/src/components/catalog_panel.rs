@@ -9,7 +9,7 @@
 use leptos::prelude::*;
 use slp_core::{CatalogItem, PriceUnit};
 
-use super::{FileInput, NumberField, SelectField, TextField, Toggle};
+use super::{FileInput, MaterialSwatch, NumberField, SelectField, TextField, Toggle};
 
 /// The `price_unit` id an area material / object is costed by — the string the
 /// `SelectField` round-trips.
@@ -261,6 +261,7 @@ fn row(item: CatalogItem, selected: Option<String>, on_select: Callback<String>)
             data-testid=testid
             on:click=move |_| on_select.run(pick.clone())
         >
+            <MaterialSwatch image=item.image.clone() category=item.category.clone() />
             <span class="catalog-row-name">{name}</span>
             <span class="catalog-row-price">{price}</span>
         </button>

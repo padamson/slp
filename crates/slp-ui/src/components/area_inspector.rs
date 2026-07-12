@@ -12,7 +12,7 @@
 use leptos::prelude::*;
 use slp_core::{Corner, Course, ItemStatus};
 
-use super::{CourseEditor, NumberField};
+use super::{CourseEditor, MaterialSwatch, NumberField};
 
 /// Short name for the corner the window floats in (for `data-corner`).
 fn corner_name(corner: Corner) -> &'static str {
@@ -35,6 +35,10 @@ pub fn AreaInspector(
     /// label. Absent for a structure (which shows a status control instead).
     #[prop(default = None)]
     category: Option<String>,
+    /// The material's image (`data:` URI or URL), shown as a swatch thumbnail
+    /// next to the material name; falls back to the flat category color.
+    #[prop(default = None)]
+    image: Option<String>,
     /// The enclosed area, in ft².
     area_ft2: f64,
     /// The region's elevation (ft), editable — shown only when `show_elevation`
@@ -117,11 +121,17 @@ pub fn AreaInspector(
     // Structure mode (house / deck level) swaps the material + cost rows for a
     // build-status control.
     let is_structure = status.is_some();
-    // The material row appears only for a drawn area that has a material.
-    let material_row = (!is_structure)
-        .then_some(category)
-        .flatten()
-        .map(|c| view! { <dt>"Material"</dt><dd>{c}</dd> });
+    // The material row appears only for a drawn area that has a material — a
+    // swatch (photo thumbnail, or flat category color) beside the name.
+    let material_row = (!is_structure).then_some(category).flatten().map(move |c| {
+        view! {
+            <dt>"Material"</dt>
+            <dd class="area-inspector-material">
+                <MaterialSwatch image=image category=Some(c.clone()) />
+                {c}
+            </dd>
+        }
+    });
     let cost_row = (!is_structure).then(|| {
         view! {
             <dt>"Cost"</dt>

@@ -419,8 +419,7 @@
       }
       .catalog-row {
         display: flex;
-        justify-content: space-between;
-        gap: 8px;
+        align-items: center;
         font: inherit;
         text-align: left;
         padding: 4px 8px;
@@ -436,8 +435,31 @@
         background: #eef4fb;
         border-color: #2b6cb0;
       }
+      /* The material name grows so the price is pushed to the right edge and the
+         swatch stays flush left. */
+      .catalog-row-name {
+        flex: 1;
+      }
       .catalog-row-price {
         color: #6b6557;
+      }
+      /* A small material identity square: a photo thumbnail, or the flat
+         category color. Shown in the catalog list, the area material picker,
+         and the area inspector so a material reads the same everywhere. */
+      .material-swatch {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        margin-right: 6px;
+        border: 1px solid #cbc4b2;
+        border-radius: 4px;
+        object-fit: cover;
+        vertical-align: middle;
+        flex-shrink: 0;
+      }
+      .area-inspector-material {
+        display: flex;
+        align-items: center;
       }
       .catalog-editor {
         display: flex;

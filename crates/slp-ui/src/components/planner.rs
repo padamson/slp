@@ -21,8 +21,9 @@ use slp_core::{
 use slp_core::delete_node;
 
 use super::{
-    AreaInspector, CanvasMetrics, CatalogPanel, EstimatePanel, Footprint, Modifiers, NumberField,
-    ObjectInspector, ObjectPalette, Toggle, ToolButton, ToolGroup, Yard, YardControls,
+    AreaInspector, CanvasMetrics, CatalogPanel, EstimatePanel, Footprint, MaterialSwatch,
+    Modifiers, NumberField, ObjectInspector, ObjectPalette, Toggle, ToolButton, ToolGroup, Yard,
+    YardControls,
 };
 
 /// Pixels per foot in the SVG user space.
@@ -1199,8 +1200,8 @@ fn planner_body() -> impl IntoView {
             // `draw-shape`/`draw-circle` tools draw either as a boundary or a
             // circle; more materials join the picker as their stories land.
             <ToolGroup label="Area">
-                {material_btn(area_material, "mulch", "Mulch", "area-mat-mulch")}
-                {material_btn(area_material, "paver", "Pavers", "area-mat-paver")}
+                {material_btn(area_material, catalog, "mulch", "Mulch", "area-mat-mulch")}
+                {material_btn(area_material, catalog, "paver", "Pavers", "area-mat-paver")}
                 {tool_btn(tool, pick, Tool::Shape, "Draw area", "draw-shape")}
                 {tool_btn(tool, pick, Tool::Circle, "Round area", "draw-circle")}
                 <NumberField
@@ -1412,6 +1413,7 @@ fn planner_body() -> impl IntoView {
                             <AreaInspector
                                 title=area.title
                                 category=area.category
+                                image=area.image
                                 area_ft2=area.area_ft2
                                 elevation=area.elevation
                                 depth=area.depth
@@ -1581,6 +1583,9 @@ fn inspector_placement(
 struct AreaInfo {
     title: String,
     category: Option<String>,
+    /// This area's material photo (`data:` URI or URL), for the inspector
+    /// swatch; `None` shows the flat category color.
+    image: Option<String>,
     area_ft2: f64,
     elevation: f64,
     depth: f64,
@@ -1629,6 +1634,7 @@ fn selected_area(
         .and_then(|i| i.name.clone())
         .unwrap_or_else(|| "Area".to_string());
     let category = item.and_then(|i| i.category.clone());
+    let image = item.and_then(|i| i.image.clone());
     let price_unit = item.map(|i| i.price_unit.clone());
     let unit_price = item.and_then(|i| i.unit_price);
     let show_depth = price_unit == Some(PriceUnit::per_cubic_yard);
@@ -1663,6 +1669,7 @@ fn selected_area(
     Some(AreaInfo {
         title,
         category,
+        image,
         area_ft2,
         elevation,
         depth,
@@ -1729,9 +1736,11 @@ fn tool_btn(
 
 /// A material-picker toggle: arms `area_material` to the catalog id `id`, so
 /// the next drawn area is tagged with (and looks/costs like) that material.
-/// Highlights when it's the armed material.
+/// Highlights when it's the armed material, and shows a swatch (the material's
+/// photo thumbnail, or its flat category color) resolved live from the catalog.
 fn material_btn(
     area_material: RwSignal<Option<String>>,
+    catalog: RwSignal<Vec<CatalogItem>>,
     id: &'static str,
     label: &'static str,
     testid: &'static str,
@@ -1743,7 +1752,14 @@ fn material_btn(
             testid=testid
             active=active
             on_pick=Callback::new(move |()| area_material.set(Some(id.to_string())))
-        />
+        >
+            {move || {
+                let item = catalog.get().into_iter().find(|c| c.id == id);
+                let image = item.as_ref().and_then(|c| c.image.clone());
+                let category = item.and_then(|c| c.category);
+                view! { <MaterialSwatch image=image category=category /> }
+            }}
+        </ToolButton>
     }
 }
 
