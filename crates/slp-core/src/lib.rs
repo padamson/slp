@@ -34,5 +34,7 @@ pub use geom::{
 pub use pick::object_at;
 pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node, step_outward, step_run};
 pub use snap::{dragged_center, snap_ortho, snap_to_grid};
-pub use takeoff::{BillOfMaterials, LineItem, default_courses, take_off};
+pub use takeoff::{
+    BillOfMaterials, DEFAULT_TILE_FT, LineItem, default_courses, take_off, tile_size_ft,
+};
 pub use wall::{nearest_wall, opening_segment, point_along, project_onto};

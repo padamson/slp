@@ -4,7 +4,7 @@ use leptos::prelude::*;
 use slp_core::{CatalogItem, Coord, CurveEdge, Shape};
 
 use super::{Shapes, Transform};
-use crate::style::{MULCH_FILL, PAVER_FILL, SHAPE_FILL};
+use crate::style::{MULCH_FILL, PAVER_FILL, SELECTED_FILL, SHAPE_FILL};
 
 fn t() -> Transform {
     Transform {
@@ -139,6 +139,98 @@ fn a_paver_area_renders_in_the_paver_color() {
         dokime::render(move || view! { <Shapes t=t() shapes=vec![area] catalog=vec![paver] /> });
     assert!(html.contains(PAVER_FILL), "the paver area fills paver gray");
     assert!(!html.contains(MULCH_FILL), "not the mulch color");
+}
+
+/// A paver material carrying a small photo, for the tiling tests.
+fn textured_paver() -> CatalogItem {
+    let mut paver = CatalogItem::new("paver".to_string());
+    paver.category = Some("paver".to_string());
+    paver.image = Some("data:image/png;base64,AAAA".to_string());
+    paver.tile_width_ft = Some(2.0);
+    paver.tile_depth_ft = Some(3.0);
+    paver
+}
+
+#[test]
+fn a_material_with_an_image_tiles_the_surface_as_a_pattern() {
+    // A material carrying a photo fills its area with an SVG <pattern> tiled at
+    // real-world scale (tile-size-ft × px_ft), and the polygon references it via
+    // fill="url(#area-mat-{material id})" — not the flat category color.
+    let mut area = square(0.0);
+    area.material_ref = Some("paver".to_string());
+    let html = dokime::render(move || {
+        view! { <Shapes t=t() shapes=vec![area] catalog=vec![textured_paver()] /> }
+    });
+
+    assert!(html.contains("<pattern"), "emits an SVG pattern: {html}");
+    assert!(
+        html.contains(r#"patternUnits="userSpaceOnUse""#),
+        "the pattern tiles in user (scaled) space"
+    );
+    assert!(
+        html.contains("data:image/png;base64,AAAA"),
+        "the pattern references the material image"
+    );
+    assert!(
+        html.contains(r#"fill="url(#area-mat-paver)""#),
+        "the polygon is filled by its material's pattern: {html}"
+    );
+    // 2 ft wide × 10 px/ft = 20 px tile; 3 ft deep × 10 = 30 px.
+    assert!(
+        html.contains(r#"width="20""#),
+        "tile width is real-world scaled"
+    );
+    assert!(
+        html.contains(r#"height="30""#),
+        "tile depth is real-world scaled"
+    );
+    // Anchored at the world origin — sx(0)=pad=0, sy(0)=pad+yard_d·px_ft=200 —
+    // so the tile grid stays glued to world coordinates as the yard resizes.
+    assert!(html.contains(r#"x="0""#), "anchored at world-origin x");
+    assert!(html.contains(r#"y="200""#), "anchored at world-origin y");
+    assert!(
+        !html.contains(PAVER_FILL),
+        "the flat paver color is replaced by the texture"
+    );
+}
+
+#[test]
+fn areas_sharing_a_material_share_one_pattern() {
+    // Two paver areas → a single <pattern> (per material, not per area), so a
+    // photo's data-URI is embedded once no matter how many areas tile it.
+    let mut a = square(0.0);
+    a.material_ref = Some("paver".to_string());
+    let mut b = square(1.0);
+    b.material_ref = Some("paver".to_string());
+    let html = dokime::render(move || {
+        view! { <Shapes t=t() shapes=vec![a, b] catalog=vec![textured_paver()] /> }
+    });
+    assert_eq!(dokime::count(&html, "<pattern"), 1, "one shared pattern");
+    assert_eq!(
+        dokime::count(&html, r#"fill="url(#area-mat-paver)""#),
+        2,
+        "both areas reference it"
+    );
+}
+
+#[test]
+fn selection_overrides_the_texture() {
+    // A selected textured area shows the translucent selection tint, not the
+    // photo — the user needs selection feedback (and to see the grid/deck
+    // beneath) while editing.
+    let mut area = square(0.0);
+    area.material_ref = Some("paver".to_string());
+    let html = dokime::render(move || {
+        view! { <Shapes t=t() shapes=vec![area] catalog=vec![textured_paver()] selected=Some(0) /> }
+    });
+    assert!(
+        html.contains(SELECTED_FILL),
+        "the selection tint wins: {html}"
+    );
+    assert!(
+        !html.contains(r#"fill="url("#),
+        "no pattern fill while selected"
+    );
 }
 
 #[test]

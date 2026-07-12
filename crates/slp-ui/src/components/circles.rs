@@ -13,11 +13,15 @@ use leptos::prelude::*;
 use slp_core::{CatalogItem, Circle, circle_area};
 
 use super::Transform;
-use super::shapes::area_category;
-use crate::style::{SELECTED_FILL, SELECTED_STROKE, SHAPE_FILL_OPACITY, area_style};
+use super::shapes::{find_material, has_texture, surface_fill, texture_patterns};
+use crate::style::{SELECTED_STROKE, area_style};
 
 /// A selected circle's resize-handle radius (px).
 const HANDLE_R: f64 = 5.0;
+
+/// The pattern-id prefix for `Circles` areas (distinct from `Shapes`' so the
+/// two components' pattern definitions never share a document-global SVG id).
+const CIRCLE_PATTERN_PREFIX: &str = "circle-mat";
 
 // `catalog` is a plain owned prop (a small list), only read to resolve each
 // circle's material category — not worth a borrow + lifetime.
@@ -40,25 +44,33 @@ pub fn Circles(
     #[prop(default = None)]
     on_handle_press: Option<Callback<()>>,
 ) -> impl IntoView {
+    // One pattern per textured material, shared by every circle that uses it.
+    let refs: Vec<Option<String>> = circles.iter().map(|c| c.material_ref.clone()).collect();
+    let defs = texture_patterns(CIRCLE_PATTERN_PREFIX, &catalog, &refs, t);
     let items = circles
         .into_iter()
         .enumerate()
         .map(|(i, c)| {
             let is_selected = selected == Some(i);
-            let category = area_category(&catalog, c.material_ref.as_deref());
+            // One catalog lookup per circle: category + whether its material
+            // carries a photo (whose pattern the fill references by id).
+            let item = find_material(&catalog, c.material_ref.as_deref());
+            let category = item.and_then(|m| m.category.clone());
+            let texture_id = item.filter(|m| has_texture(m)).map(|m| m.id.clone());
             circle_view(
                 t,
                 c,
                 i,
                 is_selected,
                 category,
+                texture_id,
                 on_circle_press,
                 on_handle_press,
             )
         })
         .collect::<Vec<_>>();
     (!items.is_empty()).then(|| {
-        view! { <g class="circles">{items}</g> }
+        view! { <g class="circles">{defs}{items}</g> }
     })
 }
 
@@ -77,6 +89,7 @@ fn circle_view(
     i: usize,
     is_selected: bool,
     category: Option<String>,
+    texture_id: Option<String>,
     on_circle_press: Option<Callback<usize>>,
     on_handle_press: Option<Callback<()>>,
 ) -> impl IntoView {
@@ -98,12 +111,17 @@ fn circle_view(
     // Unselected look from the material category (mulch vs. default); a
     // selection tint overrides it while selected.
     let (cat_fill, cat_stroke) = area_style(category.as_deref());
-    let fill = if is_selected { SELECTED_FILL } else { cat_fill };
     let stroke = if is_selected {
         SELECTED_STROKE
     } else {
         cat_stroke
     };
+    let (fill, fill_opacity) = surface_fill(
+        CIRCLE_PATTERN_PREFIX,
+        is_selected,
+        texture_id.as_deref(),
+        cat_fill,
+    );
     let mut class = String::from("circle-area");
     if is_selected {
         class.push_str(" circle-area--selected");
@@ -140,7 +158,7 @@ fn circle_view(
                 cy=cy
                 r=r_px
                 fill=fill
-                fill-opacity=SHAPE_FILL_OPACITY
+                fill-opacity=fill_opacity
                 stroke=stroke
                 stroke-width="2"
             />

@@ -81,11 +81,20 @@ so that my estimate reflects things I can actually buy, not placeholder data.
   - [ ] **thumbnail**: the flat color swatch in the catalog panel, the Area
         tool's material picker, and the area inspector becomes the actual
         material photo when one is present (flat color as fallback)
-  - [ ] **surface tiling**: a drawn area (paver/mulch) fills with its surface
+  - [x] **surface tiling**: a drawn area (paver/mulch) fills with its surface
         material's image tiled as an SVG `<pattern>` at real-world scale
-        (`patternUnits="userSpaceOnUse"`, tile = tile-size-ft × px_ft), so a
-        2×2 ft sample repeats to scale across the polygon; flat color when there's
-        no image. 2.5D-ready — the same texture is the 3D surface albedo later.
+        (`patternUnits="userSpaceOnUse"`, tile = tile-width-ft × tile-depth-ft ×
+        px_ft, default via `slp_core::tile_size_ft` so a future 3D albedo
+        resolves the same size), so a 2×2 ft sample repeats to scale across the
+        polygon *and* the round `Circle` areas. One pattern per **material** (not
+        per area — a photo's data-URI is embedded once however many areas share
+        it), anchored at the world origin so tiles stay glued to world
+        coordinates when the yard resizes. Flat category color when there's no
+        image; selection tint (translucent) overrides the texture while
+        selected. Shared `texture_patterns`/`surface_fill` helpers back both
+        `Shapes` and `Circles`; one e2e draws a textured polygon *and* circle.
+        Textured surfaces render opaque by design (a real material occludes the
+        grid/deck beneath; select the area to see through it while editing).
 - **M5.0 — swap & compare**
   - [ ] from a selected placed object, browse the catalog for an alternative in
         the same category and preview the swap (footprint + cost delta) before

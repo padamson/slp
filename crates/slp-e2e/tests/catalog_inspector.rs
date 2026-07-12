@@ -14,7 +14,7 @@ mod common;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow};
-use common::{dist_dir, measure_ppf, place, serve};
+use common::{TRANSPARENT_PNG_1X1, dist_dir, measure_ppf, place, serve, wait_attr_f64};
 use playwright_rs::protocol::{FilePayload, Playwright};
 use playwright_rs::{Locator, expect};
 
@@ -28,22 +28,6 @@ async fn wait_text(loc: &Locator, want: &str) -> Result<()> {
         }
         if start.elapsed() >= Duration::from_secs(5) {
             return Err(anyhow!("expected '{want}', last was '{text}'"));
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-}
-
-/// Poll a locator's numeric attribute until it satisfies `pred` or times out.
-async fn wait_attr_f64(loc: &Locator, attr: &str, pred: impl Fn(f64) -> bool) -> Result<f64> {
-    let start = Instant::now();
-    loop {
-        if let Some(v) = loc.get_attribute(attr).await?.and_then(|s| s.parse().ok())
-            && pred(v)
-        {
-            return Ok(v);
-        }
-        if start.elapsed() >= Duration::from_secs(5) {
-            return Err(anyhow!("attribute '{attr}' never satisfied the predicate"));
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
@@ -155,7 +139,7 @@ async fn sets_a_material_image_that_previews_and_persists() -> Result<()> {
         .context("navigate to app")?;
 
     // A 1×1 transparent PNG, so it's self-contained (no network in the test).
-    let img = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+    let img = TRANSPARENT_PNG_1X1;
 
     // Open the catalog inspector, edit the Pavers material, set its image.
     page.locator("[data-testid='edit-catalog']")

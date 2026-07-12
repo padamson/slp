@@ -1,10 +1,13 @@
 //! theoria stories for `Shapes`. Compiled only under the `stories` feature.
 
 use leptos::prelude::*;
-use slp_core::{Coord, CurveEdge, Shape};
+use slp_core::{CatalogItem, Coord, CurveEdge, Shape};
 
 use super::{Shapes, Transform};
 use theoria::Story;
+
+/// An 8×8 gray checkerboard PNG (a stand-in paver photo) that visibly tiles.
+const TILE_PNG: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAHElEQVR4nGOYNWcBHFVU1cERAxUlkDnIiqgoAQDsoGjB+2xT8QAAAABJRU5ErkJggg==";
 
 fn t() -> Transform {
     Transform {
@@ -68,6 +71,25 @@ pub fn stories() -> Vec<Story> {
                 view! {
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 400" width="460">
                         <Shapes t=t() shapes=vec![shape] />
+                    </svg>
+                }
+            },
+        ),
+        Story::new(
+            "Structures/Shapes/A material photo tiles the surface",
+            || {
+                // The paver material carries a photo, so its drawn area fills
+                // with the image tiled at real-world scale (a 2×2 ft sample).
+                let mut paver = CatalogItem::new("paver".to_string());
+                paver.category = Some("paver".to_string());
+                paver.image = Some(TILE_PNG.to_string());
+                paver.tile_width_ft = Some(2.0);
+                paver.tile_depth_ft = Some(2.0);
+                let mut area = rect(0.0, Vec::new());
+                area.material_ref = Some("paver".to_string());
+                view! {
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 400" width="460">
+                        <Shapes t=t() shapes=vec![area] catalog=vec![paver] />
                     </svg>
                 }
             },

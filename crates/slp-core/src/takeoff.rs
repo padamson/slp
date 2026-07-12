@@ -164,6 +164,22 @@ pub fn default_courses(item: &CatalogItem) -> Vec<Course> {
     courses
 }
 
+/// Tile size (ft) assumed for a material photo when the catalog item declares
+/// no `tile_width_ft`/`tile_depth_in` — the schema's promised "sensible
+/// default". Lives here (not in a render layer) so 2D tiling, the future 3D
+/// albedo, and thumbnails all resolve the same effective size.
+pub const DEFAULT_TILE_FT: f64 = 2.0;
+
+/// The effective real-world span (E–W ft, N–S ft) of a material's photo tile:
+/// the item's declared `tile_width_ft`/`tile_depth_ft`, each falling back to
+/// [`DEFAULT_TILE_FT`] when absent or non-positive (0 = "use the default",
+/// per the schema).
+#[must_use]
+pub fn tile_size_ft(item: &CatalogItem) -> (f64, f64) {
+    let effective = |v: Option<f64>| v.filter(|v| *v > 0.0).unwrap_or(DEFAULT_TILE_FT);
+    (effective(item.tile_width_ft), effective(item.tile_depth_ft))
+}
+
 /// Every drawn area's `(material_ref, area ft², own depth_in, courses)` — shapes
 /// then circles — the raw inputs for area/volume take-off.
 fn area_measures(plan: &Plan) -> Vec<(Option<&str>, f64, f64, &[Course])> {
@@ -645,6 +661,37 @@ mod tests {
         // Mulch (no base/bedding refs) yields an empty course list.
         let mulch = material("mulch", "Mulch", 40.0, PriceUnit::per_cubic_yard);
         assert!(default_courses(&mulch).is_empty());
+    }
+
+    // --- Effective photo-tile size (material images) ---
+
+    #[test]
+    fn declared_tile_dimensions_are_used_as_is() {
+        let mut paver = material("paver", "Pavers", 8.0, PriceUnit::per_square_foot);
+        paver.tile_width_ft = Some(3.5);
+        paver.tile_depth_ft = Some(1.25);
+        assert_eq!(tile_size_ft(&paver), (3.5, 1.25));
+    }
+
+    #[test]
+    fn absent_tile_dimensions_fall_back_to_the_default() {
+        let paver = material("paver", "Pavers", 8.0, PriceUnit::per_square_foot);
+        assert_eq!(tile_size_ft(&paver), (DEFAULT_TILE_FT, DEFAULT_TILE_FT));
+    }
+
+    #[test]
+    fn a_zero_or_negative_tile_dimension_means_use_the_default() {
+        // The schema reads 0 as "use the default"; negative is nonsense input
+        // and gets the same treatment. Each axis falls back independently.
+        let mut paver = material("paver", "Pavers", 8.0, PriceUnit::per_square_foot);
+        paver.tile_width_ft = Some(0.0);
+        paver.tile_depth_ft = Some(-1.0);
+        assert_eq!(tile_size_ft(&paver), (DEFAULT_TILE_FT, DEFAULT_TILE_FT));
+
+        // One declared, one zeroed — only the zeroed axis defaults.
+        paver.tile_width_ft = Some(4.0);
+        paver.tile_depth_ft = Some(0.0);
+        assert_eq!(tile_size_ft(&paver), (4.0, DEFAULT_TILE_FT));
     }
 
     #[test]

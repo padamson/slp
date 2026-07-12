@@ -1,9 +1,10 @@
 //! dokime component tests for `Circles` (standalone round drawn areas).
 
 use leptos::prelude::*;
-use slp_core::{Circle, Coord};
+use slp_core::{CatalogItem, Circle, Coord};
 
 use super::{Circles, Transform};
+use crate::style::SELECTED_FILL;
 
 fn t() -> Transform {
     Transform {
@@ -98,5 +99,60 @@ fn only_the_selected_circle_gets_a_handle() {
     assert_eq!(
         dokime::count(&html, r#"data-testid="circle-resize-handle""#),
         1
+    );
+}
+
+/// A paver material carrying a small photo, for the tiling tests.
+fn textured_paver() -> CatalogItem {
+    let mut paver = CatalogItem::new("paver".to_string());
+    paver.category = Some("paver".to_string());
+    paver.image = Some("data:image/png;base64,AAAA".to_string());
+    paver.tile_width_ft = Some(2.0);
+    paver.tile_depth_ft = Some(2.0);
+    paver
+}
+
+#[test]
+fn a_material_with_an_image_tiles_the_disk_as_a_pattern() {
+    // Like the polygon areas, a round area whose material carries a photo fills
+    // with an SVG <pattern> at real-world scale and references it by
+    // url(#circle-mat-{material id}), not the flat category color.
+    let mut c = circle(0.0);
+    c.material_ref = Some("paver".to_string());
+    let html = dokime::render(move || {
+        view! { <Circles t=t() circles=vec![c] catalog=vec![textured_paver()] /> }
+    });
+
+    assert!(html.contains("<pattern"), "emits an SVG pattern: {html}");
+    assert!(
+        html.contains(r#"patternUnits="userSpaceOnUse""#),
+        "the pattern tiles in user (scaled) space"
+    );
+    assert!(
+        html.contains("data:image/png;base64,AAAA"),
+        "the pattern references the material image"
+    );
+    assert!(
+        html.contains(r#"fill="url(#circle-mat-paver)""#),
+        "the disk is filled by its material's pattern: {html}"
+    );
+}
+
+#[test]
+fn selection_overrides_the_texture() {
+    // A selected textured circle shows the translucent selection tint, not the
+    // photo — same precedence as the polygon areas.
+    let mut c = circle(0.0);
+    c.material_ref = Some("paver".to_string());
+    let html = dokime::render(move || {
+        view! { <Circles t=t() circles=vec![c] catalog=vec![textured_paver()] selected=Some(0) /> }
+    });
+    assert!(
+        html.contains(SELECTED_FILL),
+        "the selection tint wins: {html}"
+    );
+    assert!(
+        !html.contains(r#"fill="url("#),
+        "no pattern fill while selected"
     );
 }

@@ -29,16 +29,101 @@ use crate::style::{
     SELECTED_FILL, SELECTED_STROKE, SHAPE_FILL, SHAPE_FILL_OPACITY, SHAPE_STROKE, area_style,
 };
 
-/// The material category of a drawn area, resolved from its `material_ref`
-/// through the catalog — drives its fill/stroke look (mulch vs. default).
-/// Shared with `circles` (a `Circle` resolves its category the same way).
-pub(crate) fn area_category(catalog: &[CatalogItem], material_ref: Option<&str>) -> Option<String> {
-    let material_ref = material_ref?;
-    catalog
-        .iter()
-        .find(|c| c.id == material_ref)
-        .and_then(|c| c.category.clone())
+/// The catalog item a drawn area's `material_ref` names, if any — the one
+/// id-match lookup every material-derived attribute (category, texture)
+/// resolves through. Shared with `circles`.
+pub(crate) fn find_material<'a>(
+    catalog: &'a [CatalogItem],
+    material_ref: Option<&str>,
+) -> Option<&'a CatalogItem> {
+    let id = material_ref?;
+    catalog.iter().find(|c| c.id == id)
 }
+
+/// Whether a catalog material carries a photo to tile across drawn surfaces.
+pub(crate) fn has_texture(item: &CatalogItem) -> bool {
+    item.image.as_deref().is_some_and(|s| !s.is_empty())
+}
+
+/// One SVG `<defs>` block holding one `<pattern>` per distinct textured
+/// material among `refs` — each `id="{prefix}-{material id}"`, tiling the
+/// material's photo at real-world scale (tile-size-ft × `px_ft`). Emitting one
+/// pattern per *material* (not per drawn area) embeds a photo's data-URI once
+/// no matter how many areas share it, and every area filling
+/// `url(#{prefix}-{id})` gets the identical, aligned tile grid.
+///
+/// The pattern is anchored at the yard's world origin (`x`/`y` below), not the
+/// SVG viewport origin — so the tile grid stays glued to world coordinates
+/// (tiles don't "slide" under the drawn areas when the yard depth changes).
+/// `None` when nothing is textured.
+pub(crate) fn texture_patterns(
+    prefix: &'static str,
+    catalog: &[CatalogItem],
+    refs: &[Option<String>],
+    t: Transform,
+) -> Option<impl IntoView + use<>> {
+    let mut items: Vec<&CatalogItem> = Vec::new();
+    for r in refs {
+        if let Some(item) = find_material(catalog, r.as_deref())
+            && has_texture(item)
+            && !items.iter().any(|i| i.id == item.id)
+        {
+            items.push(item);
+        }
+    }
+    let patterns = items
+        .into_iter()
+        .map(|item| {
+            let (tile_w, tile_d) = slp_core::tile_size_ft(item);
+            let (pw, ph) = (tile_w * t.px_ft, tile_d * t.px_ft);
+            view! {
+                <pattern
+                    id=format!("{prefix}-{}", item.id)
+                    patternUnits="userSpaceOnUse"
+                    x=t.sx(0.0)
+                    y=t.sy(0.0)
+                    width=pw
+                    height=ph
+                >
+                    <image
+                        href=item.image.clone().unwrap_or_default()
+                        x="0"
+                        y="0"
+                        width=pw
+                        height=ph
+                        preserveAspectRatio="none"
+                    />
+                </pattern>
+            }
+        })
+        .collect::<Vec<_>>();
+    (!patterns.is_empty()).then(|| view! { <defs>{patterns}</defs> })
+}
+
+/// A drawn area's fill + fill-opacity: the selection tint while selected,
+/// else the material's photo pattern (`url(#{prefix}-{id})`, opaque — a real
+/// surface material occludes the grid/deck beneath it by design; selecting
+/// the area reverts to the translucent tint so what's underneath shows
+/// through while editing), else the flat category color (translucent over
+/// the grid). One place encodes the precedence for `Shapes` and `Circles`.
+pub(crate) fn surface_fill(
+    prefix: &'static str,
+    is_selected: bool,
+    texture_id: Option<&str>,
+    cat_fill: &'static str,
+) -> (String, &'static str) {
+    if is_selected {
+        (SELECTED_FILL.to_string(), SHAPE_FILL_OPACITY)
+    } else if let Some(id) = texture_id {
+        (format!("url(#{prefix}-{id})"), "1")
+    } else {
+        (cat_fill.to_string(), SHAPE_FILL_OPACITY)
+    }
+}
+
+/// The pattern-id prefix for `Shapes` areas (distinct from `Circles`' so the
+/// two components' pattern definitions never share a document-global SVG id).
+pub(crate) const SHAPE_PATTERN_PREFIX: &str = "area-mat";
 
 /// A selected shape's node-handle radius (px) — bigger than the plain corner
 /// marker so it reads as a drag target.
@@ -122,6 +207,9 @@ pub fn Shapes(
     #[prop(default = None)]
     on_control_press: Option<Callback<(usize, usize)>>,
 ) -> impl IntoView {
+    // One pattern per textured material, shared by every area that uses it.
+    let refs: Vec<Option<String>> = shapes.iter().map(|s| s.material_ref.clone()).collect();
+    let defs = texture_patterns(SHAPE_PATTERN_PREFIX, &catalog, &refs, t);
     let areas = shapes
         .into_iter()
         .enumerate()
@@ -133,13 +221,18 @@ pub fn Shapes(
             } else {
                 Vec::new()
             };
-            let category = area_category(&catalog, s.material_ref.as_deref());
+            // One catalog lookup per area: category + whether its material
+            // carries a photo (whose pattern the fill references by id).
+            let item = find_material(&catalog, s.material_ref.as_deref());
+            let category = item.and_then(|c| c.category.clone());
+            let texture_id = item.filter(|c| has_texture(c)).map(|c| c.id.clone());
             shape_view(
                 t,
                 s,
                 i,
                 is_selected,
                 category,
+                texture_id,
                 nodes,
                 on_shape_press,
                 on_node_press,
@@ -151,7 +244,7 @@ pub fn Shapes(
         })
         .collect::<Vec<_>>();
     (!areas.is_empty()).then(|| {
-        view! { <g class="shapes">{areas}</g> }
+        view! { <g class="shapes">{defs}{areas}</g> }
     })
 }
 
@@ -176,6 +269,7 @@ fn shape_view(
     i: usize,
     is_selected: bool,
     category: Option<String>,
+    texture_id: Option<String>,
     selected_nodes: Vec<usize>,
     on_shape_press: Option<Callback<usize>>,
     on_node_press: Option<Callback<usize>>,
@@ -350,12 +444,17 @@ fn shape_view(
     // bark brown, uncategorized is the neutral default); a selection tint
     // overrides it while selected.
     let (cat_fill, cat_stroke) = area_style(category.as_deref());
-    let fill = if is_selected { SELECTED_FILL } else { cat_fill };
     let stroke = if is_selected {
         SELECTED_STROKE
     } else {
         cat_stroke
     };
+    let (fill, fill_opacity) = surface_fill(
+        SHAPE_PATTERN_PREFIX,
+        is_selected,
+        texture_id.as_deref(),
+        cat_fill,
+    );
     let mut class = String::from("shape");
     if is_selected {
         class.push_str(" shape--selected");
@@ -409,7 +508,7 @@ fn shape_view(
     let body = if has_curve {
         let d = boundary_path(t, &corners, &bulges, &curves);
         view! {
-            <path d=d fill=fill fill-opacity=SHAPE_FILL_OPACITY stroke=stroke stroke-width="2" />
+            <path d=d fill=fill fill-opacity=fill_opacity stroke=stroke stroke-width="2" />
         }
         .into_any()
     } else {
@@ -417,7 +516,7 @@ fn shape_view(
             <polygon
                 points=points
                 fill=fill
-                fill-opacity=SHAPE_FILL_OPACITY
+                fill-opacity=fill_opacity
                 stroke=stroke
                 stroke-width="2"
             />

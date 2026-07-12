@@ -17,6 +17,41 @@ use tower_http::services::ServeDir;
 pub const YARD_W: f64 = 70.0;
 pub const YARD_D: f64 = 30.0;
 
+/// A 1×1 transparent PNG data-URI — the self-contained stand-in material photo
+/// for image tests (no fixture file, no network).
+pub const TRANSPARENT_PNG_1X1: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+/// Poll a locator's attribute until it satisfies `pred` or times out.
+pub async fn wait_attr(
+    loc: &Locator,
+    attr: &str,
+    mut pred: impl FnMut(&str) -> bool,
+) -> Result<String> {
+    let start = Instant::now();
+    loop {
+        if let Some(v) = loc.get_attribute(attr).await?
+            && pred(&v)
+        {
+            return Ok(v);
+        }
+        if start.elapsed() >= Duration::from_secs(5) {
+            return Err(anyhow!("attribute '{attr}' never satisfied the predicate"));
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+/// Poll a locator's numeric attribute until it satisfies `pred` or times out.
+pub async fn wait_attr_f64(loc: &Locator, attr: &str, pred: impl Fn(f64) -> bool) -> Result<f64> {
+    let mut latest = None;
+    wait_attr(loc, attr, |s| {
+        latest = s.parse().ok();
+        latest.is_some_and(&pred)
+    })
+    .await?;
+    latest.context("parsed attribute value")
+}
+
 /// Path to the Trunk-built `slp-app` dist directory.
 pub fn dist_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../slp-app/dist")
