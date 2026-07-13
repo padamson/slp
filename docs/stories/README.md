@@ -54,7 +54,7 @@ cross-cutting machinery folded into that point in the sequence.
 | D1 | Trees | [D1](D1-trees.md) | ✅ done |
 | F3 | *Enabler:* draw/edit freeform shapes (boundaries, arcs, curves, circles) | [F3](F3-draw-edit-shapes.md) | 🚧 next (pulled forward by B4) |
 | B4 | Draw mulch beds; mulch volume/cost | [B4](B4-draw-mulch-beds.md) | backlog |
-| D3 | Bushes / shrubs | _doc pending_ | backlog |
+| D3 | Bushes / shrubs | [D3](D3-bushes.md) | ✅ done (D3.0: place + green canopy + on-ground rule) |
 | B1 | Draw a paver area by clicking corners | [B1](B1-draw-paver-area.md) | backlog |
 | B2 | See an area's ft² + material cost | [B2](B2-area-cost.md) | backlog |
 | D4 | Grill | _doc pending_ | backlog |

@@ -2229,6 +2229,12 @@ fn starter_catalog() -> Vec<CatalogItem> {
             220.0,
         ),
         tree("oak-tree", "Oak tree", 20.0, 2.0, 35.0, 350.0),
+        // Bushes: a round mass of foliage (spread = width_ft), no trunk,
+        // planted on open ground. Same `round` shape as a fire pit, category
+        // `bush` for the green look + on-ground rule.
+        round("boxwood", "Boxwood", "bush", 3.0, 3.0, 35.0),
+        round("hydrangea", "Hydrangea", "bush", 5.0, 4.0, 45.0),
+        round("azalea", "Azalea", "bush", 4.0, 3.5, 40.0),
         // Area materials, costed by measure rather than per item: mulch per
         // yd³ (a bagged/bulk mulch at a typical ~$40/yd³ delivered), pavers
         // per ft² of surface (~$8/ft² for the pavers themselves).

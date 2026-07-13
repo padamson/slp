@@ -84,6 +84,12 @@ pub const CANOPY_STROKE: &str = "#6f9c64";
 pub const TRUNK_FILL: &str = "#5a3a22";
 pub const TRUNK_STROKE: &str = "#3a2415";
 
+/// A bush/shrub: a solid mass of foliage — denser and more opaque than a tree's
+/// airy canopy, and a distinct deeper green, with no trunk.
+pub const BUSH_FILL: &str = "#7cae83";
+pub const BUSH_FILL_OPACITY: &str = "0.75";
+pub const BUSH_STROKE: &str = "#4e7d56";
+
 /// A fire pit's footprint — a metal fill instead of the shared furniture
 /// brown.
 pub const FIRE_PIT_FILL: &str = "#b8b8bc";

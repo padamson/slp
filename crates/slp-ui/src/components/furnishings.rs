@@ -42,10 +42,10 @@ use slp_core::{
 
 use super::{DEFAULT_TRUNK_FRACTION, Footprint, Transform};
 use crate::style::{
-    CANOPY_FILL, CANOPY_FILL_OPACITY, CANOPY_STROKE, CLEARANCE_INTRUDE_STROKE, CLEARANCE_STROKE,
-    CLEARANCE_STROKE_W, DOUBLE_LINE_GAP_PX, DOUBLE_LINE_STROKE_W, FIRE_PIT_FILL, FURNITURE_FILL,
-    FURNITURE_STROKE, OVERFLOW_STROKE, SELECTED_FILL, SELECTED_STROKE, TRUNK_FILL, TRUNK_STROKE,
-    furniture_style,
+    BUSH_FILL, BUSH_FILL_OPACITY, BUSH_STROKE, CANOPY_FILL, CANOPY_FILL_OPACITY, CANOPY_STROKE,
+    CLEARANCE_INTRUDE_STROKE, CLEARANCE_STROKE, CLEARANCE_STROKE_W, DOUBLE_LINE_GAP_PX,
+    DOUBLE_LINE_STROKE_W, FIRE_PIT_FILL, FURNITURE_FILL, FURNITURE_STROKE, OVERFLOW_STROKE,
+    SELECTED_FILL, SELECTED_STROKE, TRUNK_FILL, TRUNK_STROKE, furniture_style,
 };
 
 /// Rotation-handle geometry (viewBox px): gap from the footprint's north edge to
@@ -167,7 +167,9 @@ pub fn Furnishings(
             // way (only its trunk is — see `trunk_invalid` below).
             let overflows = match fp.category.as_deref() {
                 Some("tree") => false,
-                Some("fire-pit") => ground_invalid,
+                // A fire pit or bush flags its whole footprint by its ground
+                // rule; a bush on hardscape (house/deck/paver) reads red.
+                Some("fire-pit" | "bush") => ground_invalid,
                 _ => {
                     !surface_polys.is_empty()
                         && !within_a_single(
@@ -217,7 +219,9 @@ pub fn Furnishings(
 /// it's invalid on the house *or* the deck. Other categories have no rule.
 fn category_ground_invalid(category: Option<&str>, on_house: bool, on_deck: bool) -> bool {
     match category {
-        Some("tree") => on_house || on_deck,
+        // A tree (its trunk) or a bush (its whole footprint) belongs on open
+        // ground, not the house or a deck/paver.
+        Some("tree" | "bush") => on_house || on_deck,
         Some("fire-pit") => on_house,
         _ => false,
     }
@@ -299,6 +303,7 @@ fn object_view(
     } = fp;
     let is_tree = category.as_deref() == Some("tree");
     let is_fire_pit = category.as_deref() == Some("fire-pit");
+    let is_bush = category.as_deref() == Some("bush");
     let rot = obj.rot.unwrap_or(0.0);
     // Selection tints the fill; overflow colors the outline — both can show on
     // the same object (a selected piece that also doesn't fit). Status/virtual
@@ -325,15 +330,20 @@ fn object_view(
         FIRE_PIT_FILL
     } else if is_tree {
         CANOPY_FILL
+    } else if is_bush {
+        BUSH_FILL
     } else {
         FURNITURE_FILL
     };
     // A canopy is translucent by nature, not just when virtual — its own
     // fill-opacity, distinct from the status/virtual-driven one everything
     // else uses (dash/double-outline still come from `style`, so status and
-    // virtual still read through).
+    // virtual still read through). A bush is denser (more opaque) than a tree's
+    // airy canopy.
     let fill_opacity = if is_tree {
         CANOPY_FILL_OPACITY
+    } else if is_bush {
+        BUSH_FILL_OPACITY
     } else {
         style.fill_opacity
     };
@@ -343,6 +353,8 @@ fn object_view(
         (SELECTED_STROKE, "2")
     } else if is_tree {
         (CANOPY_STROKE, "1.5")
+    } else if is_bush {
+        (BUSH_STROKE, "1.5")
     } else {
         (FURNITURE_STROKE, "1.5")
     };

@@ -118,6 +118,14 @@ pub fn stories() -> Vec<Story> {
             canvas(view! { <Furnishings t=t() objects=objects catalog=catalog /> })
         }),
         Story::new(
+            "Structures/Furnishings/Bush (green canopy, no trunk)",
+            || {
+                let catalog = vec![round("boxwood", "Boxwood", "bush", 6.0)];
+                let objects = vec![Object::new("boxwood".to_string(), 14.0, 15.0)];
+                canvas(view! { <Furnishings t=t() objects=objects catalog=catalog /> })
+            },
+        ),
+        Story::new(
             "Structures/Furnishings/Tree, selected (resize handles)",
             || {
                 let catalog = vec![tree("oak-tree", "Oak tree", 16.0, 3.0)];

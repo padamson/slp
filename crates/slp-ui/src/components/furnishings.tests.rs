@@ -40,6 +40,12 @@ fn tree(id: &str, canopy_ft: f64, trunk_ft: f64) -> CatalogItem {
     c
 }
 
+fn bush(id: &str, spread_ft: f64) -> CatalogItem {
+    let mut c = round_item(id, spread_ft);
+    c.category = Some("bush".to_string());
+    c
+}
+
 #[test]
 fn renders_a_footprint_to_scale() {
     // A 3 ft × 1.5 ft item at (5,5): 10 px/ft → a 30 × 15 px rectangle centered
@@ -531,6 +537,66 @@ fn a_tree_renders_a_canopy_and_a_trunk() {
     assert!(
         html.contains(r##"fill="#5a3a22""##),
         "the trunk's dark brown"
+    );
+}
+
+#[test]
+fn a_bush_renders_one_green_canopy_and_no_trunk() {
+    // ⌀6 ft spread (radius 30 px) at (5,5): a single filled green disk — a bush
+    // is a solid mass of foliage, so (unlike a tree) there's no trunk circle.
+    let catalog = vec![bush("boxwood", 6.0)];
+    let objects = vec![Object::new("boxwood".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert_eq!(dokime::count(&html, "<circle"), 1, "one canopy, no trunk");
+    assert!(html.contains(r#"r="30""#), "the spread radius");
+    assert!(html.contains(r##"fill="#7cae83""##), "the bush's green");
+    assert!(
+        !html.contains(r##"fill="#5a3a22""##),
+        "no trunk (the tree trunk brown is absent)"
+    );
+}
+
+#[test]
+fn a_bush_is_fine_on_bare_yard() {
+    let catalog = vec![bush("boxwood", 6.0)];
+    let objects = vec![Object::new("boxwood".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        !html.contains("furniture-item--overflows"),
+        "quiet on the yard"
+    );
+}
+
+#[test]
+fn a_bush_flags_its_whole_footprint_on_the_house() {
+    let catalog = vec![bush("boxwood", 6.0)];
+    let objects = vec![Object::new("boxwood".to_string(), 5.0, 5.0)];
+    let house = deck(10.0, 10.0); // any polygon containing (5,5)
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog house_outline=house /> }
+    });
+    assert!(
+        html.contains("furniture-item--overflows"),
+        "a bush on the house reads red"
+    );
+    assert!(
+        html.contains(r##"stroke="#d4351c""##),
+        "the overflow red outline"
+    );
+}
+
+#[test]
+fn a_bush_flags_on_a_deck_or_paver_surface() {
+    let catalog = vec![bush("boxwood", 6.0)];
+    let objects = vec![Object::new("boxwood".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(10.0, 10.0)] /> }
+    });
+    assert!(
+        html.contains("furniture-item--overflows"),
+        "a bush on a deck/paver reads red — a shrub belongs on open ground"
     );
 }
 
