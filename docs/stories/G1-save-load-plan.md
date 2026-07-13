@@ -43,11 +43,15 @@ can back it up, share it, or start a fresh what-if copy.
         *different* file — the user can keep as many plans as they like.
   - [x] **Save** writes back to the current file with no dialog once one is
         chosen; with no current file it behaves as Save As.
-  - [x] where the API is absent (Firefox/Safari), Save/Save As gracefully fall
-        back to the G1.0 download and Open to the `<input type="file">` picker.
-        (A `window.slpFs` bridge in `index.html` encapsulates the FSA +
-        IndexedDB glue; `slp-ui::fs_access` is the thin async Rust bridge that
-        degrades to the fallback when `slpFs` is absent.)
+  - [x] where the API is absent (Firefox/Safari), Save gracefully falls back to
+        the G1.0 download and Open to the `<input type="file">` picker. **The
+        toolbar adapts**: since a download can't write in place or fork a named
+        file, **Save As** is shown **disabled with an asterisk** (`Save As*`) and
+        a footnote explains it needs Chrome/Chromium — rather than a Save-As that
+        silently behaves identically to Save. (A `window.slpFs` bridge in
+        `index.html` encapsulates the FSA + IndexedDB glue; `slp-ui::fs_access`
+        is the thin async Rust bridge that degrades to the fallback when `slpFs`
+        is absent.)
 - **G1.3 — reopen the last file on startup** ✅
   - [x] the current file's handle is persisted (IndexedDB) so a return visit can
         reopen it. On startup, if the browser still holds read permission for

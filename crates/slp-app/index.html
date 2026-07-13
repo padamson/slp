@@ -197,6 +197,18 @@
         background: #eef4fb !important;
         color: #2b6cb0;
       }
+      /* A control that isn't available in this browser (e.g. Save As without
+         the File System Access API). */
+      .tools button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      /* The Save-As-is-Chromium-only footnote. */
+      .fsa-note {
+        margin: 0 22px 8px;
+        font-size: 12px;
+        color: #8a8275;
+      }
       /* Why a picked .slp.json wouldn't load (the current plan is untouched). */
       .load-error {
         margin: 0 22px 8px;

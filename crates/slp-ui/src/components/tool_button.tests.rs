@@ -35,3 +35,36 @@ fn no_active_class_when_inactive() {
     });
     assert!(!html.contains("active"), "no active class when inactive");
 }
+
+#[test]
+fn renders_disabled_with_a_title() {
+    let html = dokime::render(|| {
+        view! {
+            <ToolButton
+                label="Save As*"
+                testid="save-plan-as"
+                active=Signal::derive(|| false)
+                on_pick=Callback::new(|()| {})
+                disabled=true
+                title="only in Chrome"
+            />
+        }
+    });
+    assert!(html.contains("disabled"), "the button is disabled");
+    assert!(html.contains(r#"title="only in Chrome""#), "the tooltip");
+}
+
+#[test]
+fn is_not_disabled_by_default() {
+    let html = dokime::render(|| {
+        view! {
+            <ToolButton
+                label="X"
+                testid="x"
+                active=Signal::derive(|| false)
+                on_pick=Callback::new(|()| {})
+            />
+        }
+    });
+    assert!(!html.contains("disabled"), "not disabled unless asked");
+}

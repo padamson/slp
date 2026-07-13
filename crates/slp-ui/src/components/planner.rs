@@ -320,6 +320,11 @@ fn planner_body() -> impl IntoView {
     // name — surfaced as a one-click "Reopen <name>" (a gesture the browser
     // requires; a page can't silently re-read a disk file without a grant).
     let reopen_prompt = RwSignal::new(None::<String>);
+    // Whether the File System Access API is available (Chromium). A fixed
+    // per-load capability: when false (Safari/Firefox, or a non-browser render),
+    // Save falls back to a download, Save As can't work (no named-file dialog),
+    // and there's no remembered file / reopen. The toolbar adapts.
+    let fsa_supported = fs_access::supported();
 
     // Load a plan's text (validate → replace → adopt the file name), or report.
     let load_text = move |name: Option<String>, text: &str| match crate::plan_file::parse_plan(text)
@@ -1349,12 +1354,33 @@ fn planner_body() -> impl IntoView {
                     active=Signal::derive(|| false)
                     on_pick=save_to_file
                 />
-                <ToolButton
-                    label="Save As"
-                    testid="save-plan-as"
-                    active=Signal::derive(|| false)
-                    on_pick=save_as
-                />
+                // Save As needs a real save dialog (File System Access API,
+                // Chromium only). Where it's missing, show it disabled with an
+                // asterisk + a tooltip rather than a button that silently just
+                // downloads like Save.
+                {if fsa_supported {
+                    view! {
+                        <ToolButton
+                            label="Save As"
+                            testid="save-plan-as"
+                            active=Signal::derive(|| false)
+                            on_pick=save_as
+                        />
+                    }
+                        .into_any()
+                } else {
+                    view! {
+                        <ToolButton
+                            label="Save As*"
+                            testid="save-plan-as"
+                            active=Signal::derive(|| false)
+                            on_pick=Callback::new(|()| {})
+                            disabled=true
+                            title="Save As currently works only in Chrome (and other Chromium browsers)."
+                        />
+                    }
+                        .into_any()
+                }}
                 <ToolButton
                     label="Open"
                     testid="open-plan"
@@ -1457,6 +1483,17 @@ fn planner_body() -> impl IntoView {
                 />
             </ToolGroup>
         </div>
+        // The asterisk footnote: where Save As is disabled, say why + note that
+        // Save still exports a file (just as a download).
+        {(!fsa_supported)
+            .then(|| {
+                view! {
+                    <p class="fsa-note" data-testid="fsa-note">
+                        "* Save As currently works only in Chrome (and other Chromium browsers). "
+                        "Save still exports your plan as a downloaded .slp.json, and Open loads one back."
+                    </p>
+                }
+            })}
         // Surfaces why a picked file wouldn't load (a malformed/wrong-shape
         // `.slp.json`); the current plan is left untouched.
         {move || {

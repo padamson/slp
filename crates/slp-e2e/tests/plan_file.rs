@@ -173,3 +173,60 @@ async fn a_malformed_file_shows_an_error_and_keeps_the_current_plan() -> Result<
     browser.close().await.context("close browser")?;
     Ok(())
 }
+
+#[tokio::test]
+async fn save_as_is_disabled_with_a_note_when_the_fs_access_api_is_absent() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
+        return Ok(());
+    }
+
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = browser.new_page().await.context("new page")?;
+    // Simulate a non-Chromium browser (no File System Access API).
+    page.add_init_script(
+        "window.showSaveFilePicker = undefined; window.showOpenFilePicker = undefined;",
+    )
+    .await
+    .context("disable the File System Access API")?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    // Save As reads disabled (with the asterisk label) and the Chromium-only
+    // footnote explains why; Save (the download) stays available.
+    let save_as = page.locator("[data-testid='save-plan-as']").await;
+    assert!(
+        save_as.get_attribute("disabled").await?.is_some(),
+        "Save As is disabled without the File System Access API"
+    );
+    assert!(
+        save_as
+            .text_content()
+            .await?
+            .unwrap_or_default()
+            .contains('*'),
+        "Save As carries the asterisk"
+    );
+    expect(page.locator("[data-testid='fsa-note']").await)
+        .to_be_visible()
+        .await
+        .context("the Chromium-only footnote is shown")?;
+    assert!(
+        page.locator("[data-testid='save-plan']")
+            .await
+            .get_attribute("disabled")
+            .await?
+            .is_none(),
+        "Save (the download) is still available"
+    );
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}

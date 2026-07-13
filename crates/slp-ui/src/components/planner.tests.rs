@@ -24,6 +24,17 @@ fn renders_header_controls_tools_and_yard() {
             && html.contains(r#"data-testid="plan-file-input""#),
         "the File save/open controls render"
     );
+    // Under dokime/ssr the File System Access API is absent, so the toolbar
+    // renders its fallback: Save As is disabled with an asterisk footnote (in a
+    // Chromium browser both would be live and the note gone).
+    assert!(
+        html.contains(r#"data-testid="save-plan-as""#) && html.contains("Save As*"),
+        "Save As shows disabled with an asterisk in the no-FSA fallback"
+    );
+    assert!(
+        html.contains(r#"data-testid="fsa-note""#),
+        "the Chromium-only footnote appears in the fallback"
+    );
     assert!(
         html.contains(r#"data-testid="draw-house""#)
             && html.contains(r#"data-testid="draw-deck""#)
