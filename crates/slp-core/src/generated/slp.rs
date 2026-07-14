@@ -69,9 +69,19 @@ pub enum PriceUnit {
 /// keep-clear zone from combustibles). `trunk_diameter_ft`, when present, is
 /// a tree's default trunk diameter (`width_ft` is its canopy diameter) — an
 /// object placing this catalog item may override both via
-/// `Object.canopy_diameter_ft`/`trunk_diameter_ft`.
+/// `Object.canopy_diameter_ft`/`trunk_diameter_ft`. An item pulled in from a
+/// site (M4) carries provenance — `source_url`, `source`, `license`,
+/// `fetched_at`, `checksum` — and, for its full-res binary, an `asset` path
+/// into the gitignored `materials/cache/` (never committed; the inline swatch
+/// is `image`). All provenance fields are absent on hand-authored/starter
+/// items.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CatalogItem {
+    /// Path, relative to the gitignored `materials/cache/`, of an ingested
+    /// full-res binary for this item (M4) — never committed and never inlined
+    /// (the inline swatch is `image`). Absent on hand-authored items.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asset: Option<String>,
     /// Thickness of the base course, in inches, for a material with a
     /// `base_material_ref` (e.g. a paver's ~4 in of gravel) — `yd³ =
     /// ft²·in/324`.
@@ -96,6 +106,10 @@ pub struct CatalogItem {
     /// Catalog category, e.g. "furniture", "mulch-bed", "paver".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
+    /// Content hash of the fetched asset binary (e.g. "sha256:…"), for cache
+    /// integrity and dedup across ingests (M4). Absent on hand-authored items.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checksum: Option<String>,
     /// Recommended clear radius, in feet, beyond the footprint edge (e.g. a fire
     /// pit's keep-clear distance from combustibles). Absent means no clearance
     /// check applies.
@@ -104,6 +118,10 @@ pub struct CatalogItem {
     /// Footprint depth, in feet (unused for a circle).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depth_ft: Option<f64>,
+    /// ISO-8601 timestamp of when the item was fetched from `source_url` (M4).
+    /// Absent on hand-authored items.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fetched_at: Option<String>,
     /// Item height, in feet (for the future 3D view).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub height_ft: Option<f64>,
@@ -127,6 +145,12 @@ pub struct CatalogItem {
     /// Defaults to false.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_aggregate: Option<bool>,
+    /// The usage terms recorded for the ingested metadata/asset — the source's
+    /// stated license or ToS reference. Provenance only: it never implies any
+    /// right to redistribute a scraped binary (those stay in the gitignored
+    /// cache, never committed). Absent on hand-authored items.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub license: Option<String>,
     /// Human-readable name for this plan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -140,6 +164,14 @@ pub struct CatalogItem {
     /// ignores `depth_ft`.
     #[serde(default = "default_catalog_item_shape")]
     pub shape: FootprintShape,
+    /// Short id of the adapter/site the item came from, e.g. "techo-bloc" (M4) —
+    /// the manufacturer/retailer, not a full URL. Absent on hand-authored items.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    /// The product-page URL this item was ingested from (M4). Absent on
+    /// hand-authored/starter items.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
     /// The real-world **north–south** span of `image` in feet — how deep the
     /// photo's unit is on the ground — the companion to `tile_width_ft`. Absent/0
     /// = a sensible default tile size.
@@ -174,20 +206,26 @@ fn default_catalog_item_shape() -> FootprintShape { FootprintShape::rectangle }
 impl CatalogItem {
     pub fn new(id: String) -> Self {
         Self {
+            asset: None,
             base_depth_in: None,
             base_material_ref: None,
             bedding_depth_in: None,
             bedding_material_ref: None,
             category: None,
+            checksum: None,
             clearance_ft: None,
             depth_ft: None,
+            fetched_at: None,
             height_ft: None,
             id,
             image: None,
             is_aggregate: None,
+            license: None,
             name: None,
             price_unit: PriceUnit::per_item,
             shape: FootprintShape::rectangle,
+            source: None,
+            source_url: None,
             tile_depth_ft: None,
             tile_width_ft: None,
             trunk_diameter_ft: None,

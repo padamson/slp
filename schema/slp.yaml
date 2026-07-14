@@ -49,7 +49,12 @@ classes:
       keep-clear zone from combustibles). `trunk_diameter_ft`, when present, is
       a tree's default trunk diameter (`width_ft` is its canopy diameter) — an
       object placing this catalog item may override both via
-      `Object.canopy_diameter_ft`/`trunk_diameter_ft`.
+      `Object.canopy_diameter_ft`/`trunk_diameter_ft`. An item pulled in from a
+      site (M4) carries provenance — `source_url`, `source`, `license`,
+      `fetched_at`, `checksum` — and, for its full-res binary, an `asset` path
+      into the gitignored `materials/cache/` (never committed; the inline swatch
+      is `image`). All provenance fields are absent on hand-authored/starter
+      items.
     slots:
       - id
       - name
@@ -70,6 +75,12 @@ classes:
       - image
       - tile_width_ft
       - tile_depth_ft
+      - source_url
+      - source
+      - license
+      - fetched_at
+      - checksum
+      - asset
     slot_usage:
       id:
         required: true
@@ -383,6 +394,33 @@ slots:
       The real-world **north–south** span of `image` in feet — how deep the
       photo's unit is on the ground — the companion to `tile_width_ft`. Absent/0
       = a sensible default tile size.
+  source_url:
+    description: |-
+      The product-page URL this item was ingested from (M4). Absent on
+      hand-authored/starter items.
+  source:
+    description: |-
+      Short id of the adapter/site the item came from, e.g. "techo-bloc" (M4) —
+      the manufacturer/retailer, not a full URL. Absent on hand-authored items.
+  license:
+    description: |-
+      The usage terms recorded for the ingested metadata/asset — the source's
+      stated license or ToS reference. Provenance only: it never implies any
+      right to redistribute a scraped binary (those stay in the gitignored
+      cache, never committed). Absent on hand-authored items.
+  fetched_at:
+    description: |-
+      ISO-8601 timestamp of when the item was fetched from `source_url` (M4).
+      Absent on hand-authored items.
+  checksum:
+    description: |-
+      Content hash of the fetched asset binary (e.g. "sha256:…"), for cache
+      integrity and dedup across ingests (M4). Absent on hand-authored items.
+  asset:
+    description: |-
+      Path, relative to the gitignored `materials/cache/`, of an ingested
+      full-res binary for this item (M4) — never committed and never inlined
+      (the inline swatch is `image`). Absent on hand-authored items.
   depth_in:
     range: double
     description: |-

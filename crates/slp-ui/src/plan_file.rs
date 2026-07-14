@@ -148,4 +148,61 @@ mod tests {
         let err = parse_plan(r#"{"yard_width": "wide"}"#).unwrap_err();
         assert!(!err.is_empty(), "reports the shape mismatch");
     }
+
+    #[test]
+    fn an_ingested_items_provenance_survives_the_file_round_trip() {
+        // A catalog item pulled from a site (M4) carries provenance; it must
+        // persist through save→load like everything else in the plan.
+        let plan = parse_plan(
+            r#"{"yard_width": 30.0, "yard_depth": 20.0, "catalog": [{
+                 "id": "tb-blu-60",
+                 "source_url": "https://example.com/products/blu-60",
+                 "source": "techo-bloc",
+                 "license": "all-rights-reserved",
+                 "fetched_at": "2026-07-14T00:00:00Z",
+                 "checksum": "sha256:abc123",
+                 "asset": "techo-bloc/blu-60.jpg"
+               }]}"#,
+        )
+        .expect("valid plan parses");
+        let item = &plan.catalog[0];
+        assert_eq!(
+            item.source_url.as_deref(),
+            Some("https://example.com/products/blu-60")
+        );
+        assert_eq!(item.source.as_deref(), Some("techo-bloc"));
+        assert_eq!(item.license.as_deref(), Some("all-rights-reserved"));
+        assert_eq!(item.fetched_at.as_deref(), Some("2026-07-14T00:00:00Z"));
+        assert_eq!(item.checksum.as_deref(), Some("sha256:abc123"));
+        assert_eq!(item.asset.as_deref(), Some("techo-bloc/blu-60.jpg"));
+
+        // The save path (serialize) followed by load (parse) is lossless too.
+        let reloaded = parse_plan(&serde_json::to_string(&plan).unwrap())
+            .expect("re-serialized plan re-parses");
+        assert_eq!(reloaded.catalog, plan.catalog, "provenance is preserved");
+    }
+
+    #[test]
+    fn a_hand_authored_item_omits_absent_provenance_from_the_file() {
+        // `skip_serializing_if = "Option::is_none"` keeps the file free of empty
+        // provenance keys for the common hand-authored/starter item.
+        let plan = parse_plan(
+            r#"{"yard_width": 30.0, "yard_depth": 20.0, "catalog": [{"id": "lounge-chair"}]}"#,
+        )
+        .expect("valid plan parses");
+        let json = serde_json::to_string(&plan).unwrap();
+        for key in [
+            "source_url",
+            "source",
+            "license",
+            "fetched_at",
+            "checksum",
+            "asset",
+        ] {
+            assert!(
+                !json.contains(key),
+                "absent provenance field `{key}` should not appear in the file: {json}"
+            );
+        }
+    }
 }

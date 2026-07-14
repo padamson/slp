@@ -17,16 +17,19 @@ so that my estimate reflects things I can actually buy, not placeholder data.
 
 ## Vertical slices
 
-- **M4.0 — `CatalogItem` grows into a `Material` record**
-  - [ ] schema gains the provenance/measure fields `PLAN.md` §4 already
+- **M4.0 — `CatalogItem` grows into a `Material` record** ✅
+  - [x] schema gains the provenance/measure fields `PLAN.md` §4 already
         anticipates: `price_unit` (per-item vs per-ft²/yd³/linear-ft — needed
         for [B2](B2-area-cost.md)'s area/volume costing, not just discrete
-        objects), `source_url`, `source`, `license`, `fetched_at`, `checksum`,
-        and `asset` (a path into gitignored `materials/cache/`, never
-        committed)
-  - [ ] existing categories (furniture, fire pit, tree) are unaffected — the
+        objects; landed with B4), `source_url`, `source`, `license`,
+        `fetched_at`, `checksum`, and `asset` (a path into gitignored
+        `materials/cache/`, never committed — the inline swatch stays `image`)
+  - [x] existing categories (furniture, fire pit, tree) are unaffected — the
         new fields are all optional, same pattern as `clearance_ft`/
-        `trunk_diameter_ft`
+        `trunk_diameter_ft` (whole workspace stays green). A plan round-trip
+        test (`plan_file.rs`) proves an ingested item's provenance persists
+        through save→load and that an item without it omits the keys from the
+        file.
 - **M4.1 — `slp-ingest`: per-source adapters (headless)**
   - [ ] a new crate, one adapter per manufacturer/retailer site: given a product
         URL, pull name/category/dimensions/price/image-ref
