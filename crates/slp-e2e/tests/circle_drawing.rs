@@ -14,9 +14,9 @@ mod common;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow};
-use common::{YARD_D, click_ft, dist_dir, measure_ppf, serve};
+use common::{click_ft, dist_dir, measure_ppf, serve};
 use playwright_rs::protocol::Playwright;
-use playwright_rs::{BoundingBox, Locator, expect};
+use playwright_rs::{Locator, expect};
 
 /// Poll a label's `textContent` until it matches `expected` or a short
 /// timeout elapses. `<text>` is an SVG element — `to_have_text`'s `innerText`
@@ -103,25 +103,8 @@ async fn draws_persists_and_resizes_a_circle() -> Result<()> {
 
     // Drag the resize handle (starts at world (25,15)) out to (30,15) ->
     // radius 10 ft -> area π·100 ≈ 314 ft², diameter 20 ft.
-    let BoundingBox { x, y, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
-    let screen = |fx: f64, fy: f64| (x + fx * ppf, y + (YARD_D - fy) * ppf);
-    let mouse = page.mouse();
     let handle = page.locator("[data-testid='circle-resize-handle']").await;
-    handle
-        .hover(None)
-        .await
-        .context("hover the resize handle")?;
-    mouse.down(None).await.context("press the resize handle")?;
-    let (mx, my) = screen(30.0, 15.0);
-    mouse
-        .move_to(mx as i32, my as i32, None)
-        .await
-        .context("drag it out")?;
-    mouse.up(None).await.context("release")?;
+    common::drag_to_ft(&handle, &yard, ppf, 30.0, 15.0).await?;
     expect_label(&label, "314 ft² · ⌀20 ft")
         .await
         .context("the radius grew live")?;

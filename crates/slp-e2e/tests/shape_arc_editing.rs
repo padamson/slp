@@ -13,9 +13,9 @@ mod common;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow};
-use common::{YARD_D, click_ft, dist_dir, measure_ppf, serve};
+use common::{click_ft, dist_dir, measure_ppf, serve};
 use playwright_rs::protocol::Playwright;
-use playwright_rs::{BoundingBox, Locator, expect};
+use playwright_rs::{Locator, expect};
 
 /// Poll a label's `textContent` until it stops equalling `stale` (i.e. it has
 /// changed) or a short timeout elapses. `<text>` is an SVG element, so the
@@ -86,28 +86,11 @@ async fn bows_an_edge_into_an_arc() -> Result<()> {
     // The bottom edge's handle starts at its midpoint (15,10). Drag it down to
     // (15,7) — bowing the edge outward, away from the interior → the area
     // grows past 80, and the boundary becomes an arc `<path>`.
-    let BoundingBox { x, y, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
-    let screen = |fx: f64, fy: f64| (x + fx * ppf, y + (YARD_D - fy) * ppf);
-    let mouse = page.mouse();
     // The bottom-edge handle is the lowest-on-screen edge handle (largest y).
     let handles = page.locator("[data-testid='shape-edge-handle']").await;
     // Edge order is 0=bottom,1=right,2=top,3=left, so nth(0) is the bottom edge.
     let bottom = handles.nth(0);
-    bottom
-        .hover(None)
-        .await
-        .context("hover the bottom edge handle")?;
-    mouse.down(None).await.context("press the edge handle")?;
-    let (mx, my) = screen(15.0, 7.0);
-    mouse
-        .move_to(mx as i32, my as i32, None)
-        .await
-        .context("drag it down")?;
-    mouse.up(None).await.context("release")?;
+    common::drag_to_ft(&bottom, &yard, ppf, 15.0, 7.0).await?;
 
     // The boundary re-rendered as a path with an arc command, and the area grew.
     expect(page.locator("[data-testid='yard'] .shape path").await)

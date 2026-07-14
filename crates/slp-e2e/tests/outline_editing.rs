@@ -16,7 +16,7 @@ mod common;
 use anyhow::{Context, Result};
 use common::{YARD_D, click_ft, dist_dir, measure_ppf, serve};
 use playwright_rs::protocol::Playwright;
-use playwright_rs::{BoundingBox, expect};
+use playwright_rs::expect;
 
 /// The app's fixed SVG user-space scale (`planner.rs::PX_FT`) — the `points`
 /// attribute is always in these units, independent of the rendered/CSS scale
@@ -90,22 +90,8 @@ async fn selects_the_house_and_moves_a_corner() -> Result<()> {
         .context("its corners become interactive node handles")?;
 
     // Drag corner 0 (world (10,10), on the door's wall) up to (10,13).
-    let BoundingBox { x, y, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
-    let screen = |fx: f64, fy: f64| (x + fx * ppf, y + (YARD_D - fy) * ppf);
-    let mouse = page.mouse();
     let node0 = page.locator("[data-testid='house-node']").await.nth(0);
-    node0.hover(None).await.context("hover corner 0")?;
-    mouse.down(None).await.context("press corner 0")?;
-    let (mx, my) = screen(10.0, 13.0);
-    mouse
-        .move_to(mx as i32, my as i32, None)
-        .await
-        .context("drag it up")?;
-    mouse.up(None).await.context("release")?;
+    common::drag_to_ft(&node0, &yard, ppf, 10.0, 13.0).await?;
 
     // The wall moved with the corner (its polygon should no longer contain
     // the original corner's screen point) and the door — deriving its
@@ -187,22 +173,8 @@ async fn selects_a_deck_level_and_moves_a_corner() -> Result<()> {
         .context("its corners become interactive node handles")?;
 
     // Drag corner 0 (world (30,10)) up to (30,13).
-    let BoundingBox { x, y, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
-    let screen = |fx: f64, fy: f64| (x + fx * ppf, y + (YARD_D - fy) * ppf);
-    let mouse = page.mouse();
     let node0 = page.locator("[data-testid='deck-node']").await.nth(0);
-    node0.hover(None).await.context("hover corner 0")?;
-    mouse.down(None).await.context("press corner 0")?;
-    let (mx, my) = screen(30.0, 13.0);
-    mouse
-        .move_to(mx as i32, my as i32, None)
-        .await
-        .context("drag it up")?;
-    mouse.up(None).await.context("release")?;
+    common::drag_to_ft(&node0, &yard, ppf, 30.0, 13.0).await?;
 
     let points = page
         .locator("[data-testid='yard'] .deck-level polygon")

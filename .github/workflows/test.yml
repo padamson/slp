@@ -98,7 +98,7 @@ jobs:
       - name: Build app (root path)
         run: cd crates/slp-app && trunk build
       - name: Install Playwright browsers
-        run: npx playwright@1.60.0 install --with-deps chromium
+        run: npx playwright@1.61.1 install --with-deps chromium
       - name: Run e2e (drives the real WASM app in chromium)
         run: cargo test --manifest-path crates/slp-e2e/Cargo.toml
       # theoria's own dogfood gate: generate+build its gallery (from theoria's

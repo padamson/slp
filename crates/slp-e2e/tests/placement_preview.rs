@@ -48,7 +48,7 @@ async fn the_preview_ghost_tracks_the_pointer_and_matches_the_armed_shape() -> R
     // shape preview.
     let mouse = page.mouse();
     mouse
-        .move_to((x + 30.0 * ppf) as i32, (y + 15.0 * ppf) as i32, None)
+        .move_to(x + 30.0 * ppf, y + 15.0 * ppf, None)
         .await
         .context("hover with nothing armed")?;
     expect(page.locator("[data-testid='yard'] .placement-object-preview").await)
@@ -59,7 +59,7 @@ async fn the_preview_ghost_tracks_the_pointer_and_matches_the_armed_shape() -> R
     // Arm the (round) fire pit; hovering now shows a circular preview.
     arm_object(&page, "fire-pit").await?;
     mouse
-        .move_to((x + 32.0 * ppf) as i32, (y + 15.0 * ppf) as i32, None)
+        .move_to(x + 32.0 * ppf, y + 15.0 * ppf, None)
         .await
         .context("hover the yard with the fire pit armed")?;
     let preview = page
@@ -77,7 +77,7 @@ async fn the_preview_ghost_tracks_the_pointer_and_matches_the_armed_shape() -> R
 
     // Move elsewhere: the same preview circle follows.
     mouse
-        .move_to((x + 45.0 * ppf) as i32, (y + 8.0 * ppf) as i32, None)
+        .move_to(x + 45.0 * ppf, y + 8.0 * ppf, None)
         .await
         .context("hover a different point")?;
     let cx2 = preview

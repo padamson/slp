@@ -128,14 +128,11 @@ async fn holds_to_adjust_and_drops_on_release() -> Result<()> {
         feet * 12.0
     };
 
-    // Press at A, drag to B, release at B — the node drops at B.
-    let (ax, ay) = (bbox.x + 120.0, bbox.y + 200.0);
-    let (bx, by) = (bbox.x + 380.0, bbox.y + 200.0);
-    let mouse = page.mouse();
-    mouse.move_to(ax as i32, ay as i32, None).await.context("aim at A")?;
-    mouse.down(None).await.context("press")?;
-    mouse.move_to(bx as i32, by as i32, None).await.context("drag to B")?;
-    mouse.up(None).await.context("release at B")?;
+    // Press at A, drag to B, release at B — the node drops at B. (A/B are the
+    // yard-relative pixel offsets used by the snapped_cx assertions below.)
+    let ax = bbox.x + 120.0;
+    let bx = bbox.x + 380.0;
+    common::drag_within_px(&yard, 120.0, 200.0, 380.0, 200.0).await?;
 
     let marker = page.locator("[data-testid='yard'] .placement-node").await;
     expect(marker.clone()).to_have_count(1).await.context("one node dropped")?;

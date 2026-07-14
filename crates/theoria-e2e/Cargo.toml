@@ -12,7 +12,7 @@ authors = ["Paul Adamson"]
 publish = false
 
 [dev-dependencies]
-playwright-rs = "0.14"
+playwright-rs = { git = "https://github.com/padamson/playwright-rust", branch = "main" }
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
 tower-http = { version = "0.6", features = ["fs"] }

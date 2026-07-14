@@ -13,9 +13,9 @@ mod common;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow};
-use common::{YARD_D, click_ft, dist_dir, measure_ppf, serve};
+use common::{click_ft, dist_dir, measure_ppf, serve};
 use playwright_rs::protocol::Playwright;
-use playwright_rs::{BoundingBox, Locator, expect};
+use playwright_rs::{Locator, expect};
 
 /// Poll the shape label's `textContent` until it matches `expected` or a short
 /// timeout elapses. `<text>` is an SVG element — `to_have_text`'s `innerText`
@@ -84,19 +84,8 @@ async fn selects_a_shape_and_edits_its_nodes() -> Result<()> {
 
     // Drag node 0 (world (10,10)) up to (10,12) — the quad's area shrinks
     // from 80 to 70 ft².
-    let BoundingBox { x, y, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
-    let screen = |fx: f64, fy: f64| (x + fx * ppf, y + (YARD_D - fy) * ppf);
-    let mouse = page.mouse();
     let node0 = page.locator("[data-testid='shape-node']").await.nth(0);
-    node0.hover(None).await.context("hover node 0")?;
-    mouse.down(None).await.context("press node 0")?;
-    let (mx, my) = screen(10.0, 12.0);
-    mouse.move_to(mx as i32, my as i32, None).await.context("drag it up")?;
-    mouse.up(None).await.context("release")?;
+    common::drag_to_ft(&node0, &yard, ppf, 10.0, 12.0).await?;
     expect_label(&label, "70 ft²")
         .await
         .context("moving a node changes the reported area live")?;

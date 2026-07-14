@@ -13,9 +13,9 @@ mod common;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow};
-use common::{YARD_D, click_ft, dist_dir, measure_ppf, serve};
+use common::{click_ft, dist_dir, measure_ppf, serve};
 use playwright_rs::protocol::Playwright;
-use playwright_rs::{BoundingBox, Locator, expect};
+use playwright_rs::{Locator, expect};
 
 /// Poll a label's `textContent` until it stops equalling `stale`, returning the
 /// new text. `<text>` is an SVG element, so `innerText` assertions throw — read
@@ -86,29 +86,12 @@ async fn curves_an_edge_with_a_bezier_control_handle() -> Result<()> {
     // thirds: (13.33,10) and (16.67,10). Grab the first (control1 of edge 0)
     // and drag it down to (13,6) — promoting edge 0 to a bezier that bows out,
     // growing the area and re-rendering the boundary as a path with a `C`.
-    let BoundingBox { x, y, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
-    let screen = |fx: f64, fy: f64| (x + fx * ppf, y + (YARD_D - fy) * ppf);
-    let mouse = page.mouse();
     // Control handles render in edge order; nth(0) is edge 0's control1.
     let control0 = page
         .locator("[data-testid='shape-control-handle']")
         .await
         .nth(0);
-    control0
-        .hover(None)
-        .await
-        .context("hover control1 of edge 0")?;
-    mouse.down(None).await.context("press the control handle")?;
-    let (mx, my) = screen(13.0, 6.0);
-    mouse
-        .move_to(mx as i32, my as i32, None)
-        .await
-        .context("drag it down")?;
-    mouse.up(None).await.context("release")?;
+    common::drag_to_ft(&control0, &yard, ppf, 13.0, 6.0).await?;
 
     expect(page.locator("[data-testid='yard'] .shape path").await)
         .to_have_count(1)

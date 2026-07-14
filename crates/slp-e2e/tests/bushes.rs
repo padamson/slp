@@ -14,8 +14,8 @@ mod common;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow};
-use common::{YARD_D, dist_dir, draw_central_deck, measure_ppf, place_object, serve};
-use playwright_rs::protocol::{BoundingBox, Playwright};
+use common::{dist_dir, draw_central_deck, measure_ppf, place_object, serve};
+use playwright_rs::protocol::Playwright;
 use playwright_rs::{Locator, expect};
 
 /// Poll a locator's `text_content` until it contains `needle` or times out.
@@ -102,39 +102,24 @@ async fn a_bush_flags_red_only_on_hardscape() -> Result<()> {
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?; // deck spans x:[28,42], y:[12,18]
     let ppf = measure_ppf(&yard).await?;
-    let BoundingBox { x, y, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
 
     // Place the bush on bare yard, well off the deck.
     place_object(&page, &yard, ppf, "boxwood", 10.0, 24.0).await?;
+    let bush = page.locator("[data-testid='yard'] .furniture-item").await;
     expect(page.locator("[data-testid='yard'] .furniture-item--overflows").await)
         .to_have_count(0)
         .await
         .context("a bush on bare yard is fine")?;
 
     // Drag it onto the deck — its whole footprint should flag red.
-    let mouse = page.mouse();
-    let screen = |fx: f64, fy: f64| (x + fx * ppf, y + (YARD_D - fy) * ppf);
-    let (sx, sy) = screen(10.0, 24.0);
-    mouse.move_to(sx as i32, sy as i32, None).await.context("hover the bush")?;
-    mouse.down(None).await.context("press the bush body")?;
-    let (tx, ty) = screen(35.0, 15.0);
-    mouse.move_to(tx as i32, ty as i32, None).await.context("drag onto the deck")?;
-    mouse.up(None).await.context("release")?;
+    common::drag_to_ft(&bush, &yard, ppf, 35.0, 15.0).await?;
     expect(page.locator("[data-testid='yard'] .furniture-item--overflows").await)
         .to_have_count(1)
         .await
         .context("the bush flags on the deck")?;
 
     // Drag it back off the deck — it should clear.
-    mouse.move_to(tx as i32, ty as i32, None).await.context("hover the bush")?;
-    mouse.down(None).await.context("press the bush body")?;
-    let (bx, by) = screen(10.0, 24.0);
-    mouse.move_to(bx as i32, by as i32, None).await.context("drag back to the yard")?;
-    mouse.up(None).await.context("release")?;
+    common::drag_to_ft(&bush, &yard, ppf, 10.0, 24.0).await?;
     expect(page.locator("[data-testid='yard'] .furniture-item--overflows").await)
         .to_have_count(0)
         .await

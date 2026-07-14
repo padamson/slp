@@ -14,9 +14,9 @@
 mod common;
 
 use anyhow::{Context, Result};
-use common::{YARD_D, click_ft, dist_dir, draw_central_deck, measure_ppf, place, serve};
+use common::{click_ft, dist_dir, draw_central_deck, measure_ppf, place, serve};
 use playwright_rs::protocol::Playwright;
-use playwright_rs::{BoundingBox, expect};
+use playwright_rs::expect;
 
 /// Assert the inspector is showing in `corner` (`nw`/`sw`/`ne`/`se`).
 async fn assert_corner(page: &playwright_rs::Page, corner: &str) -> Result<()> {
@@ -107,13 +107,8 @@ async fn dragging_the_handle_rotates_the_object() -> Result<()> {
 
     draw_central_deck(&page, &yard, ppf).await?;
 
-    // Re-measure after the estimate panel appears, and grab the yard's screen box.
+    // Re-measure after the estimate panel appears.
     let ppf = measure_ppf(&yard).await?;
-    let BoundingBox { x, y, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
 
     // Place a chair in the middle and select it.
     let (cx_ft, cy_ft) = (35.0, 15.0);
@@ -125,21 +120,11 @@ async fn dragging_the_handle_rotates_the_object() -> Result<()> {
         .context("the object starts un-rotated")?;
 
     // Grab the rotation handle and drag due east of the object's center — its
-    // north edge turns to face the cursor, which snaps to 90°.
-    page.locator("[data-testid='rotate-handle']")
-        .await
-        .hover(None)
-        .await
-        .context("hover the rotation handle")?;
-    let mouse = page.mouse();
-    mouse.down(None).await.context("press the handle")?;
-    let center_x = x + cx_ft * ppf;
-    let center_y = y + (YARD_D - cy_ft) * ppf;
-    mouse
-        .move_to((center_x + 120.0) as i32, center_y as i32, None)
-        .await
-        .context("drag east")?;
-    mouse.up(None).await.context("release")?;
+    // north edge turns to face the cursor, which snaps to 90°. +120 px east of
+    // the object center = +120/ppf ft east at the same y. (`drag_to` hovers the
+    // source itself, so no separate hover is needed.)
+    let rotate = page.locator("[data-testid='rotate-handle']").await;
+    common::drag_to_ft(&rotate, &yard, ppf, cx_ft + 120.0 / ppf, cy_ft).await?;
 
     expect(page.locator("[data-testid='yard'] .furniture-item[transform*='rotate(90)']").await)
         .to_have_count(1)

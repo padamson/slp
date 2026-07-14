@@ -16,7 +16,7 @@ use common::{
     YARD_D, click_ft, dist_dir, draw_central_deck, measure_ppf, place, serve,
 };
 use playwright_rs::protocol::Playwright;
-use playwright_rs::{BoundingBox, expect};
+use playwright_rs::expect;
 
 /// The app draws the plan in a viewBox of 12 px/ft with the origin flush to the
 /// canvas and north up, so a footprint centered at world `(fx, fy)` renders with
@@ -52,13 +52,8 @@ async fn dragging_an_object_moves_it() -> Result<()> {
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
 
-    // The estimate panel shrank the canvas — re-measure, and grab its screen box.
+    // The estimate panel shrank the canvas — re-measure.
     let ppf = measure_ppf(&yard).await?;
-    let BoundingBox { x, y, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
 
     // Place a chair in the middle; it renders at (35, 15).
     let (from_x, from_y) = (35.0, 15.0);
@@ -76,20 +71,8 @@ async fn dragging_an_object_moves_it() -> Result<()> {
 
     // Grab the object at its center and drag it to (45, 20). Snap-to-grid (on by
     // default) lands the center exactly on the foot grid at the drop point.
-    let mouse = page.mouse();
-    let screen = |fx: f64, fy: f64| (x + fx * ppf, y + (YARD_D - fy) * ppf);
-    let (sx, sy) = screen(from_x, from_y);
-    mouse
-        .move_to(sx as i32, sy as i32, None)
-        .await
-        .context("hover the object")?;
-    mouse.down(None).await.context("press the object body")?;
-    let (tx, ty) = screen(45.0, 20.0);
-    mouse
-        .move_to(tx as i32, ty as i32, None)
-        .await
-        .context("drag to the drop point")?;
-    mouse.up(None).await.context("release")?;
+    let object = page.locator("[data-testid='yard'] .furniture-item").await;
+    common::drag_to_ft(&object, &yard, ppf, 45.0, 20.0).await?;
 
     let dropped = translate_of(45.0, 20.0);
     expect(

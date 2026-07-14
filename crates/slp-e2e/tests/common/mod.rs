@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result, anyhow};
 use axum::Router;
 use playwright_rs::protocol::click::KeyboardModifier;
-use playwright_rs::protocol::{Browser, BrowserContextOptions, Viewport};
+use playwright_rs::protocol::{Browser, BrowserContextOptions, DragToOptions, Viewport};
 use playwright_rs::{ClickOptions, Locator, Page, Position, expect};
 use tower_http::services::ServeDir;
 
@@ -112,6 +112,82 @@ pub async fn measure_ppf(yard: &Locator) -> Result<f64> {
     }
 }
 
+/// The yard-relative pixel offset of world feet `(fx, fy)` — the `Position`
+/// inside the `[data-testid='yard']` element for a click/drag target.
+fn ft_pos(ppf: f64, fx: f64, fy: f64) -> Position {
+    Position {
+        x: fx * ppf,
+        y: (YARD_D - fy) * ppf,
+    }
+}
+
+/// Drag `source` (an object body, a resize/edge handle, a node) onto the yard
+/// point at world feet `(fx, fy)`, via `Locator::drag_to` — the driver-side
+/// drag that, unlike a manual `mouse.down`→`move`→`up`, doesn't hit the
+/// Chromium-149 headless-Linux "button-held move hangs" bug.
+pub async fn drag_to_ft(source: &Locator, yard: &Locator, ppf: f64, fx: f64, fy: f64) -> Result<()> {
+    source
+        .drag_to(
+            yard,
+            Some(
+                DragToOptions::builder()
+                    .target_position(ft_pos(ppf, fx, fy))
+                    .build(),
+            ),
+        )
+        .await
+        .with_context(|| format!("drag onto ({fx},{fy}) ft"))
+}
+
+/// Drag within the yard from world feet `(sfx, sfy)` to `(tfx, tfy)` — for a
+/// drag that starts on the canvas itself (no source element), e.g. a
+/// press-and-drag gesture. Uses `Locator::drag_to` with both source and target
+/// positions inside the yard element.
+pub async fn drag_within_ft(
+    yard: &Locator,
+    ppf: f64,
+    sfx: f64,
+    sfy: f64,
+    tfx: f64,
+    tfy: f64,
+) -> Result<()> {
+    yard.drag_to(
+        yard,
+        Some(
+            DragToOptions::builder()
+                .source_position(ft_pos(ppf, sfx, sfy))
+                .target_position(ft_pos(ppf, tfx, tfy))
+                .build(),
+        ),
+    )
+    .await
+    .with_context(|| format!("drag ({sfx},{sfy})->({tfx},{tfy}) ft"))
+}
+
+/// Drag within the yard from one yard-relative pixel offset to another — for a
+/// gesture whose exact page-pixel path matters (e.g. testing grid snapping),
+/// rather than a feet target. `(sx,sy)`/`(tx,ty)` are offsets inside the yard
+/// element.
+pub async fn drag_within_px(
+    yard: &Locator,
+    sx: f64,
+    sy: f64,
+    tx: f64,
+    ty: f64,
+) -> Result<()> {
+    yard.drag_to(
+        yard,
+        Some(
+            DragToOptions::builder()
+                .source_position(Position { x: sx, y: sy })
+                .target_position(Position { x: tx, y: ty })
+                .build(),
+        ),
+    )
+    .await
+    .context("drag within yard (px)")
+}
+
 /// Click the yard at world feet `(fx, fy)` — origin south-west, north is up.
 /// `ppf` is the rendered pixels-per-foot.
 pub async fn click_ft(yard: &Locator, ppf: f64, fx: f64, fy: f64) -> Result<()> {
@@ -161,7 +237,7 @@ pub async fn mouse_click_ft(page: &Page, yard: &Locator, ppf: f64, fx: f64, fy: 
     let x = bbox.x + fx * ppf;
     let y = bbox.y + (YARD_D - fy) * ppf;
     page.mouse()
-        .click(x as i32, y as i32, None)
+        .click(x, y, None)
         .await
         .context("mouse click at feet")?;
     Ok(())

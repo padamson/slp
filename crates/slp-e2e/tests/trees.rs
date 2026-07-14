@@ -12,9 +12,9 @@
 mod common;
 
 use anyhow::{Context, Result};
-use common::{YARD_D, click_ft, dist_dir, draw_central_deck, measure_ppf, place_object, serve};
+use common::{click_ft, dist_dir, draw_central_deck, measure_ppf, place_object, serve};
 use playwright_rs::protocol::Playwright;
-use playwright_rs::{BoundingBox, expect};
+use playwright_rs::expect;
 
 #[tokio::test]
 async fn placing_a_tree_shows_canopy_and_trunk_with_no_rotate_handle() -> Result<()> {
@@ -112,32 +112,15 @@ async fn dragging_the_canopy_or_trunk_handle_resizes_it() -> Result<()> {
 
     let yard = page.locator("[data-testid='yard']").await;
     let ppf = measure_ppf(&yard).await?;
-    let BoundingBox { x, y, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
 
     // A ⌀20 ft canopy / ⌀2 ft trunk oak tree at (30,15) — the canopy handle
     // starts at world (40,15), the trunk handle at (31,15).
     place_object(&page, &yard, ppf, "oak-tree", 30.0, 15.0).await?;
     click_ft(&yard, ppf, 30.0, 15.0).await?;
 
-    let screen = |fx: f64, fy: f64| (x + fx * ppf, y + (YARD_D - fy) * ppf);
-    let mouse = page.mouse();
-
-    // Drag the canopy handle out to (45,15) -> radius 15 -> Ø 30 ft. Hover the
-    // handle locator itself (not a manually-computed screen point) so
-    // Playwright grabs its exact center.
-    page.locator("[data-testid='canopy-handle']")
-        .await
-        .hover(None)
-        .await
-        .context("hover the canopy handle")?;
-    mouse.down(None).await.context("press the canopy handle")?;
-    let (ctx, cty) = screen(45.0, 15.0);
-    mouse.move_to(ctx as i32, cty as i32, None).await.context("drag it out")?;
-    mouse.up(None).await.context("release")?;
+    // Drag the canopy handle out to (45,15) -> radius 15 -> Ø 30 ft.
+    let canopy_handle = page.locator("[data-testid='canopy-handle']").await;
+    common::drag_to_ft(&canopy_handle, &yard, ppf, 45.0, 15.0).await?;
     // Grew from Ø20 toward Ø30 — pixel-rounded to the nearest tenth of a foot,
     // not exactly 30.
     expect(page.locator("[data-testid='object-inspector']:has-text('⌀ 29.9 ft')").await)
@@ -146,15 +129,8 @@ async fn dragging_the_canopy_or_trunk_handle_resizes_it() -> Result<()> {
         .context("the canopy grew toward 30 ft")?;
 
     // Drag the trunk handle in to (30.5,15) -> radius 0.5 -> Ø 1 ft.
-    page.locator("[data-testid='trunk-handle']")
-        .await
-        .hover(None)
-        .await
-        .context("hover the trunk handle")?;
-    mouse.down(None).await.context("press the trunk handle")?;
-    let (ttx, tty) = screen(30.5, 15.0);
-    mouse.move_to(ttx as i32, tty as i32, None).await.context("drag it in")?;
-    mouse.up(None).await.context("release")?;
+    let trunk_handle = page.locator("[data-testid='trunk-handle']").await;
+    common::drag_to_ft(&trunk_handle, &yard, ppf, 30.5, 15.0).await?;
     expect(page.locator("[data-testid='trunk-diameter']").await)
         .to_have_value("1")
         .await
@@ -184,39 +160,24 @@ async fn a_tree_trunk_flags_red_only_on_hardscape() -> Result<()> {
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?; // deck spans x:[28,42], y:[12,18]
     let ppf = measure_ppf(&yard).await?;
-    let BoundingBox { x, y, .. } = yard
-        .bounding_box()
-        .await
-        .context("measure the yard")?
-        .context("yard has a bounding box")?;
 
     // Place the tree on bare yard, well off the deck.
     place_object(&page, &yard, ppf, "oak-tree", 10.0, 15.0).await?;
+    let tree = page.locator("[data-testid='yard'] .furniture-item").await;
     expect(page.locator("[data-testid='yard'] .furniture-item--trunk-invalid").await)
         .to_have_count(0)
         .await
         .context("a trunk on bare yard is fine")?;
 
     // Drag it onto the deck — the trunk should flag red.
-    let mouse = page.mouse();
-    let screen = |fx: f64, fy: f64| (x + fx * ppf, y + (YARD_D - fy) * ppf);
-    let (sx, sy) = screen(10.0, 15.0);
-    mouse.move_to(sx as i32, sy as i32, None).await.context("hover the tree")?;
-    mouse.down(None).await.context("press the tree body")?;
-    let (tx, ty) = screen(35.0, 15.0);
-    mouse.move_to(tx as i32, ty as i32, None).await.context("drag onto the deck")?;
-    mouse.up(None).await.context("release")?;
+    common::drag_to_ft(&tree, &yard, ppf, 35.0, 15.0).await?;
     expect(page.locator("[data-testid='yard'] .furniture-item--trunk-invalid").await)
         .to_have_count(1)
         .await
         .context("the trunk flags on the deck")?;
 
     // Drag it back off the deck — it should clear.
-    mouse.move_to(tx as i32, ty as i32, None).await.context("hover the tree")?;
-    mouse.down(None).await.context("press the tree body")?;
-    let (bx, by) = screen(10.0, 15.0);
-    mouse.move_to(bx as i32, by as i32, None).await.context("drag back to the yard")?;
-    mouse.up(None).await.context("release")?;
+    common::drag_to_ft(&tree, &yard, ppf, 10.0, 15.0).await?;
     expect(page.locator("[data-testid='yard'] .furniture-item--trunk-invalid").await)
         .to_have_count(0)
         .await
