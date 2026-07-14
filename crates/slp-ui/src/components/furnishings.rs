@@ -18,11 +18,13 @@
 //! every surface, or straddles two — is outlined in red, so it's easy to see
 //! at a glance what doesn't fit.
 //!
-//! A round item with a `clearance_ft` (a fire pit's keep-clear guideline) draws
-//! a dashed **clearance ring** at `radius + clearance_ft`. The ring turns a
-//! darker red when another object's footprint or a `structure_outlines` edge
-//! (house/deck) intrudes on it — always visible, not just when selected, since
-//! it's a safety check.
+//! An item with a `clearance_ft` (a fire pit's or grill's keep-clear guideline)
+//! draws a dashed **clearance zone** — a circle around a round footprint, or a
+//! rounded rectangle following a rectangular one (the footprint grown by
+//! `clearance_ft` on every side). It turns a darker red when another object's
+//! footprint or a `structure_outlines` edge (house/deck) comes within
+//! `clearance_ft` — always visible, not just when selected, since it's a safety
+//! check.
 //!
 //! Some categories carry their own **placement-validity** rule instead of the
 //! furniture fit-check, since where they belong differs: a **fire pit** may
@@ -37,15 +39,16 @@ use std::collections::HashMap;
 use leptos::prelude::*;
 use slp_core::{
     CatalogItem, Coord, Object, Point, circle_overlaps_circle, circle_overlaps_polygon,
-    footprint_corners, within_a_single,
+    dist_point_to_polygon, dist_segment_to_polygon, footprint_corners, within_a_single,
 };
 
 use super::{DEFAULT_TRUNK_FRACTION, Footprint, Transform};
 use crate::style::{
     BUSH_FILL, BUSH_FILL_OPACITY, BUSH_STROKE, CANOPY_FILL, CANOPY_FILL_OPACITY, CANOPY_STROKE,
     CLEARANCE_INTRUDE_STROKE, CLEARANCE_STROKE, CLEARANCE_STROKE_W, DOUBLE_LINE_GAP_PX,
-    DOUBLE_LINE_STROKE_W, FIRE_PIT_FILL, FURNITURE_FILL, FURNITURE_STROKE, OVERFLOW_STROKE,
-    SELECTED_FILL, SELECTED_STROKE, TRUNK_FILL, TRUNK_STROKE, furniture_style,
+    DOUBLE_LINE_STROKE_W, FIRE_PIT_FILL, FURNITURE_FILL, FURNITURE_STROKE, GRILL_FILL,
+    GRILL_STROKE, HOT_TUB_FILL, HOT_TUB_STROKE, OVERFLOW_STROKE, SELECTED_FILL, SELECTED_STROKE,
+    TRUNK_FILL, TRUNK_STROKE, furniture_style,
 };
 
 /// Rotation-handle geometry (viewBox px): gap from the footprint's north edge to
@@ -166,7 +169,10 @@ pub fn Furnishings(
             // follows its ground rule; a tree's canopy is never flagged this
             // way (only its trunk is — see `trunk_invalid` below).
             let overflows = match fp.category.as_deref() {
-                Some("tree") => false,
+                // A tree (canopy overhangs freely) and a grill (goes anywhere —
+                // a patio, a deck, the yard; its clearance zone is its feedback)
+                // are never footprint-flagged.
+                Some("tree" | "grill") => false,
                 // A fire pit or bush flags its whole footprint by its ground
                 // rule; a bush on hardscape (house/deck/paver) reads red.
                 Some("fire-pit" | "bush") => ground_invalid,
@@ -180,18 +186,9 @@ pub fn Furnishings(
             };
             let trunk_invalid = fp.category.as_deref() == Some("tree") && ground_invalid;
             let is_selected = selected == Some(i);
-            let intrudes = fp
-                .clearance_ft
-                .filter(|_| fp.circle)
-                .is_some_and(|clearance| {
-                    clearance_intrudes(
-                        i,
-                        obj,
-                        fp.w_ft / 2.0 + clearance,
-                        &resolved,
-                        &structure_polys,
-                    )
-                });
+            let intrudes = fp.clearance_ft.is_some_and(|clearance| {
+                clearance_intrudes(i, obj, fp, clearance, &resolved, &structure_polys)
+            });
             object_view(
                 t,
                 obj.clone(),
@@ -227,42 +224,69 @@ fn category_ground_invalid(category: Option<&str>, on_house: bool, on_deck: bool
     }
 }
 
-/// Whether object `i`'s clearance disk (`center`, `radius`) overlaps any
-/// *other* placed object's footprint, or any structure outline's edge.
+/// The footprint corners of a placed object (a `[Point; 4]` rectangle).
+fn obj_corners(o: &Object, fp: &Footprint) -> [Point; 4] {
+    footprint_corners(o.x, o.y, fp.w_ft, fp.d_ft, o.rot.unwrap_or(0.0))
+}
+
+/// Whether any edge of `poly` comes within `d` of the `target` polygon (i.e.
+/// the two are within `d`, touching counting) — the rectangular-zone version of
+/// "is X within the keep-clear distance?".
+fn edges_within(poly: &[Point], target: &[Point], d: f64) -> bool {
+    let n = poly.len();
+    (0..n).any(|k| dist_segment_to_polygon(poly[k], poly[(k + 1) % n], target) <= d)
+}
+
+/// Whether object `i`'s keep-clear zone is intruded by any *other* placed
+/// object's footprint or any structure outline's edge. The zone is the object's
+/// footprint grown outward by `clearance`: a disk around a round footprint (a
+/// fire pit) or a rounded rectangle around a rectangular one (a grill).
 fn clearance_intrudes(
     i: usize,
     obj: &Object,
-    radius: f64,
+    fp: &Footprint,
+    clearance: f64,
     resolved: &[(Object, Footprint)],
     structure_polys: &[Vec<Point>],
 ) -> bool {
-    let center = Point::new(obj.x, obj.y);
-    let other_object_intrudes = resolved.iter().enumerate().any(|(j, (other, other_fp))| {
-        if i == j {
-            return false;
-        }
-        if other_fp.circle {
-            circle_overlaps_circle(
-                center,
-                radius,
-                Point::new(other.x, other.y),
-                other_fp.w_ft / 2.0,
-            )
-        } else {
-            let corners = footprint_corners(
-                other.x,
-                other.y,
-                other_fp.w_ft,
-                other_fp.d_ft,
-                other.rot.unwrap_or(0.0),
-            );
-            circle_overlaps_polygon(center, radius, &corners)
-        }
-    });
-    other_object_intrudes
-        || structure_polys
-            .iter()
-            .any(|poly| circle_overlaps_polygon(center, radius, poly))
+    let others = resolved.iter().enumerate().filter(|(j, _)| *j != i);
+    if fp.circle {
+        // Circular keep-clear zone: a disk of `radius` around the center.
+        let center = Point::new(obj.x, obj.y);
+        let radius = fp.w_ft / 2.0 + clearance;
+        let by_object = others.clone().any(|(_, (other, other_fp))| {
+            if other_fp.circle {
+                circle_overlaps_circle(
+                    center,
+                    radius,
+                    Point::new(other.x, other.y),
+                    other_fp.w_ft / 2.0,
+                )
+            } else {
+                circle_overlaps_polygon(center, radius, &obj_corners(other, other_fp))
+            }
+        });
+        by_object
+            || structure_polys
+                .iter()
+                .any(|poly| circle_overlaps_polygon(center, radius, poly))
+    } else {
+        // Rectangular keep-clear zone: the footprint grown by `clearance` on
+        // every side. Ask "is anything within `clearance` of this rectangle?".
+        let rect = obj_corners(obj, fp);
+        let by_object = others.clone().any(|(_, (other, other_fp))| {
+            if other_fp.circle {
+                dist_point_to_polygon(Point::new(other.x, other.y), &rect)
+                    <= clearance + other_fp.w_ft / 2.0
+            } else {
+                edges_within(&obj_corners(other, other_fp), &rect, clearance)
+            }
+        });
+        by_object
+            || structure_polys
+                .iter()
+                .any(|poly| edges_within(poly, &rect, clearance))
+    }
 }
 
 /// One object's footprint: its fill/outline (driven by selection, overflow,
@@ -304,6 +328,8 @@ fn object_view(
     let is_tree = category.as_deref() == Some("tree");
     let is_fire_pit = category.as_deref() == Some("fire-pit");
     let is_bush = category.as_deref() == Some("bush");
+    let is_grill = category.as_deref() == Some("grill");
+    let is_hot_tub = category.as_deref() == Some("hot-tub");
     let rot = obj.rot.unwrap_or(0.0);
     // Selection tints the fill; overflow colors the outline — both can show on
     // the same object (a selected piece that also doesn't fit). Status/virtual
@@ -332,6 +358,10 @@ fn object_view(
         CANOPY_FILL
     } else if is_bush {
         BUSH_FILL
+    } else if is_grill {
+        GRILL_FILL
+    } else if is_hot_tub {
+        HOT_TUB_FILL
     } else {
         FURNITURE_FILL
     };
@@ -355,6 +385,10 @@ fn object_view(
         (CANOPY_STROKE, "1.5")
     } else if is_bush {
         (BUSH_STROKE, "1.5")
+    } else if is_grill {
+        (GRILL_STROKE, "1.5")
+    } else if is_hot_tub {
+        (HOT_TUB_STROKE, "1.5")
     } else {
         (FURNITURE_STROKE, "1.5")
     };
@@ -528,24 +562,51 @@ fn object_view(
     // turns a darker red than [`OVERFLOW_STROKE`] the instant something
     // intrudes on it, so the two red signals ("wrong place" vs. "something's
     // in the keep-clear zone") don't read as the same thing.
-    let clearance_ring = clearance_ft.filter(|_| circle).map(|clearance_ft| {
+    let clearance_ring = clearance_ft.map(|clearance_ft| {
         let ring_stroke = if intrudes {
             CLEARANCE_INTRUDE_STROKE
         } else {
             CLEARANCE_STROKE
         };
-        view! {
-            <circle
-                class="clearance-ring"
-                data-testid="clearance-ring"
-                cx="0"
-                cy="0"
-                r=r_px + clearance_ft * t.px_ft
-                fill="none"
-                stroke=ring_stroke
-                stroke-width=CLEARANCE_STROKE_W
-                stroke-dasharray="5,3"
-            />
+        let c_px = clearance_ft * t.px_ft;
+        if circle {
+            // A round footprint's zone is a larger circle.
+            view! {
+                <circle
+                    class="clearance-ring"
+                    data-testid="clearance-ring"
+                    cx="0"
+                    cy="0"
+                    r=r_px + c_px
+                    fill="none"
+                    stroke=ring_stroke
+                    stroke-width=CLEARANCE_STROKE_W
+                    stroke-dasharray="5,3"
+                />
+            }
+            .into_any()
+        } else {
+            // A rectangular footprint's zone follows its shape: the rect grown
+            // by `clearance` on every side, corners rounded at radius clearance
+            // (the exact outward offset of a rectangle).
+            let (hw, hd) = (w_px / 2.0 + c_px, d_px / 2.0 + c_px);
+            view! {
+                <rect
+                    class="clearance-ring"
+                    data-testid="clearance-ring"
+                    x=-hw
+                    y=-hd
+                    width=2.0 * hw
+                    height=2.0 * hd
+                    rx=c_px
+                    ry=c_px
+                    fill="none"
+                    stroke=ring_stroke
+                    stroke-width=CLEARANCE_STROKE_W
+                    stroke-dasharray="5,3"
+                />
+            }
+            .into_any()
         }
     });
     view! {

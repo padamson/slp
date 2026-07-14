@@ -94,6 +94,14 @@ pub const BUSH_STROKE: &str = "#4e7d56";
 /// brown.
 pub const FIRE_PIT_FILL: &str = "#b8b8bc";
 
+/// A grill's footprint — dark charcoal/graphite, an appliance look.
+pub const GRILL_FILL: &str = "#3f4145";
+pub const GRILL_STROKE: &str = "#26282b";
+
+/// A hot tub's footprint — water blue.
+pub const HOT_TUB_FILL: &str = "#6faec5";
+pub const HOT_TUB_STROKE: &str = "#3f7d96";
+
 /// Group opacity for the placement preview ghost — faint, so it reads as "not
 /// committed yet" without needing its own status/virtual styling (the armed
 /// item's eventual look isn't known until the modifiers held at the click).

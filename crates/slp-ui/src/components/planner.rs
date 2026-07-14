@@ -2196,6 +2196,7 @@ fn hint(tool: Option<Tool>) -> &'static str {
 /// on load. Plan data the user can place, ignore, or (once catalog editing
 /// lands) replace — not hardcoded geometry. Footprints are in feet, prices in
 /// dollars.
+#[allow(clippy::too_many_lines)] // a flat data list of starter items
 fn starter_catalog() -> Vec<CatalogItem> {
     let furniture = |id: &str, name: &str, w: f64, d: f64, h: f64, price: f64| {
         let mut c = CatalogItem::new(id.to_string());
@@ -2272,6 +2273,36 @@ fn starter_catalog() -> Vec<CatalogItem> {
         round("boxwood", "Boxwood", "bush", 3.0, 3.0, 35.0),
         round("hydrangea", "Hydrangea", "bush", 5.0, 4.0, 45.0),
         round("azalea", "Azalea", "bush", 4.0, 3.5, 40.0),
+        // Grills: a rectangular appliance with a keep-clear zone that follows
+        // its rectangular shape (grown by clearance_ft on every side). Placeable
+        // anywhere — a patio, a deck, the yard.
+        {
+            let mut grill = furniture("gas-grill", "Gas grill", 4.0, 2.0, 3.5, 599.0);
+            grill.category = Some("grill".to_string());
+            grill.clearance_ft = Some(1.5); // keep combustibles 1.5 ft clear
+            grill
+        },
+        {
+            let mut grill = furniture("kamado-grill", "Kamado grill", 2.0, 2.0, 3.5, 899.0);
+            grill.category = Some("grill".to_string());
+            grill.clearance_ft = Some(1.5);
+            grill
+        },
+        // Hot tubs: a heavy round or square unit that belongs on a deck/paver
+        // (the shared containment fit-check flags one that's off a surface).
+        round(
+            "hot-tub-round",
+            "Hot tub (round)",
+            "hot-tub",
+            7.0,
+            3.0,
+            6999.0,
+        ),
+        {
+            let mut tub = furniture("hot-tub-square", "Hot tub (square)", 7.0, 7.0, 3.0, 7499.0);
+            tub.category = Some("hot-tub".to_string());
+            tub
+        },
         // Area materials, costed by measure rather than per item: mulch per
         // yd³ (a bagged/bulk mulch at a typical ~$40/yd³ delivered), pavers
         // per ft² of surface (~$8/ft² for the pavers themselves).

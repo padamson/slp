@@ -46,6 +46,19 @@ fn bush(id: &str, spread_ft: f64) -> CatalogItem {
     c
 }
 
+fn grill(id: &str, w: f64, d: f64, clearance_ft: f64) -> CatalogItem {
+    let mut c = item(id, Some(w), Some(d));
+    c.category = Some("grill".to_string());
+    c.clearance_ft = Some(clearance_ft);
+    c
+}
+
+fn hot_tub_round(id: &str, diameter: f64) -> CatalogItem {
+    let mut c = round_item(id, diameter);
+    c.category = Some("hot-tub".to_string());
+    c
+}
+
 #[test]
 fn renders_a_footprint_to_scale() {
     // A 3 ft × 1.5 ft item at (5,5): 10 px/ft → a 30 × 15 px rectangle centered
@@ -503,6 +516,149 @@ fn a_selected_fire_pit_shows_no_resize_handles() {
     });
     assert!(!html.contains("canopy-handle"));
     assert!(!html.contains("trunk-handle"));
+}
+
+// --- Grills: rectangular footprint + a shape-following clearance zone (D4) ---
+
+#[test]
+fn a_grill_renders_a_rounded_rect_clearance_zone_not_a_circle() {
+    // 4×2 ft grill (40×20 px) at (5,5), 1.5 ft clearance (15 px): the zone is
+    // the footprint grown by 15 px on every side (70×50) with 15 px rounded
+    // corners — a rounded <rect>, never a <circle>.
+    let catalog = vec![grill("gas-grill", 4.0, 2.0, 1.5)];
+    let objects = vec![Object::new("gas-grill".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        html.contains(r#"data-testid="clearance-ring""#),
+        "the clearance zone renders"
+    );
+    assert_eq!(
+        dokime::count(&html, "<circle"),
+        0,
+        "a grill has no circles — rectangular footprint + rectangular zone"
+    );
+    assert!(
+        html.contains(r#"rx="15""#),
+        "corners rounded at the clearance radius"
+    );
+    assert!(
+        html.contains(r#"width="70""#) && html.contains(r#"height="50""#),
+        "the zone is the footprint grown by clearance on every side"
+    );
+    assert!(
+        html.contains(r##"fill="#3f4145""##),
+        "the grill's charcoal fill"
+    );
+}
+
+#[test]
+fn an_isolated_grill_zone_is_quiet() {
+    let catalog = vec![grill("gas-grill", 4.0, 2.0, 1.5)];
+    let objects = vec![Object::new("gas-grill".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        !html.contains("furniture-item--intrudes"),
+        "nothing intrudes"
+    );
+    assert!(
+        html.contains(r##"stroke="#8a8275""##),
+        "the quiet clearance color"
+    );
+}
+
+#[test]
+fn a_grill_zone_flags_an_object_within_its_clearance() {
+    // Grill rect x∈[3,7]. A 2×2 chair at (9,5) spans x∈[8,10]; its left edge is
+    // 1 ft from the grill's right edge — inside the 1.5 ft keep-clear.
+    let catalog = vec![
+        grill("gas-grill", 4.0, 2.0, 1.5),
+        item("chair", Some(2.0), Some(2.0)),
+    ];
+    let objects = vec![
+        Object::new("gas-grill".to_string(), 5.0, 5.0),
+        Object::new("chair".to_string(), 9.0, 5.0),
+    ];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        html.contains("furniture-item--intrudes"),
+        "the grill flags a too-close object"
+    );
+    assert!(
+        html.contains(r##"stroke="#7a1216""##),
+        "the zone turns its darker intrusion red"
+    );
+}
+
+#[test]
+fn a_distant_object_leaves_the_grill_zone_quiet() {
+    let catalog = vec![
+        grill("gas-grill", 4.0, 2.0, 1.5),
+        item("chair", Some(2.0), Some(2.0)),
+    ];
+    let objects = vec![
+        Object::new("gas-grill".to_string(), 5.0, 5.0),
+        Object::new("chair".to_string(), 15.0, 5.0), // far outside the zone
+    ];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(!html.contains("furniture-item--intrudes"));
+}
+
+#[test]
+fn a_grill_zone_flags_a_nearby_structure_edge() {
+    // A wall edge at x=8 runs 1 ft from the grill's right edge (x=7) — inside
+    // the 1.5 ft keep-clear.
+    let catalog = vec![grill("gas-grill", 4.0, 2.0, 1.5)];
+    let objects = vec![Object::new("gas-grill".to_string(), 5.0, 5.0)];
+    let wall = vec![
+        Coord::new(8.0, 0.0),
+        Coord::new(8.0, 20.0),
+        Coord::new(15.0, 20.0),
+        Coord::new(15.0, 0.0),
+    ];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog structure_outlines=vec![wall] /> }
+    });
+    assert!(
+        html.contains("furniture-item--intrudes"),
+        "a wall inside the keep-clear flags the grill zone"
+    );
+}
+
+// --- Hot tubs: a heavy unit that belongs on a surface (D5) ---
+
+#[test]
+fn a_hot_tub_fills_water_blue_and_must_sit_on_a_surface() {
+    let catalog = vec![hot_tub_round("tub", 4.0)];
+    let objects = vec![Object::new("tub".to_string(), 5.0, 5.0)];
+    // A deck at (0,0)-(3,3) that does NOT contain the tub at (5,5).
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(3.0, 3.0)] /> }
+    });
+    assert!(
+        html.contains(r##"fill="#6faec5""##),
+        "the hot tub's water blue"
+    );
+    assert!(
+        html.contains("furniture-item--overflows"),
+        "a hot tub off a surface flags — it belongs on a deck/paver"
+    );
+}
+
+#[test]
+fn a_hot_tub_fully_on_a_surface_is_quiet() {
+    let catalog = vec![hot_tub_round("tub", 4.0)];
+    let objects = vec![Object::new("tub".to_string(), 5.0, 5.0)];
+    let html = dokime::render(move || {
+        view! { <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(10.0, 10.0)] /> }
+    });
+    assert!(
+        !html.contains("furniture-item--overflows"),
+        "a hot tub fully on the deck is fine"
+    );
 }
 
 #[test]

@@ -57,6 +57,13 @@ fn tree(id: &str, name: &str, canopy_ft: f64, trunk_ft: f64) -> CatalogItem {
     c
 }
 
+fn grill(id: &str, name: &str, w: f64, d: f64, clearance_ft: f64) -> CatalogItem {
+    let mut c = furniture(id, name, w, d);
+    c.category = Some("grill".to_string());
+    c.clearance_ft = Some(clearance_ft);
+    c
+}
+
 #[allow(clippy::too_many_lines)]
 pub fn stories() -> Vec<Story> {
     vec![
@@ -174,5 +181,30 @@ pub fn stories() -> Vec<Story> {
                 canvas(view! { <Furnishings t=t() objects=objects catalog=catalog /> })
             },
         ),
+        Story::new(
+            "Structures/Furnishings/Grill, rectangular keep-clear zone",
+            || {
+                let catalog = vec![grill("gas-grill", "Gas grill", 5.0, 2.5, 2.0)];
+                let objects = vec![Object::new("gas-grill".to_string(), 14.0, 15.0)];
+                canvas(view! { <Furnishings t=t() objects=objects catalog=catalog /> })
+            },
+        ),
+        Story::new("Structures/Furnishings/Grill, something too close", || {
+            let catalog = vec![
+                grill("gas-grill", "Gas grill", 5.0, 2.5, 2.0),
+                furniture("chair", "Armchair", 2.0, 2.0),
+            ];
+            let objects = vec![
+                Object::new("gas-grill".to_string(), 14.0, 15.0),
+                // Just off the grill's east edge, inside the 2 ft keep-clear.
+                Object::new("chair".to_string(), 18.5, 15.0),
+            ];
+            canvas(view! { <Furnishings t=t() objects=objects catalog=catalog /> })
+        }),
+        Story::new("Structures/Furnishings/Hot tub (water blue)", || {
+            let catalog = vec![round("hot-tub", "Hot tub", "hot-tub", 7.0)];
+            let objects = vec![Object::new("hot-tub".to_string(), 14.0, 15.0)];
+            canvas(view! { <Furnishings t=t() objects=objects catalog=catalog /> })
+        }),
     ]
 }

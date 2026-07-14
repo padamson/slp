@@ -44,6 +44,20 @@ exclude_globs = [
 #  - `arc_svg` `sweep: bulge > 0.0` `>`→`>=`: equivalent — `bulge_radius` returns
 #    `None` for a near-zero bulge before this closure runs, so `bulge` is never 0
 #    here and `> 0` and `>= 0` agree on every reachable input.
+#  - `segments_cross` `>`→`>=`: equivalent. The straddle test only affects the
+#    result of `dist_segment_to_segment` when the segments *properly* cross
+#    (interior X): there every orientation is strictly non-zero, so `> 0` and
+#    `>= 0` agree. When an orientation is exactly 0 (a touch / colinear overlap),
+#    an endpoint of one segment lies on the other, so the endpoint-distance
+#    fallback returns 0 regardless of what `segments_cross` decides — the flipped
+#    comparison changes no observable output. (`>`→`==` *is* killed, by the
+#    asymmetric-crossing tests.)
+#  - `dist_segment_to_polygon` `||`→`&&` (the `point_in_polygon(a) || (b)`
+#    early-out): equivalent for the convex footprints this is used on. Both
+#    endpoints inside → both `||` and `&&` return 0. Exactly one inside → the
+#    segment must cross an edge, so the per-edge `dist_segment_to_segment` already
+#    yields 0; `&&` skipping the early-out changes nothing. Neither inside → both
+#    skip it.
 exclude_re = [
     'replace \+= with -= in area',
     'replace main -> Result',
@@ -54,4 +68,6 @@ exclude_re = [
     'replace < with > in point_in_polygon',
     'replace < with <= in point_in_polygon',
     'replace > with >= in arc_svg',
+    'replace > with >= in segments_cross',
+    'replace \|\| with && in dist_segment_to_polygon',
 ]

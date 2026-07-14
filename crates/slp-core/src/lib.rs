@@ -10,6 +10,7 @@ pub mod bezier;
 pub mod boundary;
 pub mod clearance;
 pub mod corner;
+pub mod dist;
 pub mod generated;
 pub mod geom;
 pub mod pick;
@@ -24,6 +25,9 @@ pub use bezier::bezier_segment_area;
 pub use boundary::{are_adjacent, delete_node, insert_node_between};
 pub use clearance::{circle_overlaps_circle, circle_overlaps_polygon, circle_overlaps_segment};
 pub use corner::{Corner, content_points, free_corner};
+pub use dist::{
+    dist_point_to_polygon, dist_point_to_segment, dist_segment_to_polygon, dist_segment_to_segment,
+};
 pub use generated::slp::{
     CatalogItem, Circle, Coord, Course, CurveEdge, Deck, DeckLevel, FootprintShape, House,
     ItemStatus, Object, Opening, OpeningKind, Plan, PriceUnit, Shape, StepRun,
