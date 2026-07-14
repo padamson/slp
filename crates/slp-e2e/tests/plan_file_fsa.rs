@@ -101,7 +101,7 @@ async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Re
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     boot(&page, &addr).await?;
 
     // Save As → a named file (default stem, since the plan is unnamed).
@@ -192,7 +192,7 @@ async fn reopens_the_last_file_silently_on_startup() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     boot(&page, &addr).await?;
 
     // Save As the plan at width 42.5 (file + remembered handle), then change the
@@ -242,7 +242,7 @@ async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     boot(&page, &addr).await?;
 
     page.locator("[data-testid='yard-width']")

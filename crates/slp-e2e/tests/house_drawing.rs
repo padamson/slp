@@ -33,7 +33,7 @@ async fn draws_and_persists_the_house_outline() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;
@@ -100,7 +100,7 @@ async fn holds_to_adjust_and_drops_on_release() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;

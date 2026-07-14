@@ -43,7 +43,7 @@ async fn dragging_an_object_moves_it() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;
@@ -117,7 +117,7 @@ async fn remove_button_deletes_the_selected_object() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;
@@ -174,7 +174,7 @@ async fn delete_key_removes_the_selected_object() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;

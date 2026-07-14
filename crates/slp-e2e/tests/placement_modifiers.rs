@@ -38,7 +38,7 @@ async fn shift_click_places_a_row_without_disarming() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;
@@ -82,7 +82,7 @@ async fn releasing_shift_ends_the_sticky_run() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;
@@ -121,7 +121,7 @@ async fn option_click_places_a_virtual_ghost() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;
@@ -160,7 +160,7 @@ async fn shift_option_places_a_row_of_ghosts() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;
@@ -204,7 +204,7 @@ async fn escape_cancels_the_armed_tile_without_placing() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;

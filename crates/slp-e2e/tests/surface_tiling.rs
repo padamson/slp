@@ -31,7 +31,7 @@ async fn a_material_photo_tiles_the_drawn_surfaces() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;

@@ -47,7 +47,7 @@ async fn selects_an_area_and_edits_it_through_the_inspector() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;
@@ -146,7 +146,7 @@ async fn the_inspector_dodges_an_area_drawn_in_a_corner() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;

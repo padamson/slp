@@ -34,7 +34,7 @@ async fn saves_the_plan_to_a_file_and_loads_it_back() -> Result<()> {
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     // This test covers the portable download / <input> fallback, so disable the
     // File System Access API (headless Chromium provides it) — its own path is
     // covered in plan_file_fsa.rs.
@@ -132,7 +132,7 @@ async fn a_malformed_file_shows_an_error_and_keeps_the_current_plan() -> Result<
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     // This test covers the portable download / <input> fallback, so disable the
     // File System Access API (headless Chromium provides it) — its own path is
     // covered in plan_file_fsa.rs.
@@ -188,7 +188,7 @@ async fn save_as_is_disabled_with_a_note_when_the_fs_access_api_is_absent() -> R
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
-    let page = browser.new_page().await.context("new page")?;
+    let page = common::new_page(&browser).await?;
     // Simulate a non-Chromium browser (no File System Access API).
     page.add_init_script(
         "window.showSaveFilePicker = undefined; window.showOpenFilePicker = undefined;",

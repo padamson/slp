@@ -10,12 +10,34 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result, anyhow};
 use axum::Router;
 use playwright_rs::protocol::click::KeyboardModifier;
+use playwright_rs::protocol::{Browser, BrowserContextOptions, Viewport};
 use playwright_rs::{ClickOptions, Locator, Page, Position, expect};
 use tower_http::services::ServeDir;
 
 /// Default yard: 70 ft wide × 30 ft deep, grid flush to the canvas.
 pub const YARD_W: f64 = 70.0;
 pub const YARD_D: f64 = 30.0;
+
+/// A page in a context tall enough to show the whole yard. The default 720-px
+/// viewport cuts off the yard's front (lower) edge once the catalog/palette
+/// grows enough to push the canvas down, so a drag to a point near the yard's
+/// front lands below the fold and misses. A taller viewport keeps every yard
+/// coordinate reachable; the width (and thus `measure_ppf` and all x/y feet →
+/// screen math) is unchanged, so this affects no test's coordinates.
+pub async fn new_page(browser: &Browser) -> Result<Page> {
+    let ctx = browser
+        .new_context_with_options(
+            BrowserContextOptions::builder()
+                .viewport(Viewport {
+                    width: 1280,
+                    height: 1200,
+                })
+                .build(),
+        )
+        .await
+        .context("new browser context (tall viewport)")?;
+    ctx.new_page().await.context("new page")
+}
 
 /// A 1×1 transparent PNG data-URI — the self-contained stand-in material photo
 /// for image tests (no fixture file, no network).
