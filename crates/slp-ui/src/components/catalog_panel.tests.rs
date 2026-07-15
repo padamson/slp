@@ -171,16 +171,18 @@ fn the_editor_shows_an_image_field_and_previews_a_set_image() {
     assert!(with_img.contains(src), "the preview points at the image");
 }
 
-fn panel_key(catalog: Vec<CatalogItem>, selected: Option<String>, key: &str) -> String {
+/// Render the panel with the screenshot-ingestion `api_key`/`screenshot` props
+/// set (the section is independent of the catalog/selection).
+fn panel_ingest(key: &str, shot: &str) -> String {
     let key = key.to_string();
+    let shot = shot.to_string();
     dokime::render(move || {
-        let catalog = catalog.clone();
-        let selected = selected.clone();
         let key = key.clone();
+        let shot = shot.clone();
         view! {
             <CatalogPanel
-                catalog=Signal::derive(move || catalog.clone())
-                selected=Signal::derive(move || selected.clone())
+                catalog=Signal::derive(Vec::<CatalogItem>::new)
+                selected=Signal::derive(|| None::<String>)
                 on_select=noop_str()
                 on_name=noop_str()
                 on_category=noop_str()
@@ -191,6 +193,7 @@ fn panel_key(catalog: Vec<CatalogItem>, selected: Option<String>, key: &str) -> 
                 on_depth=noop_f64()
                 on_height=noop_f64()
                 api_key=Signal::derive(move || key.clone())
+                screenshot=Signal::derive(move || shot.clone())
                 on_close=noop()
             />
         }
@@ -221,13 +224,14 @@ fn the_ingestion_section_gates_on_the_api_key() {
         !off.contains("Screenshot ingestion enabled"),
         "not enabled without a key"
     );
-
-    // With a key → the gate flips to enabled.
-    let on = panel_key(
-        vec![item("chair", "Lounge chair", 199.0)],
-        None,
-        "sk-ant-abc123",
+    assert_eq!(
+        dokime::count(&off, r#"data-testid="ingest-paste""#),
+        0,
+        "no paste zone without a key"
     );
+
+    // With a key → the gate flips to enabled and the paste zone appears.
+    let on = panel_ingest("sk-ant-abc123", "");
     assert!(
         on.contains("Screenshot ingestion enabled"),
         "enabled once a key is present"
@@ -235,6 +239,31 @@ fn the_ingestion_section_gates_on_the_api_key() {
     assert!(
         !on.contains("Add your Anthropic API key"),
         "the prompt is gone once a key is present"
+    );
+    assert!(
+        on.contains(r#"data-testid="ingest-paste""#),
+        "a paste zone appears once keyed"
+    );
+    // Nothing pasted yet → no preview.
+    assert_eq!(
+        dokime::count(&on, r#"data-testid="ingest-screenshot""#),
+        0,
+        "no screenshot preview before a paste"
+    );
+}
+
+#[test]
+fn a_pasted_screenshot_previews_with_a_clear_action() {
+    let src = "data:image/png;base64,iVBORw0KGgo=";
+    let html = panel_ingest("sk-ant-abc123", src);
+    assert!(
+        html.contains(r#"data-testid="ingest-screenshot""#),
+        "the pasted screenshot previews"
+    );
+    assert!(html.contains(src), "the preview points at the pasted image");
+    assert!(
+        html.contains(r#"data-testid="ingest-clear""#),
+        "a clear action is offered"
     );
 }
 

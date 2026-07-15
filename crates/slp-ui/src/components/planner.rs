@@ -1146,6 +1146,10 @@ fn planner_body() -> impl IntoView {
         api_key::set_api_key(&v);
         set_api_key_val.set(v);
     });
+    // The pasted product screenshot (a `data:` URI) awaiting vision extraction.
+    // Transient UI state — never persisted in the plan.
+    let (screenshot, set_screenshot) = signal(String::new());
+    let on_screenshot = Callback::new(move |v: String| set_screenshot.set(v));
     // Apply `edit` to the catalog item currently selected in the panel.
     let edit_selected_catalog = move |edit: &dyn Fn(&mut CatalogItem)| {
         if let Some(id) = catalog_selected.get_untracked() {
@@ -1804,6 +1808,8 @@ fn planner_body() -> impl IntoView {
                             on_height=set_catalog_height
                             api_key=api_key_val
                             on_api_key=on_api_key
+                            screenshot=screenshot
+                            on_screenshot=on_screenshot
                             on_close=close_catalog
                         />
                     }

@@ -90,6 +90,13 @@ pub fn CatalogPanel(
     /// callers that don't wire ingestion still compile.
     #[prop(default = Callback::new(|_: String| {}))]
     on_api_key: Callback<String>,
+    /// The pasted product screenshot as a `data:` URI (empty when none) — the
+    /// input the vision extractor will read.
+    #[prop(into, default = Signal::derive(String::new))]
+    screenshot: Signal<String>,
+    /// Set the pasted screenshot (a `data:` URI); an empty value clears it.
+    #[prop(default = Callback::new(|_: String| {}))]
+    on_screenshot: Callback<String>,
     /// Close the catalog panel.
     on_close: Callback<()>,
 ) -> impl IntoView {
@@ -146,6 +153,39 @@ pub fn CatalogPanel(
                             >
                                 "Screenshot ingestion enabled."
                             </p>
+                            // Paste a product screenshot (⌘⇧4 → ⌘V) → a data URI
+                            // the vision extractor (B3) will read.
+                            <div
+                                class="ingest-paste"
+                                data-testid="ingest-paste"
+                                tabindex="0"
+                                on:paste=move |ev| read_pasted_image(&ev, on_screenshot)
+                            >
+                                "Click here, then paste a product screenshot (⌘V)."
+                            </div>
+                            {move || {
+                                let shot = screenshot.get();
+                                (!shot.is_empty())
+                                    .then(|| {
+                                        view! {
+                                            <div class="ingest-shot">
+                                                <img
+                                                    class="ingest-screenshot"
+                                                    data-testid="ingest-screenshot"
+                                                    src=shot.clone()
+                                                    alt="pasted screenshot"
+                                                />
+                                                <button
+                                                    class="ingest-clear"
+                                                    data-testid="ingest-clear"
+                                                    on:click=move |_| on_screenshot.run(String::new())
+                                                >
+                                                    "Clear"
+                                                </button>
+                                            </div>
+                                        }
+                                    })
+                            }}
                         }
                             .into_any()
                     }
@@ -286,6 +326,53 @@ pub fn CatalogPanel(
         </aside>
     }
 }
+
+/// Read the first image on the clipboard from a `paste` event to a `data:` URI
+/// and hand it to `on_image`. Browser-only — a no-op when not compiled for
+/// `csr` (mirrors [`FileInput`](super::FileInput)'s file read).
+#[cfg(feature = "csr")]
+fn read_pasted_image(ev: &leptos::ev::Event, on_image: Callback<String>) {
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen::closure::Closure;
+    use web_sys::{ClipboardEvent, FileReader};
+
+    let Some(items) = ev
+        .dyn_ref::<ClipboardEvent>()
+        .and_then(ClipboardEvent::clipboard_data)
+        .map(|dt| dt.items())
+    else {
+        return;
+    };
+    // The clipboard can hold several representations; take the first image.
+    let mut file = None;
+    for i in 0..items.length() {
+        if let Some(item) = items.get(i)
+            && item.type_().starts_with("image/")
+            && let Ok(Some(f)) = item.get_as_file()
+        {
+            file = Some(f);
+            break;
+        }
+    }
+    let Some(file) = file else {
+        return;
+    };
+    let Ok(reader) = FileReader::new() else {
+        return;
+    };
+    let reader_for_load = reader.clone();
+    let onload = Closure::<dyn FnMut()>::new(move || {
+        if let Some(url) = reader_for_load.result().ok().and_then(|v| v.as_string()) {
+            on_image.run(url);
+        }
+    });
+    reader.set_onload(Some(onload.as_ref().unchecked_ref()));
+    onload.forget();
+    let _ = reader.read_as_data_url(&file);
+}
+
+#[cfg(not(feature = "csr"))]
+fn read_pasted_image(_ev: &leptos::ev::Event, _on_image: Callback<String>) {}
 
 /// One catalog item as a selectable list row: its name and price, highlighted
 /// when it's the item being edited.

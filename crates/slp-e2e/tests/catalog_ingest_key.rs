@@ -12,7 +12,7 @@
 mod common;
 
 use anyhow::{Context, Result};
-use common::{dist_dir, serve};
+use common::{TRANSPARENT_PNG_1X1, dist_dir, serve};
 use playwright_rs::expect;
 use playwright_rs::protocol::{Page, Playwright};
 
@@ -89,6 +89,83 @@ async fn the_api_key_gates_the_feature_persists_and_stays_out_of_the_plan() -> R
         .to_have_value(KEY)
         .await
         .context("the key field is repopulated from storage")?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        return Ok(());
+    }
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    open_catalog(&page).await?;
+    // The paste zone is gated on the key.
+    page.locator("[data-testid='ingest-api-key']")
+        .await
+        .fill(KEY, None)
+        .await
+        .context("enter the API key")?;
+
+    // Playwright can't populate the OS clipboard, so dispatch a real
+    // `ClipboardEvent` carrying an image `DataTransfer` at the paste zone — the
+    // app's actual `on:paste` → FileReader path runs against it.
+    let b64 = TRANSPARENT_PNG_1X1
+        .split_once(',')
+        .map(|(_, b)| b)
+        .unwrap_or_default();
+    let dispatched = page
+        .evaluate_value(&format!(
+            "(() => {{
+               const el = document.querySelector(\"[data-testid='ingest-paste']\");
+               if (!el) return 'no-zone';
+               const bytes = Uint8Array.from(atob('{b64}'), c => c.charCodeAt(0));
+               const file = new File([bytes], 'shot.png', {{ type: 'image/png' }});
+               const dt = new DataTransfer();
+               dt.items.add(file);
+               el.dispatchEvent(new ClipboardEvent('paste', {{ clipboardData: dt, bubbles: true }}));
+               return 'ok';
+             }})()"
+        ))
+        .await
+        .context("dispatch a synthetic paste")?;
+    assert_eq!(dispatched, "ok", "the paste zone received the event");
+
+    // The pasted image previews (read to a data URI).
+    let preview = page.locator("[data-testid='ingest-screenshot']").await;
+    expect(preview.clone())
+        .to_have_count(1)
+        .await
+        .context("the pasted screenshot previews")?;
+    let src = preview
+        .get_attribute("src")
+        .await?
+        .unwrap_or_default();
+    assert!(
+        src.starts_with("data:image/"),
+        "the preview is a data URI, got: {src}"
+    );
+
+    // Clear removes it.
+    page.locator("[data-testid='ingest-clear']")
+        .await
+        .click(None)
+        .await
+        .context("clear the screenshot")?;
+    expect(page.locator("[data-testid='ingest-screenshot']").await)
+        .to_have_count(0)
+        .await
+        .context("clearing removes the preview")?;
 
     browser.close().await.context("close browser")?;
     Ok(())

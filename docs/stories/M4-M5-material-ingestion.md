@@ -56,21 +56,30 @@ so that my estimate reflects things I can actually buy, not placeholder data.
     the existing `FileInput` file-read.
   - **B3 — vision extract call** — browser-direct Anthropic request
     (`anthropic-dangerous-direct-browser-access`) with the pasted image →
-    structured **draft** `CatalogItem` JSON. Prompt encodes the real-page
-    lessons: **prices are usually absent** (manufacturer→dealer) so never guess
-    one; a product page is a **configurator** so capture the *selected*
-    color/texture/size and list alternatives; prefer **imperial** dims → feet /
-    `depth_in`; mark **unavailable** options. Default a cheap vision model
-    (Haiku 4.5 / Sonnet 5), configurable; the user pays via their own key.
+    a structured **draft product** JSON: the shared fields (name, category,
+    price_unit, thickness→`depth_in`, tile size) plus the **full variant
+    matrix** — every color × texture × size the page shows, with **availability**
+    (greyed = unavailable). Prompt encodes the real-page lessons: **prices are
+    usually absent** (manufacturer→dealer) so never guess one; prefer
+    **imperial** dims → feet. Default a cheap vision model (Haiku 4.5 / Sonnet
+    5), configurable; the user pays via their own key.
+    - *Modeling decision (2026-07-15): **multi-select**, not one-item.* A page is
+      a configurator (color × texture × size), and the user wants to add several
+      combinations to the catalog to **compare in the viz**. So extraction
+      returns the whole matrix and curation (M4.2) lets the user tick multiple
+      combos → **one `CatalogItem` per ticked combo** (distinct id/name/`image`
+      swatch, shared base fields), each a placeable/tileable material.
 - **M4.2 — human-in-the-loop curation (nothing ingested is live automatically)**
-  - [ ] a draft item lands in a **staging** review, separate from the plan's
-        live catalog — extracting never silently changes an existing plan
-  - [ ] the user reviews each draft (screenshot, parsed metadata) and either
-        **approves** it (moves into the plan's catalog, placeable/usable like any
-        starter item, provenance stamped) or **rejects** it (discarded)
+  - [ ] the extracted draft product lands in a **staging** review, separate from
+        the plan's live catalog — extracting never silently changes a plan
+  - [ ] the user **multi-selects** which variant combos to keep (tick colors ×
+        sizes), edits shared/per-variant fields, and **approves** — each ticked
+        combo becomes its own catalog `CatalogItem` (provenance stamped),
+        placeable/tileable to compare in the viz; or **rejects** (discarded)
   - [ ] a draft that comes back incomplete (**missing price** is the norm, or
         missing dimensions) is flagged for the user to fill in during review,
-        **never silently guessed** — the estimate has to stay trustworthy
+        **never silently guessed** — the estimate has to stay trustworthy; a
+        "same price for all variants" shortcut saves re-typing a dealer quote
 - **M4.3 — catalog inspector (edit any catalog item's metadata)** ✅ *partly done*
   - [x] a catalog-browsing/editing panel (`CatalogPanel`) — the catalog-side
         counterpart to [`ObjectInspector`](E1-place-furniture.md) (which edits a
