@@ -51,18 +51,25 @@ so that my estimate reflects things I can actually buy, not placeholder data.
     - [ ] a **dev-only** `option_env!("SLP_ANTHROPIC_KEY")` seeds localStorage
           when empty, for a local `trunk serve` (gitignored `.env`); **never**
           set in the hosted/CI build, or the key ships in the public WASM.
-  - **B2 — clipboard paste** — paste a screenshot into the catalog inspector
+  - **B2 — clipboard paste** ✅ — paste a screenshot into the catalog inspector
     (Clipboard API, `csr`-gated) → a `data:` URI draft image, the analogue of
-    the existing `FileInput` file-read.
-  - **B3 — vision extract call** — browser-direct Anthropic request
-    (`anthropic-dangerous-direct-browser-access`) with the pasted image →
-    a structured **draft product** JSON: the shared fields (name, category,
-    price_unit, thickness→`depth_in`, tile size) plus the **full variant
-    matrix** — every color × texture × size the page shows, with **availability**
-    (greyed = unavailable). Prompt encodes the real-page lessons: **prices are
-    usually absent** (manufacturer→dealer) so never guess one; prefer
-    **imperial** dims → feet. Default a cheap vision model (Haiku 4.5 / Sonnet
-    5), configurable; the user pays via their own key.
+    the existing `FileInput` file-read; previewed with a Clear action.
+  - **B3 — vision extract call** ✅ — browser-direct Anthropic request
+    (`anthropic-dangerous-direct-browser-access`) with the pasted image, forcing
+    a **tool call** whose `input` is validated against a **JSON Schema** (so the
+    model returns structured data, not free-form text to parse). The schema is
+    derived from the `ExtractedProduct` Rust type via `schemars` (one source of
+    truth); its **field descriptions carry the rules** and `price_unit` is a
+    closed **enum**. Extracts the shared fields (name, category, price_unit) plus
+    the **full variant matrix** — colors, textures, and **sizes that each carry
+    their own dimensions** (`width_ft`/`depth_ft`/`thickness_in`, so a chosen
+    color × size becomes a catalog item with real tile geometry) — every option
+    with **availability** (greyed = unavailable). The
+    real-page lessons live on the schema: **prices are usually absent**
+    (manufacturer→dealer) so never guess one; prefer **imperial** dims → feet. A
+    Rust **guard pass** drops any non-positive price / absurd dimension the model
+    slips through (softer JSON-Schema constraints aren't API-enforced). Default a
+    cheap vision model (Haiku 4.5), editable; the user pays via their own key.
     - *Modeling decision (2026-07-15): **multi-select**, not one-item.* A page is
       a configurator (color × texture × size), and the user wants to add several
       combinations to the catalog to **compare in the viz**. So extraction

@@ -1150,6 +1150,32 @@ fn planner_body() -> impl IntoView {
     // Transient UI state — never persisted in the plan.
     let (screenshot, set_screenshot) = signal(String::new());
     let on_screenshot = Callback::new(move |v: String| set_screenshot.set(v));
+    // Vision extraction (B3): the (editable) model, the in-flight flag, the last
+    // error, and the extracted draft product — all transient.
+    let (model, set_model) = signal(crate::vision::DEFAULT_MODEL.to_string());
+    let on_model = Callback::new(move |v: String| set_model.set(v));
+    let extracting = RwSignal::new(false);
+    let extract_error = RwSignal::new(None::<String>);
+    let draft = RwSignal::new(None::<crate::vision::ExtractedProduct>);
+    let on_extract = Callback::new(move |()| {
+        let (shot, key, mdl) = (
+            screenshot.get_untracked(),
+            api_key_val.get_untracked(),
+            model.get_untracked(),
+        );
+        if shot.is_empty() || key.trim().is_empty() || extracting.get_untracked() {
+            return;
+        }
+        extracting.set(true);
+        extract_error.set(None);
+        leptos::task::spawn_local(async move {
+            match crate::vision::extract(&key, &mdl, &shot).await {
+                Ok(product) => draft.set(Some(product)),
+                Err(e) => extract_error.set(Some(e)),
+            }
+            extracting.set(false);
+        });
+    });
     // Apply `edit` to the catalog item currently selected in the panel.
     let edit_selected_catalog = move |edit: &dyn Fn(&mut CatalogItem)| {
         if let Some(id) = catalog_selected.get_untracked() {
@@ -1810,6 +1836,12 @@ fn planner_body() -> impl IntoView {
                             on_api_key=on_api_key
                             screenshot=screenshot
                             on_screenshot=on_screenshot
+                            model=model
+                            on_model=on_model
+                            on_extract=on_extract
+                            extracting=extracting
+                            extract_error=extract_error
+                            draft=draft
                             on_close=close_catalog
                         />
                     }

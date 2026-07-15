@@ -5,6 +5,7 @@ use leptos::prelude::*;
 use slp_core::{CatalogItem, PriceUnit};
 
 use super::CatalogPanel;
+use crate::vision::{ExtractedProduct, PriceUnitHint, SizeVariant, Variant};
 use theoria::Story;
 
 fn noop_str() -> Callback<String> {
@@ -39,6 +40,7 @@ fn sample() -> Vec<CatalogItem> {
     ]
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn stories() -> Vec<Story> {
     vec![
         Story::new("Panels/CatalogPanel/Editing an item", || {
@@ -97,6 +99,71 @@ pub fn stories() -> Vec<Story> {
                     on_depth=noop_f64()
                     on_height=noop_f64()
                     api_key=Signal::derive(|| "sk-ant-demo".to_string())
+                    on_close=noop()
+                />
+            }
+        }),
+        // An extracted draft product (a configurator's variant matrix), pending
+        // multi-select curation.
+        Story::new("Panels/CatalogPanel/Extracted draft", || {
+            let catalog = sample();
+            let draft = ExtractedProduct {
+                name: "Blu 60 Slate Slabs".to_string(),
+                category: Some("slab".to_string()),
+                price_unit: Some(PriceUnitHint::PerSquareFoot),
+                unit_price: None,
+                colors: vec![
+                    Variant {
+                        name: "Shale Grey".to_string(),
+                        available: true,
+                    },
+                    Variant {
+                        name: "Chestnut Brown".to_string(),
+                        available: true,
+                    },
+                    Variant {
+                        name: "Onyx Black".to_string(),
+                        available: false,
+                    },
+                ],
+                textures: vec![Variant {
+                    name: "Slate".to_string(),
+                    available: true,
+                }],
+                sizes: vec![
+                    SizeVariant {
+                        name: "60 MM".to_string(),
+                        available: true,
+                        width_ft: Some(1.083),
+                        depth_ft: Some(1.083),
+                        thickness_in: Some(2.375),
+                    },
+                    SizeVariant {
+                        name: "Grande".to_string(),
+                        available: true,
+                        width_ft: Some(2.71),
+                        depth_ft: Some(1.63),
+                        thickness_in: Some(2.375),
+                    },
+                ],
+                notes: Some("No price listed — add your dealer quote.".to_string()),
+            };
+            view! {
+                <CatalogPanel
+                    catalog=Signal::derive(move || catalog.clone())
+                    selected=Signal::derive(|| None::<String>)
+                    on_select=noop_str()
+                    on_name=noop_str()
+                    on_category=noop_str()
+                    on_price=noop_f64()
+                    on_price_unit=noop_pu()
+                    on_add=noop()
+                    on_width=noop_f64()
+                    on_depth=noop_f64()
+                    on_height=noop_f64()
+                    api_key=Signal::derive(|| "sk-ant-demo".to_string())
+                    screenshot=Signal::derive(|| "data:image/png;base64,iVBORw0KGgo=".to_string())
+                    draft=Signal::derive(move || Some(draft.clone()))
                     on_close=noop()
                 />
             }

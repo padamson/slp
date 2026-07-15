@@ -121,6 +121,56 @@
           },
         };
       })();
+
+      // Screenshot ingestion (B3): POST a pasted screenshot + prompt to the
+      // Anthropic Messages API with the user's key, browser-direct, and return
+      // the model's text. Nothing is stored here; the key is passed per call.
+      window.slpVision = {
+        async extract(apiKey, model, dataUri, prompt, schemaJson) {
+          const m = /^data:(.+?);base64,(.*)$/.exec(dataUri || "");
+          if (!m) throw new Error("The pasted image isn't a base64 data URI.");
+          const [, mediaType, data] = m;
+          // Force a structured tool call: the model must return `input` matching
+          // our JSON Schema, rather than free-form text we'd have to parse.
+          const resp = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-api-key": apiKey,
+              "anthropic-version": "2023-06-01",
+              "anthropic-dangerous-direct-browser-access": "true",
+            },
+            body: JSON.stringify({
+              model,
+              max_tokens: 1024,
+              tools: [{
+                name: "extract_product",
+                description: "Record the landscaping product shown in the screenshot.",
+                input_schema: JSON.parse(schemaJson),
+              }],
+              tool_choice: { type: "tool", name: "extract_product" },
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "image", source: { type: "base64", media_type: mediaType, data } },
+                  { type: "text", text: prompt },
+                ],
+              }],
+            }),
+          });
+          if (!resp.ok) {
+            let detail = "";
+            try { detail = (await resp.json()).error?.message || ""; } catch {}
+            throw new Error("Anthropic API error " + resp.status + (detail ? ": " + detail : ""));
+          }
+          const body = await resp.json();
+          const tu = (body.content || []).find(
+            (b) => b.type === "tool_use" && b.name === "extract_product"
+          );
+          if (!tu) throw new Error("The model didn't return structured product data.");
+          return JSON.stringify(tu.input);
+        },
+      };
     </script>
     <style>
       body {
@@ -623,6 +673,66 @@
         border-radius: 6px;
         background: #fff;
         cursor: pointer;
+      }
+      .ingest-extract {
+        margin-top: 6px;
+        font: inherit;
+        font-size: 12px;
+        padding: 4px 10px;
+        border: 1px solid #2b6cb0;
+        border-radius: 6px;
+        background: #2b6cb0;
+        color: #fff;
+        cursor: pointer;
+      }
+      .ingest-extract:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .ingest-error {
+        margin: 6px 0 0;
+        font-size: 11px;
+        color: #c53030;
+      }
+      .ingest-draft {
+        margin-top: 8px;
+        padding: 8px;
+        border: 1px solid #e3dccb;
+        border-radius: 6px;
+        background: #fbf9f4;
+      }
+      .ingest-draft-name {
+        margin: 0 0 2px;
+        font-size: 13px;
+      }
+      .ingest-draft-meta {
+        margin: 0 0 6px;
+        font-size: 11px;
+        color: #8a7f68;
+      }
+      .ingest-draft-group {
+        margin-top: 4px;
+      }
+      .ingest-draft-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #8a7f68;
+      }
+      .ingest-variant-list {
+        margin: 2px 0 0;
+        padding-left: 16px;
+        font-size: 11px;
+      }
+      .ingest-variant.unavailable {
+        color: #bcae90;
+        text-decoration: line-through;
+      }
+      .ingest-draft-notes {
+        margin: 6px 0 0;
+        font-size: 11px;
+        font-style: italic;
+        color: #8a7f68;
       }
       .catalog-list {
         display: flex;

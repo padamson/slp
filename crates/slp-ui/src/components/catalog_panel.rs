@@ -10,6 +10,7 @@ use leptos::prelude::*;
 use slp_core::{CatalogItem, PriceUnit};
 
 use super::{FileInput, MaterialSwatch, NumberField, SelectField, TextField, Toggle};
+use crate::vision::{ExtractedProduct, SizeVariant, Variant};
 
 /// The `price_unit` id an area material / object is costed by — the string the
 /// `SelectField` round-trips.
@@ -97,6 +98,24 @@ pub fn CatalogPanel(
     /// Set the pasted screenshot (a `data:` URI); an empty value clears it.
     #[prop(default = Callback::new(|_: String| {}))]
     on_screenshot: Callback<String>,
+    /// The vision model id used for extraction (editable).
+    #[prop(into, default = Signal::derive(|| crate::vision::DEFAULT_MODEL.to_string()))]
+    model: Signal<String>,
+    /// Set the vision model id.
+    #[prop(default = Callback::new(|_: String| {}))]
+    on_model: Callback<String>,
+    /// Run vision extraction on the pasted screenshot.
+    #[prop(default = Callback::new(|(): ()| {}))]
+    on_extract: Callback<()>,
+    /// Whether an extraction is currently in flight.
+    #[prop(into, default = Signal::derive(|| false))]
+    extracting: Signal<bool>,
+    /// The last extraction error, if any.
+    #[prop(into, default = Signal::derive(|| None::<String>))]
+    extract_error: Signal<Option<String>>,
+    /// The extracted draft product awaiting curation, if any.
+    #[prop(into, default = Signal::derive(|| None::<ExtractedProduct>))]
+    draft: Signal<Option<ExtractedProduct>>,
     /// Close the catalog panel.
     on_close: Callback<()>,
 ) -> impl IntoView {
@@ -186,6 +205,47 @@ pub fn CatalogPanel(
                                         }
                                     })
                             }}
+                            // Once a screenshot is pasted: pick a model and run
+                            // the vision extraction.
+                            {move || {
+                                (!screenshot.get().is_empty())
+                                    .then(|| {
+                                        view! {
+                                            <TextField
+                                                label="Model"
+                                                testid="ingest-model"
+                                                value=model
+                                                on_input=on_model
+                                            />
+                                            <button
+                                                class="ingest-extract"
+                                                data-testid="ingest-extract"
+                                                disabled=move || extracting.get()
+                                                on:click=move |_| on_extract.run(())
+                                            >
+                                                {move || {
+                                                    if extracting.get() {
+                                                        "Extracting…"
+                                                    } else {
+                                                        "Extract details"
+                                                    }
+                                                }}
+                                            </button>
+                                        }
+                                    })
+                            }}
+                            {move || {
+                                extract_error
+                                    .get()
+                                    .map(|e| {
+                                        view! {
+                                            <p class="ingest-error" data-testid="ingest-error">
+                                                {e}
+                                            </p>
+                                        }
+                                    })
+                            }}
+                            {move || draft.get().map(|d| draft_view(&d))}
                         }
                             .into_any()
                     }
@@ -373,6 +433,86 @@ fn read_pasted_image(ev: &leptos::ev::Event, on_image: Callback<String>) {
 
 #[cfg(not(feature = "csr"))]
 fn read_pasted_image(_ev: &leptos::ev::Event, _on_image: Callback<String>) {}
+
+/// A read-only summary of an extracted draft product: name, a metadata line
+/// (category · price-or-"no price"), and the variant lists with unavailable
+/// options dimmed. Multi-select curation into catalog items is M4.2.
+fn draft_view(d: &ExtractedProduct) -> impl IntoView + use<> {
+    let cat = d
+        .category
+        .clone()
+        .unwrap_or_else(|| "uncategorized".to_string());
+    let price = d
+        .unit_price
+        .map_or_else(|| "no price listed".to_string(), |p| format!("${p:.2}"));
+    let meta = format!("{cat} · {price}");
+    let notes = d.notes.clone();
+    view! {
+        <div class="ingest-draft" data-testid="ingest-draft">
+            <h4 class="ingest-draft-name">{d.name.clone()}</h4>
+            <p class="ingest-draft-meta">{meta}</p>
+            {variant_list("Colors", &d.colors)}
+            {variant_list("Textures", &d.textures)}
+            {size_list(&d.sizes)}
+            {notes.map(|n| view! { <p class="ingest-draft-notes">{n}</p> })}
+        </div>
+    }
+}
+
+/// One labeled variant group (Colors / Sizes / Textures) as a list, with
+/// unavailable options dimmed; nothing when the group is empty.
+fn variant_list(label: &'static str, variants: &[Variant]) -> Option<impl IntoView + use<>> {
+    (!variants.is_empty()).then(|| {
+        let items = variants
+            .iter()
+            .map(|v| {
+                let name = v.name.clone();
+                view! {
+                    <li class="ingest-variant" class:unavailable=!v.available>
+                        {name}
+                    </li>
+                }
+            })
+            .collect::<Vec<_>>();
+        view! {
+            <div class="ingest-draft-group">
+                <span class="ingest-draft-label">{label}</span>
+                <ul class="ingest-variant-list">{items}</ul>
+            </div>
+        }
+    })
+}
+
+/// The Sizes group: each size with its dimensions (`w×d ft · t in` when known),
+/// unavailable ones dimmed; nothing when there are no sizes.
+fn size_list(sizes: &[SizeVariant]) -> Option<impl IntoView + use<>> {
+    (!sizes.is_empty()).then(|| {
+        let items = sizes
+            .iter()
+            .map(|s| {
+                let dims = match (s.width_ft, s.depth_ft) {
+                    (Some(w), Some(d)) => format!(" — {w:.2}×{d:.2} ft"),
+                    _ => String::new(),
+                };
+                let thick = s
+                    .thickness_in
+                    .map_or_else(String::new, |t| format!(" · {t:.2} in"));
+                let label = format!("{}{dims}{thick}", s.name);
+                view! {
+                    <li class="ingest-variant" class:unavailable=!s.available>
+                        {label}
+                    </li>
+                }
+            })
+            .collect::<Vec<_>>();
+        view! {
+            <div class="ingest-draft-group">
+                <span class="ingest-draft-label">"Sizes"</span>
+                <ul class="ingest-variant-list">{items}</ul>
+            </div>
+        }
+    })
+}
 
 /// One catalog item as a selectable list row: its name and price, highlighted
 /// when it's the item being edited.

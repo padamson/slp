@@ -4,6 +4,7 @@ use leptos::prelude::*;
 use slp_core::{CatalogItem, PriceUnit};
 
 use super::CatalogPanel;
+use crate::vision::{ExtractedProduct, PriceUnitHint, SizeVariant, Variant};
 
 fn noop_str() -> Callback<String> {
     Callback::new(|_| {})
@@ -265,6 +266,121 @@ fn a_pasted_screenshot_previews_with_a_clear_action() {
         html.contains(r#"data-testid="ingest-clear""#),
         "a clear action is offered"
     );
+}
+
+/// Render the panel with the ingestion `screenshot`/`draft`/`extract_error`
+/// props set (a key is present so the section is enabled).
+fn panel_extract(shot: &str, draft: Option<ExtractedProduct>, error: Option<String>) -> String {
+    let shot = shot.to_string();
+    dokime::render(move || {
+        let shot = shot.clone();
+        let draft = draft.clone();
+        let error = error.clone();
+        view! {
+            <CatalogPanel
+                catalog=Signal::derive(Vec::<CatalogItem>::new)
+                selected=Signal::derive(|| None::<String>)
+                on_select=noop_str()
+                on_name=noop_str()
+                on_category=noop_str()
+                on_price=noop_f64()
+                on_price_unit=noop_pu()
+                on_add=noop()
+                on_width=noop_f64()
+                on_depth=noop_f64()
+                on_height=noop_f64()
+                api_key=Signal::derive(|| "sk-ant-abc123".to_string())
+                screenshot=Signal::derive(move || shot.clone())
+                draft=Signal::derive(move || draft.clone())
+                extract_error=Signal::derive(move || error.clone())
+                on_close=noop()
+            />
+        }
+    })
+}
+
+#[test]
+fn a_pasted_screenshot_offers_model_and_extract() {
+    let html = panel_extract("data:image/png;base64,AAA", None, None);
+    assert!(
+        html.contains(r#"data-testid="ingest-extract""#),
+        "an extract button"
+    );
+    assert!(
+        html.contains(r#"data-testid="ingest-model""#),
+        "an editable model field"
+    );
+    // No screenshot → no extract affordance.
+    let empty = panel_extract("", None, None);
+    assert_eq!(
+        dokime::count(&empty, r#"data-testid="ingest-extract""#),
+        0,
+        "no extraction without a pasted screenshot"
+    );
+}
+
+#[test]
+fn an_extracted_draft_lists_variants_with_unavailable_dimmed() {
+    let draft = ExtractedProduct {
+        name: "Blu 60 Slate Slabs".to_string(),
+        category: Some("slab".to_string()),
+        price_unit: Some(PriceUnitHint::PerSquareFoot),
+        unit_price: None,
+        colors: vec![
+            Variant {
+                name: "Shale Grey".to_string(),
+                available: true,
+            },
+            Variant {
+                name: "Onyx Black".to_string(),
+                available: false,
+            },
+        ],
+        textures: vec![],
+        sizes: vec![SizeVariant {
+            name: "60 MM".to_string(),
+            available: true,
+            width_ft: Some(1.083),
+            depth_ft: Some(1.083),
+            thickness_in: Some(2.375),
+        }],
+        notes: Some("No price listed.".to_string()),
+    };
+    let html = panel_extract("data:image/png;base64,AAA", Some(draft), None);
+    assert!(
+        html.contains(r#"data-testid="ingest-draft""#),
+        "the draft renders"
+    );
+    assert!(html.contains("Blu 60 Slate Slabs"), "the product name");
+    assert!(
+        html.contains("no price listed"),
+        "no invented price in the meta line"
+    );
+    assert!(html.contains("Shale Grey"));
+    assert!(html.contains("Onyx Black"));
+    assert!(
+        html.contains("unavailable"),
+        "an unavailable option is dimmed"
+    );
+    assert!(
+        html.contains("1.08×1.08 ft"),
+        "each size shows its dimensions"
+    );
+    assert!(html.contains("No price listed."), "the notes are surfaced");
+}
+
+#[test]
+fn an_extraction_error_is_surfaced() {
+    let html = panel_extract(
+        "data:image/png;base64,AAA",
+        None,
+        Some("Anthropic API error 401".to_string()),
+    );
+    assert!(
+        html.contains(r#"data-testid="ingest-error""#),
+        "the error is shown"
+    );
+    assert!(html.contains("401"), "with its detail");
 }
 
 #[test]

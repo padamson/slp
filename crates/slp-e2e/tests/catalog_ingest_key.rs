@@ -27,6 +27,35 @@ async fn open_catalog(page: &Page) -> Result<()> {
     Ok(())
 }
 
+/// Dispatch a real `ClipboardEvent` carrying an image `DataTransfer` at the
+/// paste zone (Playwright can't populate the OS clipboard), so the app's actual
+/// `on:paste` → FileReader path runs.
+async fn paste_screenshot(page: &Page) -> Result<()> {
+    let b64 = TRANSPARENT_PNG_1X1
+        .split_once(',')
+        .map(|(_, b)| b)
+        .unwrap_or_default();
+    let r = page
+        .evaluate_value(&format!(
+            "(() => {{
+               const el = document.querySelector(\"[data-testid='ingest-paste']\");
+               if (!el) return 'no-zone';
+               const bytes = Uint8Array.from(atob('{b64}'), c => c.charCodeAt(0));
+               const file = new File([bytes], 'shot.png', {{ type: 'image/png' }});
+               const dt = new DataTransfer();
+               dt.items.add(file);
+               el.dispatchEvent(new ClipboardEvent('paste', {{ clipboardData: dt, bubbles: true }}));
+               return 'ok';
+             }})()"
+        ))
+        .await
+        .context("dispatch a synthetic paste")?;
+    if r != "ok" {
+        anyhow::bail!("paste dispatch failed: {r}");
+    }
+    Ok(())
+}
+
 #[tokio::test]
 async fn the_api_key_gates_the_feature_persists_and_stays_out_of_the_plan() -> Result<()> {
     let dist = dist_dir();
@@ -117,29 +146,7 @@ async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
         .await
         .context("enter the API key")?;
 
-    // Playwright can't populate the OS clipboard, so dispatch a real
-    // `ClipboardEvent` carrying an image `DataTransfer` at the paste zone — the
-    // app's actual `on:paste` → FileReader path runs against it.
-    let b64 = TRANSPARENT_PNG_1X1
-        .split_once(',')
-        .map(|(_, b)| b)
-        .unwrap_or_default();
-    let dispatched = page
-        .evaluate_value(&format!(
-            "(() => {{
-               const el = document.querySelector(\"[data-testid='ingest-paste']\");
-               if (!el) return 'no-zone';
-               const bytes = Uint8Array.from(atob('{b64}'), c => c.charCodeAt(0));
-               const file = new File([bytes], 'shot.png', {{ type: 'image/png' }});
-               const dt = new DataTransfer();
-               dt.items.add(file);
-               el.dispatchEvent(new ClipboardEvent('paste', {{ clipboardData: dt, bubbles: true }}));
-               return 'ok';
-             }})()"
-        ))
-        .await
-        .context("dispatch a synthetic paste")?;
-    assert_eq!(dispatched, "ok", "the paste zone received the event");
+    paste_screenshot(&page).await?;
 
     // The pasted image previews (read to a data URI).
     let preview = page.locator("[data-testid='ingest-screenshot']").await;
@@ -166,6 +173,78 @@ async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
         .to_have_count(0)
         .await
         .context("clearing removes the preview")?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn extracting_a_screenshot_renders_the_draft_product() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        return Ok(());
+    }
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    // Stub the vision bridge with a canned extraction (no real API call, no
+    // key needed) — this overrides the shell's `window.slpVision` after load.
+    page.evaluate_value(
+        r#"(() => {
+             window.slpVision = { extract: async () => JSON.stringify({
+               name: "Blu 60 Slate Slabs", category: "slab",
+               price_unit: "per_square_foot", unit_price: null,
+               colors: [{name:"Shale Grey",available:true},{name:"Onyx Black",available:false}],
+               textures: [{name:"Slate",available:true}],
+               sizes: [{name:"60 MM",available:true,width_ft:1.083,depth_ft:1.083,thickness_in:2.375}],
+               notes: "No price listed."
+             }) };
+             return 'ok';
+           })()"#,
+    )
+    .await
+    .context("stub the vision bridge")?;
+
+    open_catalog(&page).await?;
+    page.locator("[data-testid='ingest-api-key']")
+        .await
+        .fill(KEY, None)
+        .await
+        .context("enter the API key")?;
+    paste_screenshot(&page).await?;
+
+    // The extract action appears once a screenshot is pasted.
+    let extract = page.locator("[data-testid='ingest-extract']").await;
+    expect(extract.clone())
+        .to_have_count(1)
+        .await
+        .context("the extract button appears")?;
+    extract.click(None).await.context("run extraction")?;
+
+    // The draft product renders from the canned extraction.
+    let draft = page.locator("[data-testid='ingest-draft']").await;
+    expect(draft.clone())
+        .to_have_count(1)
+        .await
+        .context("the draft appears")?;
+    expect(draft.clone())
+        .to_contain_text("Blu 60 Slate Slabs")
+        .await
+        .context("the product name")?;
+    expect(draft.clone())
+        .to_contain_text("no price listed")
+        .await
+        .context("no invented price")?;
+    expect(draft)
+        .to_contain_text("Onyx Black")
+        .await
+        .context("the variant matrix")?;
 
     browser.close().await.context("close browser")?;
     Ok(())

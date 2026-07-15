@@ -23,6 +23,7 @@ mod components;
 mod fs_access;
 mod plan_file;
 mod style;
+mod vision;
 
 pub use components::{Grid, Planner, ScaleBar, Transform, Yard, YardControls};
 
