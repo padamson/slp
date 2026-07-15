@@ -25,6 +25,7 @@ use super::{
     Modifiers, NumberField, ObjectInspector, ObjectPalette, Toggle, ToolButton, ToolGroup, Yard,
     YardControls,
 };
+use crate::api_key;
 use crate::fs_access;
 
 /// Pixels per foot in the SVG user space.
@@ -1137,6 +1138,14 @@ fn planner_body() -> impl IntoView {
     // object placed from it, live.
     let select_catalog_item = Callback::new(move |id: String| catalog_selected.set(Some(id)));
     let close_catalog = Callback::new(move |()| catalog_open.set(false));
+    // Screenshot-ingestion API key: browser/app config in localStorage (never
+    // the plan, so a shared `.slp.json` can't leak the secret), mirrored in a
+    // signal so the key field and the feature gate update live.
+    let (api_key_val, set_api_key_val) = signal(api_key::api_key().unwrap_or_default());
+    let on_api_key = Callback::new(move |v: String| {
+        api_key::set_api_key(&v);
+        set_api_key_val.set(v);
+    });
     // Apply `edit` to the catalog item currently selected in the panel.
     let edit_selected_catalog = move |edit: &dyn Fn(&mut CatalogItem)| {
         if let Some(id) = catalog_selected.get_untracked() {
@@ -1793,6 +1802,8 @@ fn planner_body() -> impl IntoView {
                             on_width=set_catalog_width
                             on_depth=set_catalog_depth
                             on_height=set_catalog_height
+                            api_key=api_key_val
+                            on_api_key=on_api_key
                             on_close=close_catalog
                         />
                     }

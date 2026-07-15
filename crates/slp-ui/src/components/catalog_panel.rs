@@ -82,6 +82,14 @@ pub fn CatalogPanel(
     on_depth: Callback<f64>,
     /// Set the selected item's height (ft).
     on_height: Callback<f64>,
+    /// The current Anthropic API key for screenshot ingestion; empty when
+    /// unset. App/browser config only — never persisted in the plan.
+    #[prop(into, default = Signal::derive(String::new))]
+    api_key: Signal<String>,
+    /// Persist the API key (an empty value clears it). Defaults to a no-op so
+    /// callers that don't wire ingestion still compile.
+    #[prop(default = Callback::new(|_: String| {}))]
+    on_api_key: Callback<String>,
     /// Close the catalog panel.
     on_close: Callback<()>,
 ) -> impl IntoView {
@@ -106,6 +114,43 @@ pub fn CatalogPanel(
                     </button>
                 </div>
             </header>
+            // Screenshot ingestion (Phase B): the API key that gates the
+            // vision "extract from screenshot" flow. Stored as app config, not
+            // in the plan (see `api_key` module).
+            <section class="ingest-section" data-testid="ingest-section">
+                <h3 class="ingest-title">"Screenshot ingestion"</h3>
+                <TextField
+                    label="Anthropic API key"
+                    testid="ingest-api-key"
+                    input_type="password"
+                    value=api_key
+                    placeholder="sk-ant-…"
+                    on_input=on_api_key
+                />
+                {move || {
+                    if api_key.get().trim().is_empty() {
+                        view! {
+                            <p
+                                class="ingest-status ingest-status--off"
+                                data-testid="ingest-status"
+                            >
+                                "Add your Anthropic API key to enable screenshot ingestion."
+                            </p>
+                        }
+                            .into_any()
+                    } else {
+                        view! {
+                            <p
+                                class="ingest-status ingest-status--on"
+                                data-testid="ingest-status"
+                            >
+                                "Screenshot ingestion enabled."
+                            </p>
+                        }
+                            .into_any()
+                    }
+                }}
+            </section>
             <div class="catalog-list">
                 {move || {
                     let sel = selected.get();

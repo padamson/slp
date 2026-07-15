@@ -18,6 +18,7 @@
     clippy::must_use_candidate
 )]
 
+mod api_key;
 mod components;
 mod fs_access;
 mod plan_file;

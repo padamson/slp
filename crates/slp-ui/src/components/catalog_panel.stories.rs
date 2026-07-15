@@ -79,5 +79,27 @@ pub fn stories() -> Vec<Story> {
                 />
             }
         }),
+        // Screenshot ingestion enabled: a key is present, so the gate reads
+        // "enabled" (vs the default gated-off state the stories above show).
+        Story::new("Panels/CatalogPanel/Ingestion enabled", || {
+            let catalog = sample();
+            view! {
+                <CatalogPanel
+                    catalog=Signal::derive(move || catalog.clone())
+                    selected=Signal::derive(|| None::<String>)
+                    on_select=noop_str()
+                    on_name=noop_str()
+                    on_category=noop_str()
+                    on_price=noop_f64()
+                    on_price_unit=noop_pu()
+                    on_add=noop()
+                    on_width=noop_f64()
+                    on_depth=noop_f64()
+                    on_height=noop_f64()
+                    api_key=Signal::derive(|| "sk-ant-demo".to_string())
+                    on_close=noop()
+                />
+            }
+        }),
     ]
 }

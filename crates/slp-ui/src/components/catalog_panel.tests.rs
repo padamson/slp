@@ -171,6 +171,73 @@ fn the_editor_shows_an_image_field_and_previews_a_set_image() {
     assert!(with_img.contains(src), "the preview points at the image");
 }
 
+fn panel_key(catalog: Vec<CatalogItem>, selected: Option<String>, key: &str) -> String {
+    let key = key.to_string();
+    dokime::render(move || {
+        let catalog = catalog.clone();
+        let selected = selected.clone();
+        let key = key.clone();
+        view! {
+            <CatalogPanel
+                catalog=Signal::derive(move || catalog.clone())
+                selected=Signal::derive(move || selected.clone())
+                on_select=noop_str()
+                on_name=noop_str()
+                on_category=noop_str()
+                on_price=noop_f64()
+                on_price_unit=noop_pu()
+                on_add=noop()
+                on_width=noop_f64()
+                on_depth=noop_f64()
+                on_height=noop_f64()
+                api_key=Signal::derive(move || key.clone())
+                on_close=noop()
+            />
+        }
+    })
+}
+
+#[test]
+fn the_ingestion_section_gates_on_the_api_key() {
+    // No key → the section + a masked key field are shown, gated off.
+    let off = panel(vec![item("chair", "Lounge chair", 199.0)], None);
+    assert!(
+        off.contains(r#"data-testid="ingest-section""#),
+        "the screenshot-ingestion section renders"
+    );
+    assert!(
+        off.contains(r#"data-testid="ingest-api-key""#),
+        "the API-key field renders"
+    );
+    assert!(
+        off.contains(r#"type="password""#),
+        "the key field is masked"
+    );
+    assert!(
+        off.contains("Add your Anthropic API key"),
+        "the gated-off note prompts for a key"
+    );
+    assert!(
+        !off.contains("Screenshot ingestion enabled"),
+        "not enabled without a key"
+    );
+
+    // With a key → the gate flips to enabled.
+    let on = panel_key(
+        vec![item("chair", "Lounge chair", 199.0)],
+        None,
+        "sk-ant-abc123",
+    );
+    assert!(
+        on.contains("Screenshot ingestion enabled"),
+        "enabled once a key is present"
+    );
+    assert!(
+        !on.contains("Add your Anthropic API key"),
+        "the prompt is gone once a key is present"
+    );
+}
+
 #[test]
 fn has_add_and_close_buttons() {
     let html = panel(vec![item("chair", "Lounge chair", 199.0)], None);

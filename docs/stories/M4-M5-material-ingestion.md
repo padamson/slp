@@ -30,23 +30,47 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         test (`plan_file.rs`) proves an ingested item's provenance persists
         through save→load and that an item without it omits the keys from the
         file.
-- **M4.1 — `slp-ingest`: per-source adapters (headless)**
-  - [ ] a new crate, one adapter per manufacturer/retailer site: given a product
-        URL, pull name/category/dimensions/price/image-ref
-  - [ ] each source's `robots.txt`/ToS is respected before fetching; a source
-        that disallows it is refused, not worked around
-  - [ ] the fetched image is cached to gitignored `materials/cache/`, never
-        committed or redistributed; metadata (+ provenance: `source_url`,
-        `fetched_at`, `checksum`) is written to the committed
-        `materials/manifest.toml`
-- **M4.2 — human-in-the-loop review (nothing ingested is live automatically)**
-  - [ ] an ingested item lands in a **staging** list, separate from the plan's
-        live catalog — pulling it in never silently changes an existing plan
-  - [ ] the user reviews each staged item (photo, parsed metadata) and either
-        **approves** it (moves into the plan's catalog, placeable like any
-        starter item) or **rejects** it (discarded, cache entry cleaned up)
-  - [ ] a parse that comes back incomplete (missing price/dimensions) is
-        flagged for the user to fill in during review, not silently guessed
+- **M4.1 — screenshot ingestion (vision extraction, in the browser app)**
+  - *Design pivot (2026-07-14):* the original plan was a headless `slp-ingest`
+    crate with per-site HTML adapters. Reality killed it: the target sites are
+    Cloudflare-protected and **block headless automation**
+    ([[techo-bloc-cloudflare-blocks-scraping]] — the `/all-products` listing
+    loaded once, but every leaf product page returned Cloudflare's "you have
+    been blocked"). So acquisition moves to **the user's own browser**: they
+    screenshot a product page (⌘⇧4 → paste) and a **vision model reads the
+    image** into a draft. This is **site-agnostic** — one extractor for every
+    site — so it also deletes the per-site adapter + synthetic-fixture +
+    weekly-contract-test machinery entirely. Extraction lives in `slp-ui`
+    (browser), not a headless crate.
+  - **B1 — API-key config + gating** ✅ *(in progress)*
+    - [ ] the vision feature gates on a user-supplied Anthropic API key, stored
+          in **localStorage** as app config (`slp.anthropicKey`) — deliberately
+          **not** in the `Plan`/`.slp.json`, so a shared plan file never leaks a
+          billable secret. No key → the extract affordance is disabled with an
+          "add your key" note (mirrors the Save-As-gates-on-FSA pattern).
+    - [ ] a **dev-only** `option_env!("SLP_ANTHROPIC_KEY")` seeds localStorage
+          when empty, for a local `trunk serve` (gitignored `.env`); **never**
+          set in the hosted/CI build, or the key ships in the public WASM.
+  - **B2 — clipboard paste** — paste a screenshot into the catalog inspector
+    (Clipboard API, `csr`-gated) → a `data:` URI draft image, the analogue of
+    the existing `FileInput` file-read.
+  - **B3 — vision extract call** — browser-direct Anthropic request
+    (`anthropic-dangerous-direct-browser-access`) with the pasted image →
+    structured **draft** `CatalogItem` JSON. Prompt encodes the real-page
+    lessons: **prices are usually absent** (manufacturer→dealer) so never guess
+    one; a product page is a **configurator** so capture the *selected*
+    color/texture/size and list alternatives; prefer **imperial** dims → feet /
+    `depth_in`; mark **unavailable** options. Default a cheap vision model
+    (Haiku 4.5 / Sonnet 5), configurable; the user pays via their own key.
+- **M4.2 — human-in-the-loop curation (nothing ingested is live automatically)**
+  - [ ] a draft item lands in a **staging** review, separate from the plan's
+        live catalog — extracting never silently changes an existing plan
+  - [ ] the user reviews each draft (screenshot, parsed metadata) and either
+        **approves** it (moves into the plan's catalog, placeable/usable like any
+        starter item, provenance stamped) or **rejects** it (discarded)
+  - [ ] a draft that comes back incomplete (**missing price** is the norm, or
+        missing dimensions) is flagged for the user to fill in during review,
+        **never silently guessed** — the estimate has to stay trustworthy
 - **M4.3 — catalog inspector (edit any catalog item's metadata)** ✅ *partly done*
   - [x] a catalog-browsing/editing panel (`CatalogPanel`) — the catalog-side
         counterpart to [`ObjectInspector`](E1-place-furniture.md) (which edits a

@@ -14,13 +14,17 @@ pub fn TextField(
     /// Placeholder shown when the field is empty.
     #[prop(default = "", into)]
     placeholder: &'static str,
+    /// The HTML input type — `"text"` by default, `"password"` to mask a secret
+    /// (e.g. an API key) so it isn't shown on screen.
+    #[prop(default = "text")]
+    input_type: &'static str,
 ) -> impl IntoView {
     view! {
         <label class="text-field">
             {label}
             " "
             <input
-                type="text"
+                type=input_type
                 data-testid=testid
                 placeholder=placeholder
                 // `value` renders the current text server-side; `prop:value`
