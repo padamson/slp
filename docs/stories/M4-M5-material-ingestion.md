@@ -61,18 +61,27 @@ so that my estimate reflects things I can actually buy, not placeholder data.
     derived from the `ExtractedProduct` Rust type via `schemars` (one source of
     truth); its **field descriptions carry the rules** and `price_unit` is a
     closed **enum**. Extracts the shared fields (name, category, price_unit) plus
-    the **full variant matrix** — colors, textures, and **sizes as physical
-    pieces** (each `width_ft`×`depth_ft`×`thickness_in`, so a chosen color × size
-    becomes a catalog item with real tile geometry). The schema/prompt teach the
-    model that a paver "size" is a piece to lay, so it **expands multi-piece
-    format bundles** (a "SIZES INCLUDED: A/B/C" block → three pieces) and treats
-    a millimetre label like "60 MM" as a *thickness*, not a size. Every option
-    carries **availability** (greyed = unavailable). The
-    real-page lessons live on the schema: **prices are usually absent**
-    (manufacturer→dealer) so never guess one; prefer **imperial** dims → feet. A
-    Rust **guard pass** drops any non-positive price / absurd dimension the model
-    slips through (softer JSON-Schema constraints aren't API-enforced). Default a
-    cheap vision model (Haiku 4.5), editable; the user pays via their own key.
+    the **full variant matrix** — colors, textures, and **sizes as purchasable
+    formats** (60 MM / 6×13 / Grande), each carrying the installed pattern's
+    tile `width_ft`×`depth_ft`×`thickness_in`, so a chosen color × format becomes
+    a catalog item with real tile geometry. A format is a *system* laid as a
+    pattern, so it stays ONE item (you tile the color swatch at the pattern
+    repeat) and its included pieces (A/B/C) are recorded in `includes` as
+    metadata, not split out. Every option carries **availability** (greyed =
+    unavailable). The real-page lessons live on the schema: **prices are usually
+    absent** (manufacturer→dealer) so never guess one; prefer **imperial** dims →
+    feet. A Rust **guard pass** drops any non-positive price / absurd dimension
+    the model slips through (softer JSON-Schema constraints aren't API-enforced).
+    Default a cheap vision model (Haiku 4.5), editable; the user pays via their
+    own key.
+  - **B4 — per-color swatch images** ✅ — the extractor also returns a **bounding
+    box** per color swatch (`Variant.bbox`, normalized fractions), and the app
+    **crops each swatch out of the pasted screenshot** client-side (a `<canvas>`
+    via `window.slpVision.crop`) into a per-color `data:` URI. The curation step
+    shows the cropped thumbnails, and each approved color × format item carries
+    its swatch as `image` — so the drawn area tiles with the real paver look in
+    the viz. Best-effort (vision boxes are approximate; the catalog editor lets
+    you replace an image).
     - *Modeling decision (2026-07-15): **multi-select**, not one-item.* A page is
       a configurator (color × texture × size), and the user wants to add several
       combinations to the catalog to **compare in the viz**. So extraction

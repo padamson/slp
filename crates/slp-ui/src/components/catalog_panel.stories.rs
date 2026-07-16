@@ -116,22 +116,26 @@ pub fn stories() -> Vec<Story> {
                     Variant {
                         name: "Shale Grey".to_string(),
                         available: true,
+                        bbox: None,
                         swatch: None,
                     },
                     Variant {
                         name: "Chestnut Brown".to_string(),
                         available: true,
+                        bbox: None,
                         swatch: None,
                     },
                     Variant {
                         name: "Onyx Black".to_string(),
                         available: false,
+                        bbox: None,
                         swatch: None,
                     },
                 ],
                 textures: vec![Variant {
                     name: "Slate".to_string(),
                     available: true,
+                    bbox: None,
                     swatch: None,
                 }],
                 sizes: vec![

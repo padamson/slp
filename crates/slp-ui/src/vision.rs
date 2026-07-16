@@ -48,6 +48,19 @@ impl PriceUnitHint {
     }
 }
 
+/// A bounding box within the screenshot, as fractions of its size (each 0–1).
+#[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize, JsonSchema)]
+pub struct BBox {
+    /// Left edge, as a fraction of the image width (0 = left, 1 = right).
+    pub x: f64,
+    /// Top edge, as a fraction of the image height (0 = top, 1 = bottom).
+    pub y: f64,
+    /// Width, as a fraction of the image width.
+    pub width: f64,
+    /// Height, as a fraction of the image height.
+    pub height: f64,
+}
+
 /// One selectable option on a product configurator (a color or texture).
 #[derive(Debug, Clone, PartialEq, serde::Deserialize, JsonSchema)]
 pub struct Variant {
@@ -58,9 +71,14 @@ pub struct Variant {
     #[serde(default = "yes")]
     #[schemars(default = "yes")]
     pub available: bool,
+    /// The bounding box of THIS option's swatch thumbnail within the screenshot,
+    /// so its image can be cropped out. Give the tightest box around just the
+    /// swatch tile (exclude the text label). Null if not locatable.
+    #[serde(default)]
+    pub bbox: Option<BBox>,
     /// The option's swatch image as a `data:` URI, cropped from the screenshot
-    /// (B4). Populated client-side, never by the model — so it's skipped from
-    /// the tool schema.
+    /// at `bbox`. Populated client-side, never by the model — so it's skipped
+    /// from the tool schema.
     #[serde(default, skip)]
     #[schemars(skip)]
     pub swatch: Option<String>,
@@ -308,7 +326,14 @@ pub async fn extract(
         &tool_schema(),
     )
     .await?;
-    parse_extraction(&json).map(sanitize)
+    let mut product = parse_extraction(&json).map(sanitize)?;
+    // Best-effort: crop each color's swatch out of the screenshot for the viz.
+    for color in &mut product.colors {
+        if let Some(bbox) = color.bbox {
+            color.swatch = imp::crop(screenshot, bbox).await;
+        }
+    }
+    Ok(product)
 }
 
 #[cfg(feature = "csr")]
@@ -363,6 +388,27 @@ mod imp {
                 .unwrap_or_else(|| "Screenshot extraction failed.".to_string())),
         }
     }
+
+    /// Crop `bbox` out of `screenshot` via `window.slpVision.crop`, returning the
+    /// cropped region as a `data:` URI (or `None` on any failure).
+    pub async fn crop(screenshot: &str, bbox: super::BBox) -> Option<String> {
+        let v = slpvision()?;
+        let f = js_sys::Reflect::get(&v, &JsValue::from_str("crop"))
+            .ok()
+            .and_then(|f| f.dyn_into::<js_sys::Function>().ok())?;
+        let args = js_sys::Array::of5(
+            &JsValue::from_str(screenshot),
+            &JsValue::from_f64(bbox.x),
+            &JsValue::from_f64(bbox.y),
+            &JsValue::from_f64(bbox.width),
+            &JsValue::from_f64(bbox.height),
+        );
+        let promise: js_sys::Promise = js_sys::Reflect::apply(&f, &v, &args)
+            .ok()?
+            .dyn_into()
+            .ok()?;
+        JsFuture::from(promise).await.ok()?.as_string()
+    }
 }
 
 #[cfg(not(feature = "csr"))]
@@ -376,6 +422,10 @@ mod imp {
     ) -> Result<String, String> {
         Err("Screenshot extraction is only available in the browser.".to_string())
     }
+
+    pub async fn crop(_screenshot: &str, _bbox: super::BBox) -> Option<String> {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -388,7 +438,8 @@ mod tests {
         "price_unit": "per_square_foot",
         "unit_price": null,
         "colors": [
-            {"name": "Shale Grey", "available": true},
+            {"name": "Shale Grey", "available": true,
+             "bbox": {"x": 0.1, "y": 0.2, "width": 0.12, "height": 0.12}},
             {"name": "Onyx Black", "available": false}
         ],
         "textures": [{"name": "Slate", "available": true}],
@@ -410,6 +461,8 @@ mod tests {
         assert_eq!(p.colors.len(), 2);
         assert!(p.colors[0].available, "Shale Grey available");
         assert!(!p.colors[1].available, "Onyx Black unavailable");
+        let bbox = p.colors[0].bbox.expect("a color carries its swatch bbox");
+        assert!((bbox.x - 0.1).abs() < 1e-9 && (bbox.width - 0.12).abs() < 1e-9);
         // A size carries its dimensions; a size with no `available` field
         // defaults to available.
         assert!(p.sizes[0].available, "formats default to available");

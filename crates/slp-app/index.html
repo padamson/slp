@@ -170,6 +170,30 @@
           if (!tu) throw new Error("The model didn't return structured product data.");
           return JSON.stringify(tu.input);
         },
+        // Crop a fractional bounding box out of a data-URI image, returning the
+        // region as a PNG data-URI (used for per-color swatches). Null on error.
+        async crop(dataUri, x, y, w, h) {
+          try {
+            const img = new Image();
+            await new Promise((res, rej) => {
+              img.onload = res;
+              img.onerror = rej;
+              img.src = dataUri;
+            });
+            const sw = Math.round(w * img.naturalWidth);
+            const sh = Math.round(h * img.naturalHeight);
+            if (sw < 1 || sh < 1) return null;
+            const canvas = document.createElement("canvas");
+            canvas.width = sw;
+            canvas.height = sh;
+            canvas.getContext("2d").drawImage(
+              img, x * img.naturalWidth, y * img.naturalHeight, sw, sh, 0, 0, sw, sh
+            );
+            return canvas.toDataURL("image/png");
+          } catch {
+            return null;
+          }
+        },
       };
     </script>
     <style>
@@ -753,6 +777,13 @@
       .ingest-includes {
         color: #8a7f68;
         font-size: 10px;
+      }
+      .ingest-swatch {
+        width: 20px;
+        height: 20px;
+        object-fit: cover;
+        border: 1px solid #e3dccb;
+        border-radius: 3px;
       }
       .ingest-checks {
         display: flex;

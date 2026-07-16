@@ -36,10 +36,10 @@ pub fn IngestDraft(
     // Rendering metadata (owned, so the reactive closures don't borrow `product`).
     let name = product.name.clone();
     let notes = product.notes.clone();
-    let colors: Vec<(String, bool)> = product
+    let colors: Vec<(String, bool, Option<String>)> = product
         .colors
         .iter()
-        .map(|c| (c.name.clone(), c.available))
+        .map(|c| (c.name.clone(), c.available, c.swatch.clone()))
         .collect();
     let sizes: Vec<SizeRow> = product
         .sizes
@@ -64,7 +64,7 @@ pub fn IngestDraft(
     );
 
     // Editable state, seeded from the draft; available options start ticked.
-    let color_checks = RwSignal::new(colors.iter().map(|(_, a)| *a).collect::<Vec<bool>>());
+    let color_checks = RwSignal::new(colors.iter().map(|(_, a, _)| *a).collect::<Vec<bool>>());
     let size_checks = RwSignal::new(
         sizes
             .iter()
@@ -116,7 +116,7 @@ pub fn IngestDraft(
     let color_rows = colors
         .into_iter()
         .enumerate()
-        .map(|(i, (label, avail))| {
+        .map(|(i, (label, avail, swatch))| {
             view! {
                 <label class="ingest-check" class:unavailable=!avail>
                     <input
@@ -133,6 +133,17 @@ pub fn IngestDraft(
                                 });
                         }
                     />
+                    {swatch
+                        .map(|s| {
+                            view! {
+                                <img
+                                    class="ingest-swatch"
+                                    data-testid=format!("ingest-color-swatch-{i}")
+                                    src=s
+                                    alt=""
+                                />
+                            }
+                        })}
                     {label}
                 </label>
             }

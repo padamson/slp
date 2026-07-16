@@ -197,14 +197,21 @@ async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()>
     // key needed) — this overrides the shell's `window.slpVision` after load.
     page.evaluate_value(
         r#"(() => {
-             window.slpVision = { extract: async () => JSON.stringify({
-               name: "Blu 60 Slate Slabs", category: "slab",
-               price_unit: "per_square_foot", unit_price: null,
-               colors: [{name:"Shale Grey",available:true},{name:"Onyx Black",available:false}],
-               textures: [{name:"Slate",available:true}],
-               sizes: [{name:"60 MM",available:true,width_ft:1.083,depth_ft:1.083,thickness_in:2.375}],
-               notes: "No price listed."
-             }) };
+             window.slpVision = {
+               extract: async () => JSON.stringify({
+                 name: "Blu 60 Slate Slabs", category: "slab",
+                 price_unit: "per_square_foot", unit_price: null,
+                 colors: [
+                   {name:"Shale Grey",available:true,bbox:{x:0.1,y:0.2,width:0.1,height:0.1}},
+                   {name:"Onyx Black",available:false}
+                 ],
+                 textures: [{name:"Slate",available:true}],
+                 sizes: [{name:"60 MM",available:true,width_ft:1.083,depth_ft:1.083,thickness_in:2.375}],
+                 notes: "No price listed."
+               }),
+               // Stub the swatch crop (real crop needs a canvas we don't exercise here).
+               crop: async () => "data:image/png;base64,CROPPED",
+             };
              return 'ok';
            })()"#,
     )
@@ -241,6 +248,11 @@ async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()>
         .to_contain_text("Onyx Black")
         .await
         .context("the variant matrix (with the unavailable color)")?;
+    // The color's swatch was cropped from the screenshot and previews.
+    expect(page.locator("[data-testid='ingest-color-swatch-0']").await)
+        .to_have_count(1)
+        .await
+        .context("the cropped swatch thumbnail shows")?;
 
     // Approve curation: the available color × size combo (Shale Grey × 60 MM)
     // becomes a catalog item; the draft closes.

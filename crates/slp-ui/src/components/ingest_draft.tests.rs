@@ -10,6 +10,7 @@ fn color(name: &str, available: bool) -> Variant {
     Variant {
         name: name.to_string(),
         available,
+        bbox: None,
         swatch: None,
     }
 }
@@ -89,6 +90,24 @@ fn offers_a_checkbox_per_color_and_size_with_dimensions() {
     assert!(
         html.contains("incl. A: 6½×13"),
         "the included pieces are surfaced: {html}"
+    );
+}
+
+#[test]
+fn a_color_with_a_cropped_swatch_shows_a_thumbnail() {
+    let mut p = sample();
+    p.colors[0].swatch = Some("data:image/png;base64,SWATCH".to_string());
+    let html = render(p);
+    assert!(
+        html.contains(r#"data-testid="ingest-color-swatch-0""#),
+        "the cropped swatch shows as a thumbnail"
+    );
+    assert!(html.contains("data:image/png;base64,SWATCH"));
+    // A color without a swatch has no thumbnail.
+    assert_eq!(
+        dokime::count(&render(sample()), r#"data-testid="ingest-color-swatch-0""#),
+        0,
+        "no thumbnail before cropping"
     );
 }
 

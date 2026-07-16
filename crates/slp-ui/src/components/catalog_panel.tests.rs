@@ -323,11 +323,13 @@ fn an_extracted_draft_renders_the_curation_step() {
             Variant {
                 name: "Shale Grey".to_string(),
                 available: true,
+                bbox: None,
                 swatch: None,
             },
             Variant {
                 name: "Onyx Black".to_string(),
                 available: false,
+                bbox: None,
                 swatch: None,
             },
         ],
