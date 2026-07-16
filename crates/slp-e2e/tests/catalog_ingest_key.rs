@@ -179,7 +179,7 @@ async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
 }
 
 #[tokio::test]
-async fn extracting_a_screenshot_renders_the_draft_product() -> Result<()> {
+async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
         eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
@@ -238,13 +238,29 @@ async fn extracting_a_screenshot_renders_the_draft_product() -> Result<()> {
         .await
         .context("the product name")?;
     expect(draft.clone())
-        .to_contain_text("no price listed")
-        .await
-        .context("no invented price")?;
-    expect(draft)
         .to_contain_text("Onyx Black")
         .await
-        .context("the variant matrix")?;
+        .context("the variant matrix (with the unavailable color)")?;
+
+    // Approve curation: the available color × size combo (Shale Grey × 60 MM)
+    // becomes a catalog item; the draft closes.
+    let approve = page.locator("[data-testid='ingest-approve']").await;
+    expect(approve.clone())
+        .to_have_text("Add 1 to catalog")
+        .await
+        .context("the count reflects the ticked combos")?;
+    approve.click(None).await.context("approve")?;
+    expect(
+        page.locator("[data-testid='catalog-row-blu-60-slate-slabs-shale-grey-60-mm']")
+            .await,
+    )
+    .to_have_count(1)
+    .await
+    .context("the curated item is in the catalog")?;
+    expect(page.locator("[data-testid='ingest-draft']").await)
+        .to_have_count(0)
+        .await
+        .context("the draft closes after approving")?;
 
     browser.close().await.context("close browser")?;
     Ok(())

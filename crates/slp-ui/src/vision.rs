@@ -12,6 +12,7 @@
 //! suggestion, reviewed and corrected before it becomes catalog items.
 
 use schemars::JsonSchema;
+use slp_core::{CatalogItem, PriceUnit};
 
 /// The default vision model — cheap and ample for a few fields off a product
 /// screenshot. Configurable in the UI.
@@ -34,47 +35,73 @@ pub enum PriceUnitHint {
     PerLinearFoot,
 }
 
-/// One selectable option on a product configurator (a color, size, or texture).
+impl PriceUnitHint {
+    /// The catalog's [`PriceUnit`] this hint maps to.
+    #[must_use]
+    pub fn to_price_unit(self) -> PriceUnit {
+        match self {
+            Self::PerItem => PriceUnit::per_item,
+            Self::PerSquareFoot => PriceUnit::per_square_foot,
+            Self::PerCubicYard => PriceUnit::per_cubic_yard,
+            Self::PerLinearFoot => PriceUnit::per_linear_foot,
+        }
+    }
+}
+
+/// One selectable option on a product configurator (a color or texture).
 #[derive(Debug, Clone, PartialEq, serde::Deserialize, JsonSchema)]
 pub struct Variant {
-    /// The option's label exactly as shown (e.g. "Shale Grey", "60 MM").
+    /// The option's label exactly as shown (e.g. "Shale Grey", "Slate").
     pub name: String,
     /// Whether the option is selectable for the current configuration. Set
     /// `false` for options shown greyed-out / disabled on the page.
     #[serde(default = "yes")]
     #[schemars(default = "yes")]
     pub available: bool,
+    /// The option's swatch image as a `data:` URI, cropped from the screenshot
+    /// (B4). Populated client-side, never by the model — so it's skipped from
+    /// the tool schema.
+    #[serde(default, skip)]
+    #[schemars(skip)]
+    pub swatch: Option<String>,
 }
 
 fn yes() -> bool {
     true
 }
 
-/// One size/format option, with its real dimensions — the geometry a catalog
-/// item needs to tile and cost. A "size" is often a *bundle* of pieces; then
-/// these are the most representative single unit.
+/// One purchasable **format** of a paver/slab (e.g. "60 MM", "6 × 13",
+/// "Grande") — the granularity the user buys and lays as a unit. A format is
+/// often a *system* of several piece sizes laid in a pattern; keep it as ONE
+/// format (do not split it into pieces) and record the included pieces in
+/// `includes`. Its tile dimensions are the real-world repeat of the installed
+/// pattern, used to tile the color swatch photo to scale.
 #[derive(Debug, Clone, PartialEq, serde::Deserialize, JsonSchema)]
 pub struct SizeVariant {
-    /// The size/format label exactly as shown (e.g. "60 MM", "6 × 13", "Grande").
+    /// The format label exactly as shown (e.g. "60 MM", "6 × 13", "Grande").
     pub name: String,
-    /// Whether the size is selectable for the current configuration (`false` for
-    /// greyed-out / disabled options).
+    /// Whether the format is selectable for the current configuration (`false`
+    /// for greyed-out / disabled options).
     #[serde(default = "yes")]
     #[schemars(default = "yes")]
     pub available: bool,
-    /// A representative unit's east–west span in FEET (convert from inches:
-    /// inches / 12). For a multi-piece size, the most representative single
-    /// piece. Null if not shown.
+    /// The installed pattern's repeat WIDTH in FEET (inches / 12) — for a
+    /// single-piece format, the piece width; for a multi-piece format, a
+    /// representative module width. Null if unclear.
     #[serde(default)]
     pub width_ft: Option<f64>,
-    /// A representative unit's north–south span in FEET (inches / 12). Null if
-    /// not shown.
+    /// The installed pattern's repeat DEPTH/length in FEET (inches / 12). Null
+    /// if unclear.
     #[serde(default)]
     pub depth_ft: Option<f64>,
-    /// The unit's thickness in inches — the installed depth (convert from
-    /// millimetres if that's all that's shown: mm / 25.4). Null if not shown.
+    /// The unit thickness in inches (a "60 MM" label means 60 mm ≈ 2.36 in).
     #[serde(default)]
     pub thickness_in: Option<f64>,
+    /// For a multi-piece format, the included piece sizes exactly as shown —
+    /// e.g. "A: 6½×13, B: 13×13, C: 19½×13 in" — metadata for a future coverage
+    /// calc. Null for a single-piece format.
+    #[serde(default)]
+    pub includes: Option<String>,
 }
 
 /// A landscaping product read from a screenshot: the shared material fields plus
@@ -105,8 +132,11 @@ pub struct ExtractedProduct {
     /// Every texture/finish option shown.
     #[serde(default)]
     pub textures: Vec<Variant>,
-    /// Every size/format option shown, each with its dimensions. If the product
-    /// has a single size, return one entry carrying its dimensions.
+    /// Every purchasable size **format** shown (e.g. "60 MM", "6 × 13",
+    /// "Grande"). Keep each as ONE format — do NOT split a multi-piece format
+    /// (a "SIZES INCLUDED: A …, B …, C …" block) into separate pieces; record
+    /// those pieces in the format's `includes` instead. If only one format is
+    /// shown, return that one.
     #[serde(default)]
     pub sizes: Vec<SizeVariant>,
     /// Any caveat worth surfacing to the user (e.g. "no price listed on page").
@@ -135,14 +165,102 @@ fn sanitize(mut p: ExtractedProduct) -> ExtractedProduct {
     p
 }
 
+/// Turn a curated draft into catalog items — the cross product of the selected
+/// colors and sizes (each `(color, size)` becomes one [`CatalogItem`]), sharing
+/// the edited `category`/`unit_price`/`price_unit`. A size carries the tile
+/// geometry; a color carries the swatch image (attached in B4). An empty
+/// color/size selection contributes a single unnamed axis, so a product with no
+/// colors or no sizes still yields items.
+#[must_use]
+pub fn to_catalog_items(
+    product: &ExtractedProduct,
+    colors: &[usize],
+    sizes: &[usize],
+    category: &str,
+    unit_price: Option<f64>,
+    price_unit: &PriceUnit,
+) -> Vec<CatalogItem> {
+    let color_opts: Vec<Option<&Variant>> = if colors.is_empty() {
+        vec![None]
+    } else {
+        colors
+            .iter()
+            .filter_map(|&i| product.colors.get(i))
+            .map(Some)
+            .collect()
+    };
+    let size_opts: Vec<Option<&SizeVariant>> = if sizes.is_empty() {
+        vec![None]
+    } else {
+        sizes
+            .iter()
+            .filter_map(|&i| product.sizes.get(i))
+            .map(Some)
+            .collect()
+    };
+    let category = category.trim();
+    let mut items = Vec::new();
+    for color in &color_opts {
+        for size in &size_opts {
+            let mut parts = vec![product.name.clone()];
+            if let Some(c) = color {
+                parts.push(c.name.clone());
+            }
+            if let Some(s) = size {
+                parts.push(s.name.clone());
+            }
+            let name = parts.join(" — ");
+            let mut item = CatalogItem::new(slug(&name));
+            item.name = Some(name);
+            if !category.is_empty() {
+                item.category = Some(category.to_string());
+            }
+            item.unit_price = unit_price;
+            item.price_unit.clone_from(price_unit);
+            if let Some(s) = size {
+                item.tile_width_ft = s.width_ft;
+                item.tile_depth_ft = s.depth_ft;
+            }
+            if let Some(c) = color {
+                item.image.clone_from(&c.swatch);
+            }
+            items.push(item);
+        }
+    }
+    items
+}
+
+/// A filesystem/id-safe slug: lowercase, runs of non-alphanumerics collapsed to
+/// single dashes, trimmed.
+fn slug(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut pending_dash = false;
+    for ch in s.chars() {
+        if ch.is_ascii_alphanumeric() {
+            if pending_dash && !out.is_empty() {
+                out.push('-');
+            }
+            pending_dash = false;
+            out.push(ch.to_ascii_lowercase());
+        } else {
+            pending_dash = true;
+        }
+    }
+    out
+}
+
 /// The instruction sent with the screenshot. The detailed rules live on the
 /// schema (each field's description); this just points the model at the tool.
 pub const EXTRACTION_PROMPT: &str = "\
 This is a screenshot of a landscaping product page. Extract the product into \
 the material catalog by calling the `extract_product` tool. Follow each field's \
-description exactly — especially: capture EVERY color/texture/size option (mark \
-greyed-out ones unavailable), convert dimensions to the requested units, and \
-NEVER guess a price (return null when none is shown).";
+description exactly — especially: capture EVERY color/texture option (mark \
+greyed-out ones unavailable); for sizes, list each purchasable FORMAT as shown \
+(e.g. '60 MM', '6 × 13', 'Grande') as ONE entry each — do NOT split a \
+multi-piece format into separate pieces; record its included pieces in \
+`includes` and give the format's tile dimensions as the installed pattern's \
+repeat; convert dimensions to the requested units; and NEVER guess a price \
+(return null when none is shown).";
 
 /// Parse the model's text output into an [`ExtractedProduct`], tolerating a
 /// ```json fenced block or surrounding whitespace.
@@ -275,7 +393,8 @@ mod tests {
         ],
         "textures": [{"name": "Slate", "available": true}],
         "sizes": [
-            {"name": "60 MM", "width_ft": 1.083, "depth_ft": 1.083, "thickness_in": 2.375},
+            {"name": "60 MM", "width_ft": 1.083, "depth_ft": 1.083, "thickness_in": 2.375,
+             "includes": "A: 6½×13, B: 13×13, C: 19½×13 in"},
             {"name": "Grande"}
         ],
         "notes": "No price listed."
@@ -293,12 +412,21 @@ mod tests {
         assert!(!p.colors[1].available, "Onyx Black unavailable");
         // A size carries its dimensions; a size with no `available` field
         // defaults to available.
-        assert!(p.sizes[0].available, "sizes default to available");
-        assert_eq!(p.sizes[0].width_ft, Some(1.083), "the size's width");
-        assert_eq!(p.sizes[0].thickness_in, Some(2.375), "the size's thickness");
+        assert!(p.sizes[0].available, "formats default to available");
+        assert_eq!(p.sizes[0].width_ft, Some(1.083), "the format's tile width");
+        assert_eq!(
+            p.sizes[0].thickness_in,
+            Some(2.375),
+            "the format's thickness"
+        );
+        assert_eq!(
+            p.sizes[0].includes.as_deref(),
+            Some("A: 6½×13, B: 13×13, C: 19½×13 in"),
+            "a multi-piece format keeps its pieces as metadata, not split out"
+        );
         assert_eq!(
             p.sizes[1].width_ft, None,
-            "an unspecified size dim is absent"
+            "an unspecified format dim is absent"
         );
     }
 
@@ -370,5 +498,60 @@ mod tests {
     #[test]
     fn rejects_non_json() {
         assert!(parse_extraction("I couldn't read the image.").is_err());
+    }
+
+    #[test]
+    fn curation_makes_one_item_per_color_size_combo() {
+        let p = parse_extraction(SAMPLE).expect("parses"); // 2 colors, 2 sizes
+        // Pick both colors × the first size → 2 items.
+        let items = to_catalog_items(
+            &p,
+            &[0, 1],
+            &[0],
+            "slab",
+            Some(12.5),
+            &PriceUnit::per_square_foot,
+        );
+        assert_eq!(items.len(), 2, "one item per color × size");
+
+        let first = &items[0];
+        assert_eq!(
+            first.name.as_deref(),
+            Some("Blu 60 Slate Slabs — Shale Grey — 60 MM")
+        );
+        assert_eq!(
+            first.id, "blu-60-slate-slabs-shale-grey-60-mm",
+            "slugged id"
+        );
+        assert_eq!(first.category.as_deref(), Some("slab"));
+        assert_eq!(first.unit_price, Some(12.5), "the edited price is applied");
+        assert_eq!(first.price_unit, PriceUnit::per_square_foot);
+        // The size's dimensions become the tile geometry.
+        assert_eq!(first.tile_width_ft, Some(1.083));
+        assert_eq!(first.tile_depth_ft, Some(1.083));
+        // Distinct ids per combo.
+        assert_ne!(items[0].id, items[1].id);
+    }
+
+    #[test]
+    fn curation_with_no_sizes_yields_one_item_per_color() {
+        let p = parse_extraction(SAMPLE).expect("parses");
+        let items = to_catalog_items(&p, &[0], &[], "", None, &PriceUnit::per_item);
+        assert_eq!(items.len(), 1);
+        assert_eq!(
+            items[0].name.as_deref(),
+            Some("Blu 60 Slate Slabs — Shale Grey")
+        );
+        assert_eq!(items[0].category, None, "a blank category stays unset");
+        assert_eq!(items[0].tile_width_ft, None, "no size → no tile geometry");
+    }
+
+    #[test]
+    fn price_unit_hint_maps_to_the_catalog_unit() {
+        assert_eq!(
+            PriceUnitHint::PerCubicYard.to_price_unit(),
+            PriceUnit::per_cubic_yard
+        );
+        assert_eq!(PriceUnitHint::PerItem.to_price_unit(), PriceUnit::per_item);
     }
 }

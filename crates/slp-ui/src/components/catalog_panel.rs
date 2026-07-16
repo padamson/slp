@@ -9,12 +9,12 @@
 use leptos::prelude::*;
 use slp_core::{CatalogItem, PriceUnit};
 
-use super::{FileInput, MaterialSwatch, NumberField, SelectField, TextField, Toggle};
-use crate::vision::{ExtractedProduct, SizeVariant, Variant};
+use super::{FileInput, IngestDraft, MaterialSwatch, NumberField, SelectField, TextField, Toggle};
+use crate::vision::ExtractedProduct;
 
 /// The `price_unit` id an area material / object is costed by — the string the
 /// `SelectField` round-trips.
-fn price_unit_id(unit: &PriceUnit) -> &'static str {
+pub(crate) fn price_unit_id(unit: &PriceUnit) -> &'static str {
     match unit {
         PriceUnit::per_square_foot => "per_square_foot",
         PriceUnit::per_cubic_yard => "per_cubic_yard",
@@ -25,7 +25,7 @@ fn price_unit_id(unit: &PriceUnit) -> &'static str {
 }
 
 /// Parse a `price_unit` id back to its enum (unknown → per-item).
-fn price_unit_from_id(id: &str) -> PriceUnit {
+pub(crate) fn price_unit_from_id(id: &str) -> PriceUnit {
     match id {
         "per_square_foot" => PriceUnit::per_square_foot,
         "per_cubic_yard" => PriceUnit::per_cubic_yard,
@@ -35,7 +35,7 @@ fn price_unit_from_id(id: &str) -> PriceUnit {
 }
 
 /// The `price_unit` choices, `(id, label)`, for the editor's dropdown.
-fn price_unit_options() -> Vec<(String, String)> {
+pub(crate) fn price_unit_options() -> Vec<(String, String)> {
     vec![
         ("per_item".to_string(), "Per item".to_string()),
         ("per_square_foot".to_string(), "Per ft²".to_string()),
@@ -116,6 +116,12 @@ pub fn CatalogPanel(
     /// The extracted draft product awaiting curation, if any.
     #[prop(into, default = Signal::derive(|| None::<ExtractedProduct>))]
     draft: Signal<Option<ExtractedProduct>>,
+    /// Approve curation: add these catalog items (one per selected combo).
+    #[prop(default = Callback::new(|_: Vec<CatalogItem>| {}))]
+    on_add_draft: Callback<Vec<CatalogItem>>,
+    /// Discard the current draft.
+    #[prop(default = Callback::new(|(): ()| {}))]
+    on_discard_draft: Callback<()>,
     /// Close the catalog panel.
     on_close: Callback<()>,
 ) -> impl IntoView {
@@ -245,7 +251,19 @@ pub fn CatalogPanel(
                                         }
                                     })
                             }}
-                            {move || draft.get().map(|d| draft_view(&d))}
+                            {move || {
+                                draft
+                                    .get()
+                                    .map(|d| {
+                                        view! {
+                                            <IngestDraft
+                                                product=d
+                                                on_add=on_add_draft
+                                                on_discard=on_discard_draft
+                                            />
+                                        }
+                                    })
+                            }}
                         }
                             .into_any()
                     }
@@ -310,30 +328,39 @@ pub fn CatalogPanel(
                                         />
                                     }
                                 })}
-                            <NumberField
-                                label="Width (ft)"
-                                testid="catalog-width"
-                                value=item.width_ft.unwrap_or(0.0)
-                                step=0.5
-                                min=0.0
-                                on_input=on_width
-                            />
-                            <NumberField
-                                label="Depth (ft)"
-                                testid="catalog-depth"
-                                value=item.depth_ft.unwrap_or(0.0)
-                                step=0.5
-                                min=0.0
-                                on_input=on_depth
-                            />
-                            <NumberField
-                                label="Height (ft)"
-                                testid="catalog-height"
-                                value=item.height_ft.unwrap_or(0.0)
-                                step=0.5
-                                min=0.0
-                                on_input=on_height
-                            />
+                            // Footprint (Width/Depth/Height) applies only to a
+                            // placeable object; an area material (priced per
+                            // ft²/yd³/linear-ft) tiles instead, so it shows Tile
+                            // W/D below and hides these.
+                            {(item.price_unit == PriceUnit::per_item)
+                                .then(|| {
+                                    view! {
+                                        <NumberField
+                                            label="Width (ft)"
+                                            testid="catalog-width"
+                                            value=item.width_ft.unwrap_or(0.0)
+                                            step=0.5
+                                            min=0.0
+                                            on_input=on_width
+                                        />
+                                        <NumberField
+                                            label="Depth (ft)"
+                                            testid="catalog-depth"
+                                            value=item.depth_ft.unwrap_or(0.0)
+                                            step=0.5
+                                            min=0.0
+                                            on_input=on_depth
+                                        />
+                                        <NumberField
+                                            label="Height (ft)"
+                                            testid="catalog-height"
+                                            value=item.height_ft.unwrap_or(0.0)
+                                            step=0.5
+                                            min=0.0
+                                            on_input=on_height
+                                        />
+                                    }
+                                })}
                             <TextField
                                 label="Image"
                                 testid="catalog-image"
@@ -348,22 +375,29 @@ pub fn CatalogPanel(
                                 accept="image/*"
                                 on_file=on_image
                             />
-                            <NumberField
-                                label="Tile W (ft)"
-                                testid="catalog-tile-width"
-                                value=item.tile_width_ft.unwrap_or(0.0)
-                                step=0.5
-                                min=0.0
-                                on_input=on_tile_width
-                            />
-                            <NumberField
-                                label="Tile D (ft)"
-                                testid="catalog-tile-depth"
-                                value=item.tile_depth_ft.unwrap_or(0.0)
-                                step=0.5
-                                min=0.0
-                                on_input=on_tile_depth
-                            />
+                            // Tile W/D — the real-world repeat of the photo — is
+                            // a material concern; an object doesn't tile.
+                            {(item.price_unit != PriceUnit::per_item)
+                                .then(|| {
+                                    view! {
+                                        <NumberField
+                                            label="Tile W (ft)"
+                                            testid="catalog-tile-width"
+                                            value=item.tile_width_ft.unwrap_or(0.0)
+                                            step=0.5
+                                            min=0.0
+                                            on_input=on_tile_width
+                                        />
+                                        <NumberField
+                                            label="Tile D (ft)"
+                                            testid="catalog-tile-depth"
+                                            value=item.tile_depth_ft.unwrap_or(0.0)
+                                            step=0.5
+                                            min=0.0
+                                            on_input=on_tile_depth
+                                        />
+                                    }
+                                })}
                             // A live preview of the material photo, when set.
                             {item
                                 .image
@@ -433,86 +467,6 @@ fn read_pasted_image(ev: &leptos::ev::Event, on_image: Callback<String>) {
 
 #[cfg(not(feature = "csr"))]
 fn read_pasted_image(_ev: &leptos::ev::Event, _on_image: Callback<String>) {}
-
-/// A read-only summary of an extracted draft product: name, a metadata line
-/// (category · price-or-"no price"), and the variant lists with unavailable
-/// options dimmed. Multi-select curation into catalog items is M4.2.
-fn draft_view(d: &ExtractedProduct) -> impl IntoView + use<> {
-    let cat = d
-        .category
-        .clone()
-        .unwrap_or_else(|| "uncategorized".to_string());
-    let price = d
-        .unit_price
-        .map_or_else(|| "no price listed".to_string(), |p| format!("${p:.2}"));
-    let meta = format!("{cat} · {price}");
-    let notes = d.notes.clone();
-    view! {
-        <div class="ingest-draft" data-testid="ingest-draft">
-            <h4 class="ingest-draft-name">{d.name.clone()}</h4>
-            <p class="ingest-draft-meta">{meta}</p>
-            {variant_list("Colors", &d.colors)}
-            {variant_list("Textures", &d.textures)}
-            {size_list(&d.sizes)}
-            {notes.map(|n| view! { <p class="ingest-draft-notes">{n}</p> })}
-        </div>
-    }
-}
-
-/// One labeled variant group (Colors / Sizes / Textures) as a list, with
-/// unavailable options dimmed; nothing when the group is empty.
-fn variant_list(label: &'static str, variants: &[Variant]) -> Option<impl IntoView + use<>> {
-    (!variants.is_empty()).then(|| {
-        let items = variants
-            .iter()
-            .map(|v| {
-                let name = v.name.clone();
-                view! {
-                    <li class="ingest-variant" class:unavailable=!v.available>
-                        {name}
-                    </li>
-                }
-            })
-            .collect::<Vec<_>>();
-        view! {
-            <div class="ingest-draft-group">
-                <span class="ingest-draft-label">{label}</span>
-                <ul class="ingest-variant-list">{items}</ul>
-            </div>
-        }
-    })
-}
-
-/// The Sizes group: each size with its dimensions (`w×d ft · t in` when known),
-/// unavailable ones dimmed; nothing when there are no sizes.
-fn size_list(sizes: &[SizeVariant]) -> Option<impl IntoView + use<>> {
-    (!sizes.is_empty()).then(|| {
-        let items = sizes
-            .iter()
-            .map(|s| {
-                let dims = match (s.width_ft, s.depth_ft) {
-                    (Some(w), Some(d)) => format!(" — {w:.2}×{d:.2} ft"),
-                    _ => String::new(),
-                };
-                let thick = s
-                    .thickness_in
-                    .map_or_else(String::new, |t| format!(" · {t:.2} in"));
-                let label = format!("{}{dims}{thick}", s.name);
-                view! {
-                    <li class="ingest-variant" class:unavailable=!s.available>
-                        {label}
-                    </li>
-                }
-            })
-            .collect::<Vec<_>>();
-        view! {
-            <div class="ingest-draft-group">
-                <span class="ingest-draft-label">"Sizes"</span>
-                <ul class="ingest-variant-list">{items}</ul>
-            </div>
-        }
-    })
-}
 
 /// One catalog item as a selectable list row: its name and price, highlighted
 /// when it's the item being edited.

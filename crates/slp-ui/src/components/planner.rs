@@ -1176,6 +1176,23 @@ fn planner_body() -> impl IntoView {
             extracting.set(false);
         });
     });
+    // Approve curation: append the new items (skipping any id already present),
+    // then clear the draft + screenshot. Discard just clears them.
+    let on_add_draft = Callback::new(move |items: Vec<CatalogItem>| {
+        catalog.update(|list| {
+            for item in items {
+                if !list.iter().any(|c| c.id == item.id) {
+                    list.push(item);
+                }
+            }
+        });
+        draft.set(None);
+        set_screenshot.set(String::new());
+    });
+    let on_discard_draft = Callback::new(move |()| {
+        draft.set(None);
+        set_screenshot.set(String::new());
+    });
     // Apply `edit` to the catalog item currently selected in the panel.
     let edit_selected_catalog = move |edit: &dyn Fn(&mut CatalogItem)| {
         if let Some(id) = catalog_selected.get_untracked() {
@@ -1842,6 +1859,8 @@ fn planner_body() -> impl IntoView {
                             extracting=extracting
                             extract_error=extract_error
                             draft=draft
+                            on_add_draft=on_add_draft
+                            on_discard_draft=on_discard_draft
                             on_close=close_catalog
                         />
                     }

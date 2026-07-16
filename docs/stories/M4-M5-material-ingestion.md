@@ -61,10 +61,13 @@ so that my estimate reflects things I can actually buy, not placeholder data.
     derived from the `ExtractedProduct` Rust type via `schemars` (one source of
     truth); its **field descriptions carry the rules** and `price_unit` is a
     closed **enum**. Extracts the shared fields (name, category, price_unit) plus
-    the **full variant matrix** — colors, textures, and **sizes that each carry
-    their own dimensions** (`width_ft`/`depth_ft`/`thickness_in`, so a chosen
-    color × size becomes a catalog item with real tile geometry) — every option
-    with **availability** (greyed = unavailable). The
+    the **full variant matrix** — colors, textures, and **sizes as physical
+    pieces** (each `width_ft`×`depth_ft`×`thickness_in`, so a chosen color × size
+    becomes a catalog item with real tile geometry). The schema/prompt teach the
+    model that a paver "size" is a piece to lay, so it **expands multi-piece
+    format bundles** (a "SIZES INCLUDED: A/B/C" block → three pieces) and treats
+    a millimetre label like "60 MM" as a *thickness*, not a size. Every option
+    carries **availability** (greyed = unavailable). The
     real-page lessons live on the schema: **prices are usually absent**
     (manufacturer→dealer) so never guess one; prefer **imperial** dims → feet. A
     Rust **guard pass** drops any non-positive price / absurd dimension the model
@@ -76,17 +79,18 @@ so that my estimate reflects things I can actually buy, not placeholder data.
       returns the whole matrix and curation (M4.2) lets the user tick multiple
       combos → **one `CatalogItem` per ticked combo** (distinct id/name/`image`
       swatch, shared base fields), each a placeable/tileable material.
-- **M4.2 — human-in-the-loop curation (nothing ingested is live automatically)**
-  - [ ] the extracted draft product lands in a **staging** review, separate from
-        the plan's live catalog — extracting never silently changes a plan
-  - [ ] the user **multi-selects** which variant combos to keep (tick colors ×
-        sizes), edits shared/per-variant fields, and **approves** — each ticked
-        combo becomes its own catalog `CatalogItem` (provenance stamped),
-        placeable/tileable to compare in the viz; or **rejects** (discarded)
-  - [ ] a draft that comes back incomplete (**missing price** is the norm, or
-        missing dimensions) is flagged for the user to fill in during review,
-        **never silently guessed** — the estimate has to stay trustworthy; a
-        "same price for all variants" shortcut saves re-typing a dealer quote
+- **M4.2 — human-in-the-loop curation (nothing ingested is live automatically)** ✅
+  - [x] the extracted draft lands in a **staging** review (the `IngestDraft`
+        component), separate from the plan's live catalog — extracting never
+        silently changes a plan
+  - [x] the user **multi-selects** which combos to keep (tick colors × sizes —
+        available ones start ticked), edits the shared category / price, and
+        **approves**: each ticked combo becomes one `CatalogItem` (a color's look
+        at a size's geometry) appended to the catalog; **Discard** drops the
+        draft. e2e-covered end to end (paste → extract → approve → catalog row).
+  - [x] a **missing price** (the norm) is left blank for the user to fill (0 →
+        no price set), **never guessed**; the shared price applies to every
+        approved combo — the per-item price stays editable in the catalog editor.
 - **M4.3 — catalog inspector (edit any catalog item's metadata)** ✅ *partly done*
   - [x] a catalog-browsing/editing panel (`CatalogPanel`) — the catalog-side
         counterpart to [`ObjectInspector`](E1-place-furniture.md) (which edits a

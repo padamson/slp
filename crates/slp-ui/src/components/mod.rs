@@ -13,6 +13,7 @@ mod file_input;
 mod furnishings;
 mod grid;
 mod house;
+mod ingest_draft;
 mod legend;
 mod number_field;
 mod object_inspector;
@@ -44,6 +45,7 @@ pub use file_input::FileInput;
 pub use furnishings::Furnishings;
 pub use grid::Grid;
 pub use house::House;
+pub use ingest_draft::IngestDraft;
 pub use legend::Legend;
 pub use number_field::NumberField;
 pub use object_inspector::ObjectInspector;
@@ -350,6 +352,9 @@ mod grid_tests;
 #[cfg(test)]
 #[path = "house.tests.rs"]
 mod house_tests;
+#[cfg(test)]
+#[path = "ingest_draft.tests.rs"]
+mod ingest_draft_tests;
 #[cfg(test)]
 #[path = "legend.tests.rs"]
 mod legend_tests;

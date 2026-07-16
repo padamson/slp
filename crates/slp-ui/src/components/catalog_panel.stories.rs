@@ -116,19 +116,23 @@ pub fn stories() -> Vec<Story> {
                     Variant {
                         name: "Shale Grey".to_string(),
                         available: true,
+                        swatch: None,
                     },
                     Variant {
                         name: "Chestnut Brown".to_string(),
                         available: true,
+                        swatch: None,
                     },
                     Variant {
                         name: "Onyx Black".to_string(),
                         available: false,
+                        swatch: None,
                     },
                 ],
                 textures: vec![Variant {
                     name: "Slate".to_string(),
                     available: true,
+                    swatch: None,
                 }],
                 sizes: vec![
                     SizeVariant {
@@ -137,6 +141,7 @@ pub fn stories() -> Vec<Story> {
                         width_ft: Some(1.083),
                         depth_ft: Some(1.083),
                         thickness_in: Some(2.375),
+                        includes: Some("A: 6½×13, B: 13×13, C: 19½×13 in".to_string()),
                     },
                     SizeVariant {
                         name: "Grande".to_string(),
@@ -144,6 +149,7 @@ pub fn stories() -> Vec<Story> {
                         width_ft: Some(2.71),
                         depth_ft: Some(1.63),
                         thickness_in: Some(2.375),
+                        includes: None,
                     },
                 ],
                 notes: Some("No price listed — add your dealer quote.".to_string()),

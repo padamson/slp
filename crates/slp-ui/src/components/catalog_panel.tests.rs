@@ -146,14 +146,7 @@ fn the_editor_shows_an_image_field_and_previews_a_set_image() {
         plain.contains(r#"data-testid="catalog-image-file""#),
         "a file-upload input"
     );
-    assert!(
-        plain.contains(r#"data-testid="catalog-tile-width""#),
-        "a tile-width field"
-    );
-    assert!(
-        plain.contains(r#"data-testid="catalog-tile-depth""#),
-        "a tile-depth field"
-    );
+    // (Tile W/D are material-only — covered by the material-aware test.)
     assert_eq!(
         dokime::count(&plain, r#"data-testid="catalog-image-preview""#),
         0,
@@ -320,7 +313,7 @@ fn a_pasted_screenshot_offers_model_and_extract() {
 }
 
 #[test]
-fn an_extracted_draft_lists_variants_with_unavailable_dimmed() {
+fn an_extracted_draft_renders_the_curation_step() {
     let draft = ExtractedProduct {
         name: "Blu 60 Slate Slabs".to_string(),
         category: Some("slab".to_string()),
@@ -330,10 +323,12 @@ fn an_extracted_draft_lists_variants_with_unavailable_dimmed() {
             Variant {
                 name: "Shale Grey".to_string(),
                 available: true,
+                swatch: None,
             },
             Variant {
                 name: "Onyx Black".to_string(),
                 available: false,
+                swatch: None,
             },
         ],
         textures: vec![],
@@ -343,30 +338,22 @@ fn an_extracted_draft_lists_variants_with_unavailable_dimmed() {
             width_ft: Some(1.083),
             depth_ft: Some(1.083),
             thickness_in: Some(2.375),
+            includes: Some("A: 6½×13, B: 13×13, C: 19½×13 in".to_string()),
         }],
         notes: Some("No price listed.".to_string()),
     };
     let html = panel_extract("data:image/png;base64,AAA", Some(draft), None);
+    // The panel delegates a draft to the curation step (details covered by
+    // IngestDraft's own tests).
     assert!(
         html.contains(r#"data-testid="ingest-draft""#),
-        "the draft renders"
-    );
-    assert!(html.contains("Blu 60 Slate Slabs"), "the product name");
-    assert!(
-        html.contains("no price listed"),
-        "no invented price in the meta line"
-    );
-    assert!(html.contains("Shale Grey"));
-    assert!(html.contains("Onyx Black"));
-    assert!(
-        html.contains("unavailable"),
-        "an unavailable option is dimmed"
+        "the curation step renders"
     );
     assert!(
-        html.contains("1.08×1.08 ft"),
-        "each size shows its dimensions"
+        html.contains(r#"data-testid="ingest-approve""#),
+        "with an approve action"
     );
-    assert!(html.contains("No price listed."), "the notes are surfaced");
+    assert!(html.contains("Blu 60 Slate Slabs"), "showing the product");
 }
 
 #[test]
@@ -381,6 +368,38 @@ fn an_extraction_error_is_surfaced() {
         "the error is shown"
     );
     assert!(html.contains("401"), "with its detail");
+}
+
+#[test]
+fn the_editor_is_material_aware_footprint_vs_tile() {
+    // A per-item object shows its footprint (Width/Depth/Height), no tile fields.
+    let object = panel(
+        vec![item("chair", "Lounge chair", 199.0)],
+        Some("chair".to_string()),
+    );
+    assert!(
+        object.contains(r#"data-testid="catalog-width""#),
+        "an object shows its footprint"
+    );
+    assert_eq!(
+        dokime::count(&object, r#"data-testid="catalog-tile-width""#),
+        0,
+        "an object has no tile fields"
+    );
+
+    // A per-ft² material hides the footprint and shows Tile W/D instead.
+    let mut paver = item("paver", "Pavers", 8.0);
+    paver.price_unit = PriceUnit::per_square_foot;
+    let material = panel(vec![paver], Some("paver".to_string()));
+    assert_eq!(
+        dokime::count(&material, r#"data-testid="catalog-width""#),
+        0,
+        "a material hides the object footprint"
+    );
+    assert!(
+        material.contains(r#"data-testid="catalog-tile-width""#),
+        "a material shows tile dimensions"
+    );
 }
 
 #[test]
