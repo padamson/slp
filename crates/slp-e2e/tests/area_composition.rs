@@ -71,7 +71,7 @@ async fn edits_a_paver_areas_composition() -> Result<()> {
     let ppf = measure_ppf(&yard).await?;
 
     // Arm Pavers, draw a 10×8 ft patio (80 ft²), then click it to select.
-    page.locator("[data-testid='area-mat-paver']")
+    page.locator("[data-testid='area-mat-cat-paver']")
         .await
         .click(None)
         .await

@@ -37,7 +37,7 @@ async fn a_material_photo_becomes_the_swatch_in_every_panel() -> Result<()> {
     // The area material picker shows a paver swatch — a flat color square
     // (no photo) before any image is set.
     let picker_swatch = page
-        .locator("[data-testid='area-mat-paver'] [data-testid='material-swatch']")
+        .locator("[data-testid='area-mat-cat-paver'] [data-testid='material-swatch']")
         .await;
     expect(picker_swatch.clone())
         .to_have_count(1)
@@ -88,7 +88,7 @@ async fn a_material_photo_becomes_the_swatch_in_every_panel() -> Result<()> {
     // photo too.
     let yard = page.locator("[data-testid='yard']").await;
     let ppf = measure_ppf(&yard).await?;
-    page.locator("[data-testid='area-mat-paver']")
+    page.locator("[data-testid='area-mat-cat-paver']")
         .await
         .click(None)
         .await

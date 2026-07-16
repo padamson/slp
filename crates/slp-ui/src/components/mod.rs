@@ -15,6 +15,7 @@ mod grid;
 mod house;
 mod ingest_draft;
 mod legend;
+mod material_picker;
 mod number_field;
 mod object_inspector;
 mod object_palette;
@@ -47,6 +48,7 @@ pub use grid::Grid;
 pub use house::House;
 pub use ingest_draft::IngestDraft;
 pub use legend::Legend;
+pub use material_picker::MaterialPicker;
 pub use number_field::NumberField;
 pub use object_inspector::ObjectInspector;
 pub use object_palette::ObjectPalette;
@@ -226,6 +228,9 @@ mod house_stories;
 #[path = "legend.stories.rs"]
 mod legend_stories;
 #[cfg(feature = "stories")]
+#[path = "material_picker.stories.rs"]
+mod material_picker_stories;
+#[cfg(feature = "stories")]
 #[path = "number_field.stories.rs"]
 mod number_field_stories;
 #[cfg(feature = "stories")]
@@ -299,6 +304,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(circles_stories::stories());
     s.extend(area_inspector_stories::stories());
     s.extend(catalog_panel_stories::stories());
+    s.extend(material_picker_stories::stories());
     s.extend(course_editor_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
@@ -358,6 +364,9 @@ mod ingest_draft_tests;
 #[cfg(test)]
 #[path = "legend.tests.rs"]
 mod legend_tests;
+#[cfg(test)]
+#[path = "material_picker.tests.rs"]
+mod material_picker_tests;
 #[cfg(test)]
 #[path = "number_field.tests.rs"]
 mod number_field_tests;

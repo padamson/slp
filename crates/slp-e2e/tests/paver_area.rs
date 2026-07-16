@@ -55,7 +55,7 @@ async fn draws_a_paver_area_and_costs_it_per_square_foot() -> Result<()> {
     let ppf = measure_ppf(&yard).await?;
 
     // Arm the Pavers material, then draw a 10×8 ft area (80 ft²).
-    page.locator("[data-testid='area-mat-paver']")
+    page.locator("[data-testid='area-mat-cat-paver']")
         .await
         .click(None)
         .await

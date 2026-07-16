@@ -21,7 +21,7 @@ use slp_core::{
 use slp_core::delete_node;
 
 use super::{
-    AreaInspector, CanvasMetrics, CatalogPanel, EstimatePanel, Footprint, MaterialSwatch,
+    AreaInspector, CanvasMetrics, CatalogPanel, EstimatePanel, Footprint, MaterialPicker,
     Modifiers, NumberField, ObjectInspector, ObjectPalette, Toggle, ToolButton, ToolGroup, Yard,
     YardControls,
 };
@@ -1491,14 +1491,20 @@ fn planner_body() -> impl IntoView {
                     step=0.5
                 />
             </ToolGroup>
-            // A drawn area is tagged with the armed material (mulch or paver);
-            // that drives its look (mulch brown vs. paver gray) and how it's
-            // costed (mulch per yd³ by depth, pavers per ft²). The
+            // A drawn area is tagged with the armed material; that drives its
+            // look (the material's photo/color) and how it's costed (per its
+            // `price_unit`). The picker is catalog-driven — every area material
+            // (incl. ingested pavers) shows as an armable swatch. The
             // `draw-shape`/`draw-circle` tools draw either as a boundary or a
-            // circle; more materials join the picker as their stories land.
+            // circle.
             <ToolGroup label="Area">
-                {material_btn(area_material, catalog, "mulch", "Mulch", "area-mat-mulch")}
-                {material_btn(area_material, catalog, "paver", "Pavers", "area-mat-paver")}
+                <MaterialPicker
+                    materials=Signal::derive(move || {
+                        catalog.get().into_iter().filter(is_area_material).collect::<Vec<_>>()
+                    })
+                    armed=area_material
+                    on_arm=Callback::new(move |id: String| area_material.set(Some(id)))
+                />
                 {tool_btn(tool, pick, Tool::Shape, "Draw area", "draw-shape")}
                 {tool_btn(tool, pick, Tool::Circle, "Round area", "draw-circle")}
                 <NumberField
@@ -2065,29 +2071,11 @@ fn tool_btn(
 /// the next drawn area is tagged with (and looks/costs like) that material.
 /// Highlights when it's the armed material, and shows a swatch (the material's
 /// photo thumbnail, or its flat category color) resolved live from the catalog.
-fn material_btn(
-    area_material: RwSignal<Option<String>>,
-    catalog: RwSignal<Vec<CatalogItem>>,
-    id: &'static str,
-    label: &'static str,
-    testid: &'static str,
-) -> impl IntoView {
-    let active = Signal::derive(move || area_material.get().as_deref() == Some(id));
-    view! {
-        <ToolButton
-            label=label
-            testid=testid
-            active=active
-            on_pick=Callback::new(move |()| area_material.set(Some(id.to_string())))
-        >
-            {move || {
-                let item = catalog.get().into_iter().find(|c| c.id == id);
-                let image = item.as_ref().and_then(|c| c.image.clone());
-                let category = item.and_then(|c| c.category);
-                view! { <MaterialSwatch image=image category=category /> }
-            }}
-        </ToolButton>
-    }
+/// Whether `item` is an **area material** — a surface/bed drawn as an area
+/// (priced per ft²/yd³/linear-ft), not a placeable object and not a sub-base
+/// aggregate (those are course layers, chosen in the area composition editor).
+fn is_area_material(item: &CatalogItem) -> bool {
+    item.price_unit != PriceUnit::per_item && item.is_aggregate != Some(true)
 }
 
 /// The deck level whose nearest edge is closest to `anchor` (where a step run

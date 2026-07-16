@@ -274,6 +274,13 @@ async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()>
         .await
         .context("the draft closes after approving")?;
 
+    // The ingestion payoff: the new material's category is now armable in the
+    // Area tool's (catalog-driven) picker, so it can price + tile a drawn area.
+    expect(page.locator("[data-testid='area-mat-cat-slab']").await)
+        .to_have_count(1)
+        .await
+        .context("the ingested material's category appears in the Area picker")?;
+
     browser.close().await.context("close browser")?;
     Ok(())
 }

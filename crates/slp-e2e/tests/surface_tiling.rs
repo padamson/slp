@@ -62,7 +62,7 @@ async fn a_material_photo_tiles_the_drawn_surfaces() -> Result<()> {
     let ppf = measure_ppf(&yard).await?;
 
     // Arm the Pavers material + area tool, then draw a 10×8 ft area.
-    page.locator("[data-testid='area-mat-paver']")
+    page.locator("[data-testid='area-mat-cat-paver']")
         .await
         .click(None)
         .await

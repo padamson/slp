@@ -100,6 +100,29 @@ so that my estimate reflects things I can actually buy, not placeholder data.
   - [x] a **missing price** (the norm) is left blank for the user to fill (0 →
         no price set), **never guessed**; the shared price applies to every
         approved combo — the per-item price stays editable in the catalog editor.
+- **B5 — adjustable swatch crop in curation** (refine B4's auto-crop)
+  - [ ] in the "Add to catalog" dialogue, a color's swatch can be **re-cropped**:
+        click it to reveal the pasted screenshot with a draggable/resizable box
+        over that swatch; dragging the box re-crops (via `slpVision.crop`) and
+        updates that color's `swatch` live. Vision bounding boxes are usually
+        close but not exact, so this lets the user tighten the crop before
+        adding. The catalog editor still lets you replace an image after the fact.
+- **M4.5 — catalog-driven area material picker** (the ingestion payoff) ✅
+  - [x] the Area tool's picker is **driven by the plan's catalog**, not a
+        hardcoded Mulch/Pavers pair. A new `MaterialPicker` component lists every
+        *area material* — a catalog item priced per ft²/yd³/linear-ft and not a
+        sub-base (`is_aggregate`) — **grouped by category** so the toolbar stays
+        compact: one armable button per category (its selected type's swatch +
+        a prettified name) plus a **type dropdown** when a category has more than
+        one material (a dozen ingested paver colors → one "Slab" button + a
+        dropdown, not a dozen buttons). Arm a category, draw an area, and it's
+        **priced** (take-off already costs by `material_ref`) and **tiled** (the
+        SVG `<pattern>` already tiles the material's image) with no new
+        pricing/tiling code. Component-driven: dokime tests (grouping, the
+        dropdown appears only for multi-material categories, the armed category
+        is active) + a theoria story + e2e (the existing paver/mulch picks move
+        to `area-mat-cat-<category>`; an ingested slab's category becomes
+        armable). This answers "how do I select my paver for an area?".
 - **M4.3 — catalog inspector (edit any catalog item's metadata)** ✅ *partly done*
   - [x] a catalog-browsing/editing panel (`CatalogPanel`) — the catalog-side
         counterpart to [`ObjectInspector`](E1-place-furniture.md) (which edits a

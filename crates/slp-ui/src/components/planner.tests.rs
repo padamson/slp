@@ -44,8 +44,8 @@ fn renders_header_controls_tools_and_yard() {
             && html.contains(r#"data-testid="draw-shape""#)
             && html.contains(r#"data-testid="draw-circle""#)
             && html.contains(r#"data-testid="area-depth""#)
-            && html.contains(r#"data-testid="area-mat-mulch""#)
-            && html.contains(r#"data-testid="area-mat-paver""#),
+            && html.contains(r#"data-testid="area-mat-cat-mulch-bed""#)
+            && html.contains(r#"data-testid="area-mat-cat-paver""#),
         "the drawing-tool buttons render"
     );
     assert!(

@@ -9,8 +9,8 @@ use leptos::prelude::*;
 
 #[component]
 pub fn ToolButton(
-    label: &'static str,
-    testid: &'static str,
+    #[prop(into)] label: String,
+    #[prop(into)] testid: String,
     #[prop(into)] active: Signal<bool>,
     on_pick: Callback<()>,
     /// Greys the button out and blocks clicks (a browser won't fire `click` on
