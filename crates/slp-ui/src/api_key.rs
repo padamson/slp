@@ -9,7 +9,9 @@
 //! crate still compiles and renders.
 
 /// `localStorage` key for the API key — namespaced, and distinct from the
-/// plan's own storage key so the two never collide.
+/// plan's own storage key so the two never collide. Only referenced by the
+/// browser (`csr`) read/write path.
+#[cfg(feature = "csr")]
 pub const API_KEY_STORAGE: &str = "slp.anthropicKey";
 
 /// The stored API key, or `None` when unset/empty. On the browser this reads

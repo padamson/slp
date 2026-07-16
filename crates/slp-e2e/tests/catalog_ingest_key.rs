@@ -179,6 +179,92 @@ async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
 }
 
 #[tokio::test]
+async fn adjusting_a_swatch_crop_re_crops_it() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        return Ok(());
+    }
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    // A counting crop stub so the re-crop returns a *different* URI than the one
+    // produced during extraction — proving the adjustment re-cropped.
+    page.evaluate_value(
+        r#"(() => {
+             let n = 0;
+             window.slpVision = {
+               extract: async () => JSON.stringify({
+                 name: "Blu 60", category: "slab", price_unit: "per_square_foot",
+                 colors: [{name:"Shale Grey",available:true,bbox:{x:0.1,y:0.1,width:0.1,height:0.1}}],
+                 sizes: [{name:"60 MM",available:true,width_ft:1,depth_ft:1}]
+               }),
+               crop: async () => { n += 1; return "data:image/png;base64,CROP" + n; },
+             };
+             return "ok";
+           })()"#,
+    )
+    .await
+    .context("stub the vision bridge")?;
+
+    open_catalog(&page).await?;
+    page.locator("[data-testid='ingest-api-key']")
+        .await
+        .fill(KEY, None)
+        .await?;
+    paste_screenshot(&page).await?;
+    page.locator("[data-testid='ingest-extract']")
+        .await
+        .click(None)
+        .await
+        .context("extract")?;
+
+    // The extracted swatch is the first crop (CROP1). Click it to adjust.
+    let swatch = page.locator("[data-testid='ingest-color-swatch-0']").await;
+    expect(swatch.clone())
+        .to_have_count(1)
+        .await
+        .context("the swatch shows")?;
+    swatch.click(None).await.context("open the crop editor")?;
+    expect(page.locator("[data-testid='crop-editor']").await)
+        .to_have_count(1)
+        .await
+        .context("the crop editor opens")?;
+
+    // Adjust the width and re-crop.
+    page.locator("[data-testid='crop-w']")
+        .await
+        .fill("30", None)
+        .await
+        .context("widen the crop")?;
+    page.locator("[data-testid='crop-apply']")
+        .await
+        .click(None)
+        .await
+        .context("use the new crop")?;
+    expect(page.locator("[data-testid='crop-editor']").await)
+        .to_have_count(0)
+        .await
+        .context("the editor closes after applying")?;
+    // The swatch now shows the re-cropped image (CROP2, not CROP1).
+    let src = page
+        .locator("[data-testid='ingest-color-swatch-0'] img")
+        .await
+        .get_attribute("src")
+        .await?
+        .unwrap_or_default();
+    assert_eq!(src, "data:image/png;base64,CROP2", "the swatch was re-cropped");
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+#[tokio::test]
 async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {

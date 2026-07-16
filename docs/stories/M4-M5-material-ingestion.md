@@ -100,13 +100,20 @@ so that my estimate reflects things I can actually buy, not placeholder data.
   - [x] a **missing price** (the norm) is left blank for the user to fill (0 →
         no price set), **never guessed**; the shared price applies to every
         approved combo — the per-item price stays editable in the catalog editor.
-- **B5 — adjustable swatch crop in curation** (refine B4's auto-crop)
-  - [ ] in the "Add to catalog" dialogue, a color's swatch can be **re-cropped**:
-        click it to reveal the pasted screenshot with a draggable/resizable box
-        over that swatch; dragging the box re-crops (via `slpVision.crop`) and
-        updates that color's `swatch` live. Vision bounding boxes are usually
-        close but not exact, so this lets the user tighten the crop before
-        adding. The catalog editor still lets you replace an image after the fact.
+- **B5 — adjustable swatch crop in curation** (refine B4's auto-crop) ✅
+  - [x] in the "Add to catalog" dialogue, a color's swatch is a button — click
+        it to open a `CropEditor`: the pasted screenshot with a **box overlay**
+        at the current bounding box, plus **X/Y/W/H % inputs** to nudge/resize
+        it; "Use crop" re-crops the region (via `vision::crop`) and updates that
+        color's `swatch` + `bbox` live (reactive, so the thumbnail refreshes and
+        the approved item carries the new swatch). Vision boxes are usually close
+        but not exact, so this lets the user tighten the crop before adding.
+        Component-driven: dokime (the overlay is positioned from the bbox, the
+        inputs render) + a theoria story + e2e (open → adjust W → "Use crop" →
+        the swatch re-crops to a new image). *(Numeric adjustment with a live
+        overlay; pointer-drag of the box is a natural future enhancement — it
+        needs `csr`-gated pointer events the numeric path avoids.)* The catalog
+        editor still lets you replace an image after the fact.
 - **M4.5 — catalog-driven area material picker** (the ingestion payoff) ✅
   - [x] the Area tool's picker is **driven by the plan's catalog**, not a
         hardcoded Mulch/Pavers pair. A new `MaterialPicker` component lists every

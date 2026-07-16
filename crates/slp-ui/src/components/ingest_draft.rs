@@ -8,8 +8,8 @@ use leptos::prelude::*;
 use slp_core::{CatalogItem, PriceUnit};
 
 use super::catalog_panel::{price_unit_from_id, price_unit_id, price_unit_options};
-use super::{NumberField, SelectField, TextField};
-use crate::vision::{ExtractedProduct, to_catalog_items};
+use super::{CropEditor, NumberField, SelectField, TextField};
+use crate::vision::{BBox, ExtractedProduct, to_catalog_items};
 
 /// One size-format row's rendering metadata: `(label, available, width_ft,
 /// depth_ft, thickness_in, includes)`.
@@ -32,15 +32,35 @@ pub fn IngestDraft(
     /// Discard the draft without adding anything.
     #[prop(default = Callback::new(|(): ()| {}))]
     on_discard: Callback<()>,
+    /// The pasted screenshot (a `data:` URI), for re-cropping a swatch (B5).
+    #[prop(into, default = Signal::derive(String::new))]
+    screenshot: Signal<String>,
 ) -> impl IntoView {
     // Rendering metadata (owned, so the reactive closures don't borrow `product`).
     let name = product.name.clone();
     let notes = product.notes.clone();
-    let colors: Vec<(String, bool, Option<String>)> = product
+    let colors: Vec<(String, bool)> = product
         .colors
         .iter()
-        .map(|c| (c.name.clone(), c.available, c.swatch.clone()))
+        .map(|c| (c.name.clone(), c.available))
         .collect();
+    // Per-color swatch + bbox are reactive so re-cropping (B5) updates the
+    // thumbnail; `editing` is the color whose crop is being adjusted.
+    let color_swatch = RwSignal::new(
+        product
+            .colors
+            .iter()
+            .map(|c| c.swatch.clone())
+            .collect::<Vec<_>>(),
+    );
+    let color_bbox = RwSignal::new(
+        product
+            .colors
+            .iter()
+            .map(|c| c.bbox)
+            .collect::<Vec<Option<BBox>>>(),
+    );
+    let editing = RwSignal::new(None::<usize>);
     let sizes: Vec<SizeRow> = product
         .sizes
         .iter()
@@ -64,7 +84,7 @@ pub fn IngestDraft(
     );
 
     // Editable state, seeded from the draft; available options start ticked.
-    let color_checks = RwSignal::new(colors.iter().map(|(_, a, _)| *a).collect::<Vec<bool>>());
+    let color_checks = RwSignal::new(colors.iter().map(|(_, a)| *a).collect::<Vec<bool>>());
     let size_checks = RwSignal::new(
         sizes
             .iter()
@@ -108,44 +128,63 @@ pub fn IngestDraft(
         }
         let unit_price = (price.get() > 0.0).then(|| price.get());
         let pu = price_unit.get();
-        let items = product
-            .with_value(|p| to_catalog_items(p, &cols, &szs, &category.get(), unit_price, &pu));
+        let swatches = color_swatch.get();
+        let items = product.with_value(|p| {
+            // Apply the latest (possibly re-cropped) swatches to the colors.
+            let mut p = p.clone();
+            for (i, c) in p.colors.iter_mut().enumerate() {
+                c.swatch = swatches.get(i).cloned().flatten();
+            }
+            to_catalog_items(&p, &cols, &szs, &category.get(), unit_price, &pu)
+        });
         on_add.run(items);
     };
 
     let color_rows = colors
         .into_iter()
         .enumerate()
-        .map(|(i, (label, avail, swatch))| {
+        .map(|(i, (label, avail))| {
             view! {
-                <label class="ingest-check" class:unavailable=!avail>
-                    <input
-                        type="checkbox"
-                        data-testid=format!("ingest-color-{i}")
-                        prop:checked=move || color_checks.get().get(i).copied().unwrap_or(false)
-                        disabled=!avail
-                        on:change=move |_| {
-                            color_checks
-                                .update(|v| {
-                                    if let Some(b) = v.get_mut(i) {
-                                        *b = !*b;
-                                    }
-                                });
-                        }
-                    />
-                    {swatch
-                        .map(|s| {
-                            view! {
-                                <img
-                                    class="ingest-swatch"
-                                    data-testid=format!("ingest-color-swatch-{i}")
-                                    src=s
-                                    alt=""
-                                />
+                <div class="ingest-check" class:unavailable=!avail>
+                    <label class="ingest-check-label">
+                        <input
+                            type="checkbox"
+                            data-testid=format!("ingest-color-{i}")
+                            prop:checked=move || color_checks.get().get(i).copied().unwrap_or(false)
+                            disabled=!avail
+                            on:change=move |_| {
+                                color_checks
+                                    .update(|v| {
+                                        if let Some(b) = v.get_mut(i) {
+                                            *b = !*b;
+                                        }
+                                    });
                             }
-                        })}
-                    {label}
-                </label>
+                        />
+                        {label}
+                    </label>
+                    // A cropped swatch (B4) — click to adjust its crop (B5).
+                    {move || {
+                        color_swatch
+                            .get()
+                            .get(i)
+                            .cloned()
+                            .flatten()
+                            .map(|s| {
+                                view! {
+                                    <button
+                                        type="button"
+                                        class="ingest-swatch-btn"
+                                        data-testid=format!("ingest-color-swatch-{i}")
+                                        title="Adjust crop"
+                                        on:click=move |_| editing.set(Some(i))
+                                    >
+                                        <img class="ingest-swatch" src=s alt="" />
+                                    </button>
+                                }
+                            })
+                    }}
+                </div>
             }
         })
         .collect::<Vec<_>>();
@@ -248,6 +287,37 @@ pub fn IngestDraft(
                     "Discard"
                 </button>
             </div>
+            // The crop editor for the color currently being adjusted (B5).
+            {move || {
+                let i = editing.get()?;
+                let bbox = color_bbox.get().get(i).copied().flatten()?;
+                Some(
+                    view! {
+                        <CropEditor
+                            screenshot=screenshot.get()
+                            bbox=bbox
+                            on_apply=Callback::new(move |(swatch, b): (Option<String>, BBox)| {
+                                if let Some(sw) = swatch {
+                                    color_swatch
+                                        .update(|v| {
+                                            if let Some(s) = v.get_mut(i) {
+                                                *s = Some(sw);
+                                            }
+                                        });
+                                }
+                                color_bbox
+                                    .update(|v| {
+                                        if let Some(bx) = v.get_mut(i) {
+                                            *bx = Some(b);
+                                        }
+                                    });
+                                editing.set(None);
+                            })
+                            on_close=Callback::new(move |()| editing.set(None))
+                        />
+                    },
+                )
+            }}
         </div>
     }
 }

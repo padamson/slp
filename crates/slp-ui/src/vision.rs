@@ -280,6 +280,13 @@ multi-piece format into separate pieces; record its included pieces in \
 repeat; convert dimensions to the requested units; and NEVER guess a price \
 (return null when none is shown).";
 
+/// Crop `bbox` out of `screenshot` (a `data:` URI), returning the region as a
+/// `data:` URI — used to re-crop a swatch when the user adjusts the box (B5).
+/// `None` off the browser or on any failure.
+pub async fn crop(screenshot: &str, bbox: BBox) -> Option<String> {
+    imp::crop(screenshot, bbox).await
+}
+
 /// Parse the model's text output into an [`ExtractedProduct`], tolerating a
 /// ```json fenced block or surrounding whitespace.
 ///

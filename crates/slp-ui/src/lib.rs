@@ -17,6 +17,9 @@
     clippy::cast_possible_truncation,
     clippy::must_use_candidate
 )]
+// Large `view!`s (the catalog panel / ingest draft) generate deeply nested
+// types; lift the default so the type-checker doesn't overflow.
+#![recursion_limit = "256"]
 
 mod api_key;
 mod components;

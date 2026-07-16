@@ -6,6 +6,7 @@ mod area_inspector;
 mod catalog_panel;
 mod circles;
 mod course_editor;
+mod crop_editor;
 mod deck;
 mod door;
 mod estimate_panel;
@@ -39,6 +40,7 @@ pub use area_inspector::AreaInspector;
 pub use catalog_panel::CatalogPanel;
 pub use circles::Circles;
 pub use course_editor::CourseEditor;
+pub use crop_editor::CropEditor;
 pub use deck::Deck;
 pub use door::Door;
 pub use estimate_panel::EstimatePanel;
@@ -204,6 +206,9 @@ mod circles_stories;
 #[path = "course_editor.stories.rs"]
 mod course_editor_stories;
 #[cfg(feature = "stories")]
+#[path = "crop_editor.stories.rs"]
+mod crop_editor_stories;
+#[cfg(feature = "stories")]
 #[path = "deck.stories.rs"]
 mod deck_stories;
 #[cfg(feature = "stories")]
@@ -306,6 +311,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(catalog_panel_stories::stories());
     s.extend(material_picker_stories::stories());
     s.extend(course_editor_stories::stories());
+    s.extend(crop_editor_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
     s.extend(window_stories::stories());
@@ -337,6 +343,9 @@ mod circles_tests;
 #[cfg(test)]
 #[path = "course_editor.tests.rs"]
 mod course_editor_tests;
+#[cfg(test)]
+#[path = "crop_editor.tests.rs"]
+mod crop_editor_tests;
 #[cfg(test)]
 #[path = "deck.tests.rs"]
 mod deck_tests;

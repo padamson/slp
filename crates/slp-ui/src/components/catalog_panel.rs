@@ -260,6 +260,7 @@ pub fn CatalogPanel(
                                                 product=d
                                                 on_add=on_add_draft
                                                 on_discard=on_discard_draft
+                                                screenshot=screenshot
                                             />
                                         }
                                     })
