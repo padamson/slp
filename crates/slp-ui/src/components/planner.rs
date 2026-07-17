@@ -1176,12 +1176,15 @@ fn planner_body() -> impl IntoView {
             extracting.set(false);
         });
     });
-    // Approve curation: append the new items (skipping any id already present),
-    // then clear the draft + screenshot. Discard just clears them.
+    // Approve curation: append the new items, replacing any id already present
+    // (re-extracting a product refreshes its swatches/metadata — last write
+    // wins), then clear the draft + screenshot. Discard just clears them.
     let on_add_draft = Callback::new(move |items: Vec<CatalogItem>| {
         catalog.update(|list| {
             for item in items {
-                if !list.iter().any(|c| c.id == item.id) {
+                if let Some(existing) = list.iter_mut().find(|c| c.id == item.id) {
+                    *existing = item;
+                } else {
                     list.push(item);
                 }
             }

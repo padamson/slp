@@ -89,6 +89,12 @@ fn render() -> String {
 #[test]
 fn shows_the_screenshot_a_box_overlay_and_crop_inputs() {
     let html = render();
+    // The editor is a modal: a dimmed backdrop wrapping the dialog, so the
+    // stage gets real screen space instead of the catalog panel's column.
+    assert!(
+        html.contains(r#"data-testid="crop-backdrop""#),
+        "the modal backdrop"
+    );
     assert!(html.contains(r#"data-testid="crop-editor""#));
     assert!(
         html.contains(r#"data-testid="crop-box""#),

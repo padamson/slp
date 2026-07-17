@@ -119,6 +119,19 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         to the image, the 2% minimum); the e2e drives the real held-button
         gesture via playwright's `drag_to` + `target_position` against a
         canvas-generated screenshot and asserts the box moved.
+  - [x] the editor is a **modal**: a dimmed full-viewport backdrop (click to
+        close; clicks inside stay put) centering the dialog, with the stage
+        sized to the viewport (`min(86vw, 940px)` × `72vh`) instead of the
+        catalog panel's narrow column — you can see what you're cropping.
+  - [x] the crop bridge **trims near-white borders**: product pages wrap color
+        chips in white cards and vision boxes include a sliver of that margin,
+        which tiled as an area texture rendered as white grid lines between
+        tiles. `slpVision.crop` now scans the cropped pixels and trims
+        near-white/transparent border rows and columns (capped at 40% per axis
+        so a light material survives). Approving a draft now also **replaces**
+        catalog items with matching ids instead of skipping them, so
+        re-extracting a product refreshes its swatches. E2e drives the *real*
+        bridge (not the stub): white-margined, margin-free, and all-white crops.
 - **M4.5 — catalog-driven area material picker** (the ingestion payoff) ✅
   - [x] the Area tool's picker is **driven by the plan's catalog**, not a
         hardcoded Mulch/Pavers pair. A new `MaterialPicker` component lists every

@@ -181,6 +181,89 @@ async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
     Ok(())
 }
 
+/// The REAL crop bridge (`window.slpVision.crop`, not the stub the other tests
+/// install) trims near-white border margins off a crop: product pages wrap
+/// color chips in white cards, and an untrimmed sliver renders as white grid
+/// lines when the swatch tiles a drawn area.
+#[tokio::test]
+async fn the_crop_bridge_trims_white_margins() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        return Ok(());
+    }
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    // A 100×80 white image with a 60×50 textured block at (10, 12): the full
+    // crop should come back trimmed to just the block.
+    let dims = page
+        .evaluate_value(
+            r#"(async () => {
+                 const src = document.createElement('canvas');
+                 src.width = 100; src.height = 80;
+                 const ctx = src.getContext('2d');
+                 ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 100, 80);
+                 ctx.fillStyle = '#8899aa'; ctx.fillRect(10, 12, 60, 50);
+                 const out = await window.slpVision.crop(src.toDataURL('image/png'), 0, 0, 1, 1);
+                 if (!out) return 'null';
+                 const img = new Image();
+                 await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = out; });
+                 return img.naturalWidth + 'x' + img.naturalHeight;
+               })()"#,
+        )
+        .await
+        .context("run the real crop bridge")?;
+    assert_eq!(dims, "60x50", "the white margins were trimmed off");
+
+    // An all-dark image is untouched (nothing near-white to trim).
+    let dims = page
+        .evaluate_value(
+            r#"(async () => {
+                 const src = document.createElement('canvas');
+                 src.width = 40; src.height = 30;
+                 const ctx = src.getContext('2d');
+                 ctx.fillStyle = '#445566'; ctx.fillRect(0, 0, 40, 30);
+                 const out = await window.slpVision.crop(src.toDataURL('image/png'), 0, 0, 1, 1);
+                 if (!out) return 'null';
+                 const img = new Image();
+                 await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = out; });
+                 return img.naturalWidth + 'x' + img.naturalHeight;
+               })()"#,
+        )
+        .await
+        .context("run the real crop bridge on a dark image")?;
+    assert_eq!(dims, "40x30", "a margin-free crop is returned unchanged");
+
+    // An all-white crop survives the trim cap (a light material can't be
+    // eaten to nothing).
+    let dims = page
+        .evaluate_value(
+            r#"(async () => {
+                 const src = document.createElement('canvas');
+                 src.width = 50; src.height = 50;
+                 const ctx = src.getContext('2d');
+                 ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 50, 50);
+                 const out = await window.slpVision.crop(src.toDataURL('image/png'), 0, 0, 1, 1);
+                 if (!out) return 'null';
+                 const img = new Image();
+                 await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = out; });
+                 return (img.naturalWidth >= 20 && img.naturalHeight >= 20) ? 'capped' : 'eaten';
+               })()"#,
+        )
+        .await
+        .context("run the real crop bridge on an all-white image")?;
+    assert_eq!(dims, "capped", "the trim cap kept at least 40% per axis");
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
 #[tokio::test]
 async fn adjusting_a_swatch_crop_re_crops_it() -> Result<()> {
     let dist = dist_dir();

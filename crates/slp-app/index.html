@@ -172,6 +172,12 @@
         },
         // Crop a fractional bounding box out of a data-URI image, returning the
         // region as a PNG data-URI (used for per-color swatches). Null on error.
+        //
+        // Product pages wrap color chips in white cards, and vision boxes
+        // usually include a sliver of that margin; tiled as an area texture it
+        // renders as white grid lines between tiles. So after cropping, trim
+        // near-white (or transparent) border rows/columns — capped so a
+        // genuinely light material can't be eaten down to nothing.
         async crop(dataUri, x, y, w, h) {
           try {
             const img = new Image();
@@ -186,9 +192,41 @@
             const canvas = document.createElement("canvas");
             canvas.width = sw;
             canvas.height = sh;
-            canvas.getContext("2d").drawImage(
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(
               img, x * img.naturalWidth, y * img.naturalHeight, sw, sh, 0, 0, sw, sh
             );
+            const px = ctx.getImageData(0, 0, sw, sh).data;
+            const isBg = (cx, cy) => {
+              const i = (cy * sw + cx) * 4;
+              return px[i + 3] < 16 ||
+                (px[i] >= 238 && px[i + 1] >= 238 && px[i + 2] >= 238);
+            };
+            const rowBg = (cy) => {
+              let n = 0;
+              for (let cx = 0; cx < sw; cx++) if (isBg(cx, cy)) n++;
+              return n >= sw * 0.9;
+            };
+            const colBg = (cx) => {
+              let n = 0;
+              for (let cy = 0; cy < sh; cy++) if (isBg(cx, cy)) n++;
+              return n >= sh * 0.9;
+            };
+            const minW = Math.max(1, Math.floor(sw * 0.4));
+            const minH = Math.max(1, Math.floor(sh * 0.4));
+            let l = 0, r = sw - 1, t = 0, b = sh - 1;
+            while (b - t + 1 > minH && rowBg(t)) t++;
+            while (b - t + 1 > minH && rowBg(b)) b--;
+            while (r - l + 1 > minW && colBg(l)) l++;
+            while (r - l + 1 > minW && colBg(r)) r--;
+            if (l > 0 || t > 0 || r < sw - 1 || b < sh - 1) {
+              const tw = r - l + 1, th = b - t + 1;
+              const out = document.createElement("canvas");
+              out.width = tw;
+              out.height = th;
+              out.getContext("2d").drawImage(canvas, l, t, tw, th, 0, 0, tw, th);
+              return out.toDataURL("image/png");
+            }
             return canvas.toDataURL("image/png");
           } catch {
             return null;
@@ -820,21 +858,40 @@
       .ingest-swatch-btn:hover {
         border-color: #2b6cb0;
       }
+      /* The crop editor is a modal: a dimmed full-viewport backdrop with a
+         centered dialog, so the crop stage gets real screen space instead of
+         the catalog panel's narrow column. */
+      .crop-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+      }
       .crop-editor {
-        margin-top: 8px;
-        padding: 8px;
+        padding: 14px;
         border: 1px solid #cfc6ad;
-        border-radius: 6px;
+        border-radius: 8px;
         background: #fbf9f4;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+        max-width: min(92vw, 980px);
+        max-height: 92vh;
+        overflow: auto;
       }
       .crop-stage {
         position: relative;
         display: inline-block;
-        max-width: 260px;
+        /* Clip the crop box's 9999px dimming shadow to the screenshot. */
+        overflow: hidden;
+        line-height: 0;
       }
       .crop-image {
         display: block;
-        max-width: 260px;
+        max-width: min(86vw, 940px);
+        max-height: 72vh;
+        width: auto;
         height: auto;
       }
       .crop-box {

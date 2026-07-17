@@ -135,79 +135,91 @@ pub fn CropEditor(
     };
 
     let pct = |v: RwSignal<f64>| Callback::new(move |val: f64| v.set(val.clamp(0.0, 100.0)));
+    // A modal: the dimmed backdrop closes on click, while clicks inside the
+    // dialog stop there so adjusting the crop never dismisses it.
     view! {
-        <div class="crop-editor" data-testid="crop-editor">
-            <div class="crop-stage" data-testid="crop-stage" node_ref=stage>
-                <img class="crop-image" src=screenshot.get_value() alt="screenshot" />
-                <div
-                    class="crop-box"
-                    data-testid="crop-box"
-                    node_ref=cbox
-                    on:pointerdown=begin(false)
-                    on:pointermove=on_move
-                    on:pointerup=on_up
-                    style=move || {
-                        format!(
-                            "left:{}%;top:{}%;width:{}%;height:{}%",
-                            x.get(),
-                            y.get(),
-                            w.get(),
-                            h.get(),
-                        )
-                    }
-                >
+        <div
+            class="crop-backdrop"
+            data-testid="crop-backdrop"
+            on:click=move |_| on_close.run(())
+        >
+            <div
+                class="crop-editor"
+                data-testid="crop-editor"
+                on:click=move |ev: leptos::ev::MouseEvent| ev.stop_propagation()
+            >
+                <div class="crop-stage" data-testid="crop-stage" node_ref=stage>
+                    <img class="crop-image" src=screenshot.get_value() alt="screenshot" />
                     <div
-                        class="crop-handle"
-                        data-testid="crop-handle"
-                        on:pointerdown=begin(true)
+                        class="crop-box"
+                        data-testid="crop-box"
+                        node_ref=cbox
+                        on:pointerdown=begin(false)
+                        on:pointermove=on_move
+                        on:pointerup=on_up
+                        style=move || {
+                            format!(
+                                "left:{}%;top:{}%;width:{}%;height:{}%",
+                                x.get(),
+                                y.get(),
+                                w.get(),
+                                h.get(),
+                            )
+                        }
+                    >
+                        <div
+                            class="crop-handle"
+                            data-testid="crop-handle"
+                            on:pointerdown=begin(true)
+                        />
+                    </div>
+                </div>
+                <div class="crop-fields">
+                    <NumberField
+                        label="X %"
+                        testid="crop-x"
+                        value=Signal::derive(move || x.get())
+                        step=1.0
+                        min=0.0
+                        on_input=pct(x)
+                    />
+                    <NumberField
+                        label="Y %"
+                        testid="crop-y"
+                        value=Signal::derive(move || y.get())
+                        step=1.0
+                        min=0.0
+                        on_input=pct(y)
+                    />
+                    <NumberField
+                        label="W %"
+                        testid="crop-w"
+                        value=Signal::derive(move || w.get())
+                        step=1.0
+                        min=0.0
+                        on_input=pct(w)
+                    />
+                    <NumberField
+                        label="H %"
+                        testid="crop-h"
+                        value=Signal::derive(move || h.get())
+                        step=1.0
+                        min=0.0
+                        on_input=pct(h)
                     />
                 </div>
-            </div>
-            <div class="crop-fields">
-                <NumberField
-                    label="X %"
-                    testid="crop-x"
-                    value=Signal::derive(move || x.get())
-                    step=1.0
-                    min=0.0
-                    on_input=pct(x)
-                />
-                <NumberField
-                    label="Y %"
-                    testid="crop-y"
-                    value=Signal::derive(move || y.get())
-                    step=1.0
-                    min=0.0
-                    on_input=pct(y)
-                />
-                <NumberField
-                    label="W %"
-                    testid="crop-w"
-                    value=Signal::derive(move || w.get())
-                    step=1.0
-                    min=0.0
-                    on_input=pct(w)
-                />
-                <NumberField
-                    label="H %"
-                    testid="crop-h"
-                    value=Signal::derive(move || h.get())
-                    step=1.0
-                    min=0.0
-                    on_input=pct(h)
-                />
-            </div>
-            <div class="crop-actions">
-                <button class="crop-apply" data-testid="crop-apply" on:click=apply>
-                    "Use crop"
-                </button>
-                <button
-                    class="crop-cancel"
-                    data-testid="crop-cancel"
-                    on:click=move |_| on_close.run(())
-                >
-                    "Cancel"
-                </button>
+                <div class="crop-actions">
+                    <button class="crop-apply" data-testid="crop-apply" on:click=apply>
+                        "Use crop"
+                    </button>
+                    <button
+                        class="crop-cancel"
+                        data-testid="crop-cancel"
+                        on:click=move |_| on_close.run(())
+                    >
+                        "Cancel"
+                    </button>
+                </div>
             </div>
         </div>
     }
