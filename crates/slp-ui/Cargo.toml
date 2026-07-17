@@ -45,6 +45,9 @@ web-sys = { version = "0.3", optional = true, features = [
     "DataTransfer",
     "DataTransferItem",
     "DataTransferItemList",
+    # Drag the crop box (B5): pointer capture + the stage's client rect (csr).
+    "PointerEvent",
+    "HtmlDivElement",
     # Save the plan to a file: build a Blob, hand it to a download anchor (G1).
     "Document",
     "HtmlElement",

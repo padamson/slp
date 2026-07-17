@@ -12,9 +12,9 @@
 mod common;
 
 use anyhow::{Context, Result};
-use common::{TRANSPARENT_PNG_1X1, dist_dir, serve};
+use common::{dist_dir, serve};
 use playwright_rs::expect;
-use playwright_rs::protocol::{Page, Playwright};
+use playwright_rs::protocol::{DragToOptions, Page, Playwright, Position};
 
 const KEY: &str = "sk-ant-e2e-secret-0123456789";
 
@@ -29,25 +29,28 @@ async fn open_catalog(page: &Page) -> Result<()> {
 
 /// Dispatch a real `ClipboardEvent` carrying an image `DataTransfer` at the
 /// paste zone (Playwright can't populate the OS clipboard), so the app's actual
-/// `on:paste` → FileReader path runs.
+/// `on:paste` → FileReader path runs. The image is a canvas-generated 300×200
+/// PNG rather than a 1×1 stub, so the crop stage renders with real pixels (a
+/// drag needs geometry to move across).
 async fn paste_screenshot(page: &Page) -> Result<()> {
-    let b64 = TRANSPARENT_PNG_1X1
-        .split_once(',')
-        .map(|(_, b)| b)
-        .unwrap_or_default();
     let r = page
-        .evaluate_value(&format!(
-            "(() => {{
-               const el = document.querySelector(\"[data-testid='ingest-paste']\");
-               if (!el) return 'no-zone';
-               const bytes = Uint8Array.from(atob('{b64}'), c => c.charCodeAt(0));
-               const file = new File([bytes], 'shot.png', {{ type: 'image/png' }});
-               const dt = new DataTransfer();
-               dt.items.add(file);
-               el.dispatchEvent(new ClipboardEvent('paste', {{ clipboardData: dt, bubbles: true }}));
-               return 'ok';
-             }})()"
-        ))
+        .evaluate_value(
+            r#"(() => {
+                 const el = document.querySelector("[data-testid='ingest-paste']");
+                 if (!el) return 'no-zone';
+                 const canvas = document.createElement('canvas');
+                 canvas.width = 300; canvas.height = 200;
+                 const ctx = canvas.getContext('2d');
+                 ctx.fillStyle = '#88aacc'; ctx.fillRect(0, 0, 300, 200);
+                 const b64 = canvas.toDataURL('image/png').split(',')[1];
+                 const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+                 const file = new File([bytes], 'shot.png', { type: 'image/png' });
+                 const dt = new DataTransfer();
+                 dt.items.add(file);
+                 el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true }));
+                 return 'ok';
+               })()"#,
+        )
         .await
         .context("dispatch a synthetic paste")?;
     if r != "ok" {
@@ -236,7 +239,35 @@ async fn adjusting_a_swatch_crop_re_crops_it() -> Result<()> {
         .await
         .context("the crop editor opens")?;
 
-    // Adjust the width and re-crop.
+    // Drag the crop box deeper into the stage — a real held-button drag via
+    // `Locator::drag_to`, engaging the box's pointer-capture handlers. The box's
+    // `left` is bound straight to the `x` signal, so its computed `style.left`
+    // reflects the drag. (The pixel→percent geometry itself is unit-tested
+    // natively in slp-ui; this proves the gesture wiring end to end.)
+    let read_left = || async {
+        page.evaluate_value("document.querySelector(\"[data-testid='crop-box']\").style.left")
+            .await
+    };
+    let initial_left = read_left().await.context("read the initial box position")?;
+    let cbox = page.locator("[data-testid='crop-box']").await;
+    let stage = page.locator("[data-testid='crop-stage']").await;
+    cbox.drag_to(
+        &stage,
+        Some(
+            DragToOptions::builder()
+                .target_position(Position { x: 180.0, y: 120.0 })
+                .build(),
+        ),
+    )
+    .await
+    .context("drag the crop box")?;
+    let moved_left = read_left().await.context("read the dragged box position")?;
+    assert_ne!(
+        moved_left, initial_left,
+        "dragging moved the crop box (was {initial_left}, now {moved_left})"
+    );
+
+    // Tighten the crop via a numeric input, then re-crop.
     page.locator("[data-testid='crop-w']")
         .await
         .fill("30", None)

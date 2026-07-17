@@ -842,7 +842,20 @@
         border: 2px solid #2b6cb0;
         box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
         box-sizing: border-box;
-        pointer-events: none;
+        cursor: move;
+        touch-action: none;
+      }
+      .crop-handle {
+        position: absolute;
+        right: -6px;
+        bottom: -6px;
+        width: 12px;
+        height: 12px;
+        background: #2b6cb0;
+        border: 2px solid #fff;
+        border-radius: 2px;
+        cursor: nwse-resize;
+        touch-action: none;
       }
       .crop-fields {
         display: flex;

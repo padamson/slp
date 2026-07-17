@@ -110,10 +110,15 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         but not exact, so this lets the user tighten the crop before adding.
         Component-driven: dokime (the overlay is positioned from the bbox, the
         inputs render) + a theoria story + e2e (open → adjust W → "Use crop" →
-        the swatch re-crops to a new image). *(Numeric adjustment with a live
-        overlay; pointer-drag of the box is a natural future enhancement — it
-        needs `csr`-gated pointer events the numeric path avoids.)* The catalog
-        editor still lets you replace an image after the fact.
+        the swatch re-crops to a new image). The catalog editor still lets you
+        replace an image after the fact.
+  - [x] **pointer-drag** of the box: drag the box to move it, its corner handle
+        to resize, with the pointer captured (`setPointerCapture`) so the drag
+        survives outrunning the box. The pixel→percent geometry is a pure
+        function (`drag_box`) unit-tested natively (move/resize deltas, clamping
+        to the image, the 2% minimum); the e2e drives the real held-button
+        gesture via playwright's `drag_to` + `target_position` against a
+        canvas-generated screenshot and asserts the box moved.
 - **M4.5 — catalog-driven area material picker** (the ingestion payoff) ✅
   - [x] the Area tool's picker is **driven by the plan's catalog**, not a
         hardcoded Mulch/Pavers pair. A new `MaterialPicker` component lists every
