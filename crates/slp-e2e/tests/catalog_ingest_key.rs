@@ -20,7 +20,6 @@ const KEY: &str = "sk-ant-e2e-secret-0123456789";
 
 async fn open_catalog(page: &Page) -> Result<()> {
     page.locator("[data-testid='edit-catalog']")
-        .await
         .click(None)
         .await
         .context("open the catalog inspector")?;
@@ -63,7 +62,10 @@ async fn paste_screenshot(page: &Page) -> Result<()> {
 async fn the_api_key_gates_the_feature_persists_and_stays_out_of_the_plan() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
     let (addr, _server) = serve(&dist).await?;
@@ -77,18 +79,17 @@ async fn the_api_key_gates_the_feature_persists_and_stays_out_of_the_plan() -> R
     open_catalog(&page).await?;
 
     // Gated off until a key is entered.
-    expect(page.locator("[data-testid='ingest-status']").await)
+    expect(page.locator("[data-testid='ingest-status']"))
         .to_have_text("Add your Anthropic API key to enable screenshot ingestion.")
         .await
         .context("the feature is gated off without a key")?;
 
     // Enter the key → the gate flips to enabled.
     page.locator("[data-testid='ingest-api-key']")
-        .await
         .fill(KEY, None)
         .await
         .context("enter the API key")?;
-    expect(page.locator("[data-testid='ingest-status']").await)
+    expect(page.locator("[data-testid='ingest-status']"))
         .to_have_text("Screenshot ingestion enabled.")
         .await
         .context("a key enables the feature")?;
@@ -113,11 +114,11 @@ async fn the_api_key_gates_the_feature_persists_and_stays_out_of_the_plan() -> R
     // Reload → the key persists (it's localStorage), the feature stays enabled.
     page.reload(None).await.context("reload the app")?;
     open_catalog(&page).await?;
-    expect(page.locator("[data-testid='ingest-status']").await)
+    expect(page.locator("[data-testid='ingest-status']"))
         .to_have_text("Screenshot ingestion enabled.")
         .await
         .context("the key persisted across the reload")?;
-    expect(page.locator("[data-testid='ingest-api-key']").await)
+    expect(page.locator("[data-testid='ingest-api-key']"))
         .to_have_value(KEY)
         .await
         .context("the key field is repopulated from storage")?;
@@ -130,7 +131,10 @@ async fn the_api_key_gates_the_feature_persists_and_stays_out_of_the_plan() -> R
 async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
     let (addr, _server) = serve(&dist).await?;
@@ -144,7 +148,6 @@ async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
     open_catalog(&page).await?;
     // The paste zone is gated on the key.
     page.locator("[data-testid='ingest-api-key']")
-        .await
         .fill(KEY, None)
         .await
         .context("enter the API key")?;
@@ -152,15 +155,12 @@ async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
     paste_screenshot(&page).await?;
 
     // The pasted image previews (read to a data URI).
-    let preview = page.locator("[data-testid='ingest-screenshot']").await;
+    let preview = page.locator("[data-testid='ingest-screenshot']");
     expect(preview.clone())
         .to_have_count(1)
         .await
         .context("the pasted screenshot previews")?;
-    let src = preview
-        .get_attribute("src")
-        .await?
-        .unwrap_or_default();
+    let src = preview.get_attribute("src").await?.unwrap_or_default();
     assert!(
         src.starts_with("data:image/"),
         "the preview is a data URI, got: {src}"
@@ -168,11 +168,10 @@ async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
 
     // Clear removes it.
     page.locator("[data-testid='ingest-clear']")
-        .await
         .click(None)
         .await
         .context("clear the screenshot")?;
-    expect(page.locator("[data-testid='ingest-screenshot']").await)
+    expect(page.locator("[data-testid='ingest-screenshot']"))
         .to_have_count(0)
         .await
         .context("clearing removes the preview")?;
@@ -185,11 +184,17 @@ async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
 /// install) trims near-white border margins off a crop: product pages wrap
 /// color chips in white cards, and an untrimmed sliver renders as white grid
 /// lines when the swatch tiles a drawn area.
+///
+/// Uses the typed `Page::evaluate` (structured data out via serde) — one
+/// parameterized probe instead of three string-packed `evaluate_value` blocks.
 #[tokio::test]
 async fn the_crop_bridge_trims_white_margins() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
     let (addr, _server) = serve(&dist).await?;
@@ -200,65 +205,87 @@ async fn the_crop_bridge_trims_white_margins() -> Result<()> {
         .await
         .context("navigate to app")?;
 
+    /// What the crop bridge returned for a synthetic canvas: the cropped
+    /// image's pixel dimensions.
+    #[derive(serde::Deserialize)]
+    struct Cropped {
+        width: u32,
+        height: u32,
+    }
+    /// The synthetic canvas to feed it: a `w`×`h` white sheet with an optional
+    /// `[x, y, w, h]` textured block painted on it.
+    #[derive(serde::Serialize)]
+    struct Probe {
+        w: u32,
+        h: u32,
+        fill: &'static str,
+        block: Option<[u32; 4]>,
+    }
+    let crop = |probe: Probe| {
+        let page = page.clone();
+        async move {
+            let out: Cropped = page
+                .evaluate(
+                    r#"async (p) => {
+                         const src = document.createElement('canvas');
+                         src.width = p.w; src.height = p.h;
+                         const ctx = src.getContext('2d');
+                         ctx.fillStyle = p.fill; ctx.fillRect(0, 0, p.w, p.h);
+                         if (p.block) {
+                           const [x, y, w, h] = p.block;
+                           ctx.fillStyle = '#8899aa'; ctx.fillRect(x, y, w, h);
+                         }
+                         const out = await window.slpVision.crop(src.toDataURL('image/png'), 0, 0, 1, 1);
+                         const img = new Image();
+                         await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = out; });
+                         return { width: img.naturalWidth, height: img.naturalHeight };
+                       }"#,
+                    Some(&probe),
+                )
+                .await?;
+            Ok::<_, anyhow::Error>(out)
+        }
+    };
+
     // A 100×80 white image with a 60×50 textured block at (10, 12): the full
-    // crop should come back trimmed to just the block.
-    let dims = page
-        .evaluate_value(
-            r#"(async () => {
-                 const src = document.createElement('canvas');
-                 src.width = 100; src.height = 80;
-                 const ctx = src.getContext('2d');
-                 ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 100, 80);
-                 ctx.fillStyle = '#8899aa'; ctx.fillRect(10, 12, 60, 50);
-                 const out = await window.slpVision.crop(src.toDataURL('image/png'), 0, 0, 1, 1);
-                 if (!out) return 'null';
-                 const img = new Image();
-                 await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = out; });
-                 return img.naturalWidth + 'x' + img.naturalHeight;
-               })()"#,
-        )
-        .await
-        .context("run the real crop bridge")?;
-    assert_eq!(dims, "60x50", "the white margins were trimmed off");
+    // crop comes back trimmed to just the block.
+    let out = crop(Probe {
+        w: 100,
+        h: 80,
+        fill: "#ffffff",
+        block: Some([10, 12, 60, 50]),
+    })
+    .await
+    .context("crop a white-margined image")?;
+    assert_eq!((out.width, out.height), (60, 50), "margins trimmed");
 
     // An all-dark image is untouched (nothing near-white to trim).
-    let dims = page
-        .evaluate_value(
-            r#"(async () => {
-                 const src = document.createElement('canvas');
-                 src.width = 40; src.height = 30;
-                 const ctx = src.getContext('2d');
-                 ctx.fillStyle = '#445566'; ctx.fillRect(0, 0, 40, 30);
-                 const out = await window.slpVision.crop(src.toDataURL('image/png'), 0, 0, 1, 1);
-                 if (!out) return 'null';
-                 const img = new Image();
-                 await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = out; });
-                 return img.naturalWidth + 'x' + img.naturalHeight;
-               })()"#,
-        )
-        .await
-        .context("run the real crop bridge on a dark image")?;
-    assert_eq!(dims, "40x30", "a margin-free crop is returned unchanged");
+    let out = crop(Probe {
+        w: 40,
+        h: 30,
+        fill: "#445566",
+        block: None,
+    })
+    .await
+    .context("crop a margin-free image")?;
+    assert_eq!((out.width, out.height), (40, 30), "returned unchanged");
 
     // An all-white crop survives the trim cap (a light material can't be
     // eaten to nothing).
-    let dims = page
-        .evaluate_value(
-            r#"(async () => {
-                 const src = document.createElement('canvas');
-                 src.width = 50; src.height = 50;
-                 const ctx = src.getContext('2d');
-                 ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 50, 50);
-                 const out = await window.slpVision.crop(src.toDataURL('image/png'), 0, 0, 1, 1);
-                 if (!out) return 'null';
-                 const img = new Image();
-                 await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = out; });
-                 return (img.naturalWidth >= 20 && img.naturalHeight >= 20) ? 'capped' : 'eaten';
-               })()"#,
-        )
-        .await
-        .context("run the real crop bridge on an all-white image")?;
-    assert_eq!(dims, "capped", "the trim cap kept at least 40% per axis");
+    let out = crop(Probe {
+        w: 50,
+        h: 50,
+        fill: "#ffffff",
+        block: None,
+    })
+    .await
+    .context("crop an all-white image")?;
+    assert!(
+        out.width >= 20 && out.height >= 20,
+        "the trim cap kept at least 40% per axis: {}x{}",
+        out.width,
+        out.height
+    );
 
     browser.close().await.context("close browser")?;
     Ok(())
@@ -268,7 +295,10 @@ async fn the_crop_bridge_trims_white_margins() -> Result<()> {
 async fn adjusting_a_swatch_crop_re_crops_it() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
     let (addr, _server) = serve(&dist).await?;
@@ -300,24 +330,22 @@ async fn adjusting_a_swatch_crop_re_crops_it() -> Result<()> {
 
     open_catalog(&page).await?;
     page.locator("[data-testid='ingest-api-key']")
-        .await
         .fill(KEY, None)
         .await?;
     paste_screenshot(&page).await?;
     page.locator("[data-testid='ingest-extract']")
-        .await
         .click(None)
         .await
         .context("extract")?;
 
     // The extracted swatch is the first crop (CROP1). Click it to adjust.
-    let swatch = page.locator("[data-testid='ingest-color-swatch-0']").await;
+    let swatch = page.locator("[data-testid='ingest-color-swatch-0']");
     expect(swatch.clone())
         .to_have_count(1)
         .await
         .context("the swatch shows")?;
     swatch.click(None).await.context("open the crop editor")?;
-    expect(page.locator("[data-testid='crop-editor']").await)
+    expect(page.locator("[data-testid='crop-editor']"))
         .to_have_count(1)
         .await
         .context("the crop editor opens")?;
@@ -332,8 +360,8 @@ async fn adjusting_a_swatch_crop_re_crops_it() -> Result<()> {
             .await
     };
     let initial_left = read_left().await.context("read the initial box position")?;
-    let cbox = page.locator("[data-testid='crop-box']").await;
-    let stage = page.locator("[data-testid='crop-stage']").await;
+    let cbox = page.locator("[data-testid='crop-box']");
+    let stage = page.locator("[data-testid='crop-stage']");
     cbox.drag_to(
         &stage,
         Some(
@@ -352,27 +380,27 @@ async fn adjusting_a_swatch_crop_re_crops_it() -> Result<()> {
 
     // Tighten the crop via a numeric input, then re-crop.
     page.locator("[data-testid='crop-w']")
-        .await
         .fill("30", None)
         .await
         .context("widen the crop")?;
     page.locator("[data-testid='crop-apply']")
-        .await
         .click(None)
         .await
         .context("use the new crop")?;
-    expect(page.locator("[data-testid='crop-editor']").await)
+    expect(page.locator("[data-testid='crop-editor']"))
         .to_have_count(0)
         .await
         .context("the editor closes after applying")?;
     // The swatch now shows the re-cropped image (CROP2, not CROP1).
     let src = page
         .locator("[data-testid='ingest-color-swatch-0'] img")
-        .await
         .get_attribute("src")
         .await?
         .unwrap_or_default();
-    assert_eq!(src, "data:image/png;base64,CROP2", "the swatch was re-cropped");
+    assert_eq!(
+        src, "data:image/png;base64,CROP2",
+        "the swatch was re-cropped"
+    );
 
     browser.close().await.context("close browser")?;
     Ok(())
@@ -382,7 +410,10 @@ async fn adjusting_a_swatch_crop_re_crops_it() -> Result<()> {
 async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
     let (addr, _server) = serve(&dist).await?;
@@ -420,14 +451,13 @@ async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()>
 
     open_catalog(&page).await?;
     page.locator("[data-testid='ingest-api-key']")
-        .await
         .fill(KEY, None)
         .await
         .context("enter the API key")?;
     paste_screenshot(&page).await?;
 
     // The extract action appears once a screenshot is pasted.
-    let extract = page.locator("[data-testid='ingest-extract']").await;
+    let extract = page.locator("[data-testid='ingest-extract']");
     expect(extract.clone())
         .to_have_count(1)
         .await
@@ -435,7 +465,7 @@ async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()>
     extract.click(None).await.context("run extraction")?;
 
     // The draft product renders from the canned extraction.
-    let draft = page.locator("[data-testid='ingest-draft']").await;
+    let draft = page.locator("[data-testid='ingest-draft']");
     expect(draft.clone())
         .to_have_count(1)
         .await
@@ -449,34 +479,31 @@ async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()>
         .await
         .context("the variant matrix (with the unavailable color)")?;
     // The color's swatch was cropped from the screenshot and previews.
-    expect(page.locator("[data-testid='ingest-color-swatch-0']").await)
+    expect(page.locator("[data-testid='ingest-color-swatch-0']"))
         .to_have_count(1)
         .await
         .context("the cropped swatch thumbnail shows")?;
 
     // Approve curation: the available color × size combo (Shale Grey × 60 MM)
     // becomes a catalog item; the draft closes.
-    let approve = page.locator("[data-testid='ingest-approve']").await;
+    let approve = page.locator("[data-testid='ingest-approve']");
     expect(approve.clone())
         .to_have_text("Add 1 to catalog")
         .await
         .context("the count reflects the ticked combos")?;
     approve.click(None).await.context("approve")?;
-    expect(
-        page.locator("[data-testid='catalog-row-blu-60-slate-slabs-shale-grey-60-mm']")
-            .await,
-    )
-    .to_have_count(1)
-    .await
-    .context("the curated item is in the catalog")?;
-    expect(page.locator("[data-testid='ingest-draft']").await)
+    expect(page.locator("[data-testid='catalog-row-blu-60-slate-slabs-shale-grey-60-mm']"))
+        .to_have_count(1)
+        .await
+        .context("the curated item is in the catalog")?;
+    expect(page.locator("[data-testid='ingest-draft']"))
         .to_have_count(0)
         .await
         .context("the draft closes after approving")?;
 
     // The ingestion payoff: the new material's category is now armable in the
     // Area tool's (catalog-driven) picker, so it can price + tile a drawn area.
-    expect(page.locator("[data-testid='area-mat-cat-slab']").await)
+    expect(page.locator("[data-testid='area-mat-cat-slab']"))
         .to_have_count(1)
         .await
         .context("the ingested material's category appears in the Area picker")?;

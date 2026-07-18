@@ -18,7 +18,10 @@ use playwright_rs::{BoundingBox, expect};
 async fn legend_renders_to_the_right_of_the_scale_bar() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -30,7 +33,7 @@ async fn legend_renders_to_the_right_of_the_scale_bar() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let legend = page.locator("[data-testid='legend']").await;
+    let legend = page.locator("[data-testid='legend']");
     expect(legend.clone())
         .to_be_visible()
         .await
@@ -46,14 +49,14 @@ async fn legend_renders_to_the_right_of_the_scale_bar() -> Result<()> {
         "legend-item-selected",
         "legend-item-overflow",
     ] {
-        expect(page.locator(&format!("[data-testid='{testid}']")).await)
+        expect(page.locator(format!("[data-testid='{testid}']")))
             .to_have_count(1)
             .await
             .with_context(|| format!("missing legend entry: {testid}"))?;
     }
 
     // The legend's leftmost icon sits to the right of the scale bar's line.
-    let scale_line = page.locator("[data-testid='yard'] line[stroke='#333']").await;
+    let scale_line = page.locator("[data-testid='yard'] line[stroke='#333']");
     let scale_box = scale_line
         .bounding_box()
         .await
@@ -64,7 +67,11 @@ async fn legend_renders_to_the_right_of_the_scale_bar() -> Result<()> {
         .await
         .context("measure the legend")?
         .context("legend has a bounding box")?;
-    let BoundingBox { x: scale_x, width: scale_w, .. } = scale_box;
+    let BoundingBox {
+        x: scale_x,
+        width: scale_w,
+        ..
+    } = scale_box;
     let BoundingBox { x: legend_x, .. } = legend_box;
     assert!(
         legend_x >= scale_x + scale_w,

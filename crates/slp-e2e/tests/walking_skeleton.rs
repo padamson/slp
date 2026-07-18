@@ -40,27 +40,27 @@ async fn walking_skeleton_boots_and_renders_yard() -> Result<()> {
 
     // The heading proves the WASM app mounted and painted (the body is empty
     // until the bundle boots and hydrates). The locator auto-waits — no sleep.
-    expect(page.locator("h1").await)
+    expect(page.locator("h1"))
         .to_have_text("Simple Landscape Planner")
         .await
         .context("heading renders once the WASM app boots")?;
 
     // The yard SVG is the canvas every later slice draws on; assert it mounted.
-    expect(page.locator("[data-testid='yard']").await)
+    expect(page.locator("[data-testid='yard']"))
         .to_be_visible()
         .await
         .context("the yard SVG canvas is rendered")?;
 
     // Desired walking-skeleton behavior: the yard is drawn *to scale*.
     // The scale bar proves the foot→pixel rendering.
-    expect(page.get_by_text("10 ft", false).await)
+    expect(page.get_by_text("10 ft", false))
         .to_be_visible()
         .await
         .context("the scale bar renders (yard is drawn to scale)")?;
 
     // The ground rect is present... (`.ground`, not just `rect` — the legend's
     // icons are `<rect>`s too, so an unqualified selector is ambiguous).
-    expect(page.locator("[data-testid='yard'] rect.ground").await)
+    expect(page.locator("[data-testid='yard'] rect.ground"))
         .to_be_visible()
         .await
         .context("the ground rect is rendered")?;
@@ -69,11 +69,13 @@ async fn walking_skeleton_boots_and_renders_yard() -> Result<()> {
     // yard dimensions, so assert a sane lower bound rather than a brittle exact).
     let grid_lines = page
         .locator("[data-testid='yard'] line")
-        .await
         .count()
         .await
         .context("count grid lines")?;
-    ensure!(grid_lines > 50, "the foot grid is rendered (got {grid_lines} lines)");
+    ensure!(
+        grid_lines > 50,
+        "the foot grid is rendered (got {grid_lines} lines)"
+    );
 
     browser.close().await.context("close browser")?;
     Ok(())

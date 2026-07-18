@@ -24,7 +24,10 @@ async fn click_yard(yard: &Locator, x: f64, y: f64) -> Result<()> {
 async fn draws_and_persists_a_shape() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -38,33 +41,32 @@ async fn draws_and_persists_a_shape() -> Result<()> {
 
     // Arm the area tool, drop four corners, snap-close.
     page.locator("[data-testid='draw-shape']")
-        .await
         .click(None)
         .await
         .context("arm the shape tool")?;
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let first = (140.0, 160.0);
     let corners = [first, (340.0, 160.0), (340.0, 300.0), (140.0, 300.0)];
     for (x, y) in corners {
         click_yard(&yard, x, y).await?;
     }
     click_yard(&yard, first.0, first.1).await?; // snap-close
-    expect(page.locator("[data-testid='yard'] .shape-corner").await)
+    expect(page.locator("[data-testid='yard'] .shape-corner"))
         .to_have_count(4)
         .await
         .context("the closed area has four corners")?;
-    expect(page.locator("[data-testid='yard'] .shape polygon").await)
+    expect(page.locator("[data-testid='yard'] .shape polygon"))
         .to_have_count(1)
         .await
         .context("the area footprint is drawn")?;
-    expect(page.locator("[data-testid='yard'] .shape-label").await)
+    expect(page.locator("[data-testid='yard'] .shape-label"))
         .to_be_visible()
         .await
         .context("the area label (ft²) renders")?;
 
     // Reload — the area is restored from localStorage.
     page.reload(None).await.context("reload the page")?;
-    expect(page.locator("[data-testid='yard'] .shape-corner").await)
+    expect(page.locator("[data-testid='yard'] .shape-corner"))
         .to_have_count(4)
         .await
         .context("the area persists across a reload")?;

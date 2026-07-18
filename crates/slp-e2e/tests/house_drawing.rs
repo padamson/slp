@@ -26,7 +26,10 @@ async fn click_yard(yard: &Locator, x: f64, y: f64) -> Result<()> {
 async fn draws_and_persists_the_house_outline() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -40,26 +43,25 @@ async fn draws_and_persists_the_house_outline() -> Result<()> {
 
     // Arm the house tool.
     page.locator("[data-testid='draw-house']")
-        .await
         .click(None)
         .await
         .context("arm the house tool")?;
 
     // Click four corners — each lands as an in-progress placement node.
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let first = (120.0, 120.0);
     let corners = [first, (360.0, 120.0), (360.0, 300.0), (120.0, 300.0)];
     for (x, y) in corners {
         click_yard(&yard, x, y).await?;
     }
-    expect(page.locator("[data-testid='yard'] .placement-node").await)
+    expect(page.locator("[data-testid='yard'] .placement-node"))
         .to_have_count(4)
         .await
         .context("four in-progress nodes placed")?;
 
     // Click the first corner to close — the placement becomes the committed house.
     click_yard(&yard, first.0, first.1).await?;
-    expect(page.locator("[data-testid='yard'] .house-corner").await)
+    expect(page.locator("[data-testid='yard'] .house-corner"))
         .to_have_count(4)
         .await
         .context("the closed outline has four corners")?;
@@ -68,7 +70,6 @@ async fn draws_and_persists_the_house_outline() -> Result<()> {
     // user-space px (12·feet; the grid is flush to the canvas, no padding).
     let points = page
         .locator("[data-testid='yard'] .house polygon")
-        .await
         .get_attribute("points")
         .await
         .context("read the polygon points")?
@@ -80,7 +81,7 @@ async fn draws_and_persists_the_house_outline() -> Result<()> {
 
     // Reload — the committed house is restored from localStorage.
     page.reload(None).await.context("reload the page")?;
-    expect(page.locator("[data-testid='yard'] .house-corner").await)
+    expect(page.locator("[data-testid='yard'] .house-corner"))
         .to_have_count(4)
         .await
         .context("the drawn house persists across a reload")?;
@@ -93,7 +94,10 @@ async fn draws_and_persists_the_house_outline() -> Result<()> {
 async fn holds_to_adjust_and_drops_on_release() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -106,12 +110,11 @@ async fn holds_to_adjust_and_drops_on_release() -> Result<()> {
         .context("navigate to app")?;
 
     page.locator("[data-testid='draw-house']")
-        .await
         .click(None)
         .await
         .context("arm the house tool")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let bbox = yard
         .bounding_box()
         .await
@@ -134,8 +137,11 @@ async fn holds_to_adjust_and_drops_on_release() -> Result<()> {
     let bx = bbox.x + 380.0;
     common::drag_within_px(&yard, 120.0, 200.0, 380.0, 200.0).await?;
 
-    let marker = page.locator("[data-testid='yard'] .placement-node").await;
-    expect(marker.clone()).to_have_count(1).await.context("one node dropped")?;
+    let marker = page.locator("[data-testid='yard'] .placement-node");
+    expect(marker.clone())
+        .to_have_count(1)
+        .await
+        .context("one node dropped")?;
     let cx: f64 = marker
         .get_attribute("cx")
         .await

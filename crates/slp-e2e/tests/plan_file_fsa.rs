@@ -95,7 +95,10 @@ async fn boot(page: &Page, addr: &std::net::SocketAddr) -> Result<()> {
 async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
     let (addr, _server) = serve(&dist).await?;
@@ -106,33 +109,31 @@ async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Re
 
     // Save As → a named file (default stem, since the plan is unnamed).
     page.locator("[data-testid='yard-width']")
-        .await
         .fill("42.5", None)
         .await
         .context("set width to 42.5")?;
     page.locator("[data-testid='save-plan-as']")
-        .await
         .click(None)
         .await
         .context("Save As")?;
-    expect(page.locator("[data-testid='current-file']").await)
+    expect(page.locator("[data-testid='current-file']"))
         .to_have_text("landscape-plan.slp.json")
         .await
         .context("the current file name shows")?;
     let saved = page
-        .evaluate_value("JSON.parse(localStorage.getItem('__fake_files'))['landscape-plan.slp.json']")
+        .evaluate_value(
+            "JSON.parse(localStorage.getItem('__fake_files'))['landscape-plan.slp.json']",
+        )
         .await
         .context("read the written file")?;
     assert!(saved.contains("42.5"), "Save As wrote the plan: {saved}");
 
     // In-place Save reuses the handle — no second picker, same file updated.
     page.locator("[data-testid='yard-width']")
-        .await
         .fill("50", None)
         .await
         .context("change width to 50")?;
     page.locator("[data-testid='save-plan']")
-        .await
         .click(None)
         .await
         .context("Save (in place)")?;
@@ -153,7 +154,10 @@ async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Re
         .evaluate_value("String(window.__saveCalls)")
         .await
         .context("read save-picker call count")?;
-    assert_eq!(calls, "1", "Save reused the handle (only Save As showed a picker)");
+    assert_eq!(
+        calls, "1",
+        "Save reused the handle (only Save As showed a picker)"
+    );
 
     // Open a *different* seeded file → its plan loads.
     page.evaluate_value(&format!(
@@ -165,15 +169,14 @@ async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Re
     .await
     .context("seed an Open target")?;
     page.locator("[data-testid='open-plan']")
-        .await
         .click(None)
         .await
         .context("Open")?;
-    expect(page.locator("[data-testid='yard-width']").await)
+    expect(page.locator("[data-testid='yard-width']"))
         .to_have_value("77")
         .await
         .context("Open loaded the seeded plan")?;
-    expect(page.locator("[data-testid='current-file']").await)
+    expect(page.locator("[data-testid='current-file']"))
         .to_have_text("other.slp.json")
         .await
         .context("the opened file becomes current")?;
@@ -186,7 +189,10 @@ async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Re
 async fn reopens_the_last_file_silently_on_startup() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
     let (addr, _server) = serve(&dist).await?;
@@ -200,30 +206,27 @@ async fn reopens_the_last_file_silently_on_startup() -> Result<()> {
     // the file. A reload that lands on 42.5 proves the *file* was reopened, not
     // the autosave.
     page.locator("[data-testid='yard-width']")
-        .await
         .fill("42.5", None)
         .await?;
     page.locator("[data-testid='save-plan-as']")
-        .await
         .click(None)
         .await
         .context("Save As")?;
-    expect(page.locator("[data-testid='current-file']").await)
+    expect(page.locator("[data-testid='current-file']"))
         .to_have_text("landscape-plan.slp.json")
         .await?;
     page.locator("[data-testid='yard-width']")
-        .await
         .fill("99", None)
         .await
         .context("diverge the autosave to 99")?;
 
     page.reload(None).await.context("reload")?;
 
-    expect(page.locator("[data-testid='yard-width']").await)
+    expect(page.locator("[data-testid='yard-width']"))
         .to_have_value("42.5")
         .await
         .context("startup silently reopened the file (overriding the 99 autosave)")?;
-    expect(page.locator("[data-testid='current-file']").await)
+    expect(page.locator("[data-testid='current-file']"))
         .to_have_text("landscape-plan.slp.json")
         .await
         .context("the reopened file is current")?;
@@ -236,7 +239,10 @@ async fn reopens_the_last_file_silently_on_startup() -> Result<()> {
 async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
     let (addr, _server) = serve(&dist).await?;
@@ -246,15 +252,13 @@ async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
     boot(&page, &addr).await?;
 
     page.locator("[data-testid='yard-width']")
-        .await
         .fill("42.5", None)
         .await?;
     page.locator("[data-testid='save-plan-as']")
-        .await
         .click(None)
         .await
         .context("Save As")?;
-    expect(page.locator("[data-testid='current-file']").await)
+    expect(page.locator("[data-testid='current-file']"))
         .to_have_text("landscape-plan.slp.json")
         .await?;
     // Permission lapses; diverge the autosave so a silent load would be visible.
@@ -262,7 +266,6 @@ async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
         .await
         .context("lapse the read permission")?;
     page.locator("[data-testid='yard-width']")
-        .await
         .fill("99", None)
         .await?;
 
@@ -270,22 +273,21 @@ async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
 
     // No silent load: the plan stays at the autosave's 99, and a Reopen chip
     // appears instead.
-    expect(page.locator("[data-testid='reopen-file']").await)
+    expect(page.locator("[data-testid='reopen-file']"))
         .to_be_visible()
         .await
         .context("a Reopen affordance appears")?;
-    expect(page.locator("[data-testid='yard-width']").await)
+    expect(page.locator("[data-testid='yard-width']"))
         .to_have_value("99")
         .await
         .context("the file was NOT loaded without a gesture")?;
 
     // One click grants permission and loads the file.
     page.locator("[data-testid='reopen-file']")
-        .await
         .click(None)
         .await
         .context("click Reopen")?;
-    expect(page.locator("[data-testid='yard-width']").await)
+    expect(page.locator("[data-testid='yard-width']"))
         .to_have_value("42.5")
         .await
         .context("Reopen loaded the file after the gesture")?;

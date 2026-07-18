@@ -37,7 +37,10 @@ async fn wait_contains(loc: &Locator, needle: &str) -> Result<String> {
 async fn placing_a_bush_shows_a_green_canopy_and_costs_it() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -49,19 +52,19 @@ async fn placing_a_bush_shows_a_green_canopy_and_costs_it() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // A bush is in the catalog from the start (its own "Bush" palette group),
     // no deck required.
-    expect(page.locator("[data-testid='palette-boxwood']").await)
+    expect(page.locator("[data-testid='palette-boxwood']"))
         .to_have_count(1)
         .await
         .context("the bush palette tile is available immediately")?;
 
     // Place it on bare yard; it renders a round green canopy.
     place_object(&page, &yard, ppf, "boxwood", 12.0, 15.0).await?;
-    let canopy = page.locator("[data-testid='yard'] .furniture-item circle").await;
+    let canopy = page.locator("[data-testid='yard'] .furniture-item circle");
     expect(canopy.clone())
         .to_have_count(1)
         .await
@@ -73,7 +76,7 @@ async fn placing_a_bush_shows_a_green_canopy_and_costs_it() -> Result<()> {
     );
 
     // It's costed like any placed object — a Boxwood line in the estimate.
-    let estimate = page.locator("[data-testid='estimate']").await;
+    let estimate = page.locator("[data-testid='estimate']");
     wait_contains(&estimate, "Boxwood")
         .await
         .context("the estimate lists the bush")?;
@@ -86,7 +89,10 @@ async fn placing_a_bush_shows_a_green_canopy_and_costs_it() -> Result<()> {
 async fn a_bush_flags_red_only_on_hardscape() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -98,29 +104,29 @@ async fn a_bush_flags_red_only_on_hardscape() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?; // deck spans x:[28,42], y:[12,18]
     let ppf = measure_ppf(&yard).await?;
 
     // Place the bush on bare yard, well off the deck.
     place_object(&page, &yard, ppf, "boxwood", 10.0, 24.0).await?;
-    let bush = page.locator("[data-testid='yard'] .furniture-item").await;
-    expect(page.locator("[data-testid='yard'] .furniture-item--overflows").await)
+    let bush = page.locator("[data-testid='yard'] .furniture-item");
+    expect(page.locator("[data-testid='yard'] .furniture-item--overflows"))
         .to_have_count(0)
         .await
         .context("a bush on bare yard is fine")?;
 
     // Drag it onto the deck — its whole footprint should flag red.
     common::drag_to_ft(&bush, &yard, ppf, 35.0, 15.0).await?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--overflows").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--overflows"))
         .to_have_count(1)
         .await
         .context("the bush flags on the deck")?;
 
     // Drag it back off the deck — it should clear.
     common::drag_to_ft(&bush, &yard, ppf, 10.0, 24.0).await?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--overflows").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--overflows"))
         .to_have_count(0)
         .await
         .context("the bush clears back on bare ground")?;

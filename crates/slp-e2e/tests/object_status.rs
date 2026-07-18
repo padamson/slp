@@ -14,14 +14,17 @@ mod common;
 
 use anyhow::{Context, Result};
 use common::{click_ft, dist_dir, draw_central_deck, measure_ppf, place, serve};
-use playwright_rs::protocol::Playwright;
 use playwright_rs::expect;
+use playwright_rs::protocol::Playwright;
 
 #[tokio::test]
 async fn status_and_virtual_toggles_change_the_footprints_class() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -33,7 +36,7 @@ async fn status_and_virtual_toggles_change_the_footprints_class() -> Result<()> 
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
     let ppf = measure_ppf(&yard).await?;
@@ -41,53 +44,51 @@ async fn status_and_virtual_toggles_change_the_footprints_class() -> Result<()> 
     // Place a chair and select it — it starts planned + real.
     place(&page, &yard, ppf, 35.0, 15.0).await?;
     click_ft(&yard, ppf, 35.0, 15.0).await?; // select
-    expect(page.locator("[data-testid='yard'] .furniture-item").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item"))
         .to_have_count(1)
         .await
         .context("the object is on the plan")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--planned").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--planned"))
         .to_have_count(1)
         .await
         .context("starts planned")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--existing").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--existing"))
         .to_have_count(0)
         .await
         .context("not existing")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual"))
         .to_have_count(0)
         .await
         .context("not virtual")?;
 
     // Existing: swaps the status class; still real (no virtual class).
     page.locator("[data-testid='status-existing']")
-        .await
         .click(None)
         .await
         .context("click Existing")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--existing").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--existing"))
         .to_have_count(1)
         .await
         .context("existing status shows on the canvas")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--planned").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--planned"))
         .to_have_count(0)
         .await
         .context("no longer planned")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual"))
         .to_have_count(0)
         .await
         .context("still real — the virtual toggle is untouched")?;
 
     // Virtual toggle: an independent control — existing stays, virtual joins.
     page.locator("[data-testid='inspector-virtual']")
-        .await
         .click(None)
         .await
         .context("toggle Virtual on")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--existing").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--existing"))
         .to_have_count(1)
         .await
         .context("still existing")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual"))
         .to_have_count(1)
         .await
         .context("virtual joins independently of status")?;
@@ -95,30 +96,28 @@ async fn status_and_virtual_toggles_change_the_footprints_class() -> Result<()> 
     // Status flips back to planned while virtual stays on — the two controls
     // are independent, not a single 3-way choice.
     page.locator("[data-testid='status-planned']")
-        .await
         .click(None)
         .await
         .context("click Planned")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--planned").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--planned"))
         .to_have_count(1)
         .await
         .context("back to planned")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--existing").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--existing"))
         .to_have_count(0)
         .await
         .context("no longer existing")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual"))
         .to_have_count(1)
         .await
         .context("virtual is untouched by the status change")?;
 
     // Toggle virtual back off: real, planned.
     page.locator("[data-testid='inspector-virtual']")
-        .await
         .click(None)
         .await
         .context("toggle Virtual off")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual"))
         .to_have_count(0)
         .await
         .context("virtual toggles off independently")?;

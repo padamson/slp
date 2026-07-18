@@ -11,14 +11,17 @@ mod common;
 
 use anyhow::{Context, Result};
 use common::{click_ft, dist_dir, draw_central_deck, measure_ppf, place_object, serve};
-use playwright_rs::protocol::Playwright;
 use playwright_rs::expect;
+use playwright_rs::protocol::Playwright;
 
 #[tokio::test]
 async fn a_fire_pit_is_fine_on_the_deck_but_flags_red_on_the_house() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -30,7 +33,7 @@ async fn a_fire_pit_is_fine_on_the_deck_but_flags_red_on_the_house() -> Result<(
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?; // deck spans x:[28,42], y:[12,18]
     let ppf = measure_ppf(&yard).await?;
@@ -38,19 +41,18 @@ async fn a_fire_pit_is_fine_on_the_deck_but_flags_red_on_the_house() -> Result<(
     // A fire pit on the deck is fine — a fire pit doesn't need to be on a
     // deck, but it isn't forbidden there either.
     place_object(&page, &yard, ppf, "fire-pit", 35.0, 15.0).await?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--overflows").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--overflows"))
         .to_have_count(0)
         .await
         .context("a fire pit on the deck is fine")?;
     // It fills silver, not the shared furniture brown.
-    expect(page.locator("[data-testid='yard'] circle[fill='#b8b8bc']").await)
+    expect(page.locator("[data-testid='yard'] circle[fill='#b8b8bc']"))
         .to_have_count(1)
         .await
         .context("the fire pit fills silver")?;
 
     // Draw a small house and place a second fire pit inside it.
     page.locator("[data-testid='draw-house']")
-        .await
         .click(None)
         .await
         .context("arm the house tool")?;
@@ -59,13 +61,13 @@ async fn a_fire_pit_is_fine_on_the_deck_but_flags_red_on_the_house() -> Result<(
         click_ft(&yard, ppf, fx, fy).await?;
     }
     click_ft(&yard, ppf, house[0].0, house[0].1).await?; // snap-close
-    expect(page.locator("[data-testid='yard'] .house-corner").await)
+    expect(page.locator("[data-testid='yard'] .house-corner"))
         .to_have_count(4)
         .await
         .context("the house is drawn")?;
 
     place_object(&page, &yard, ppf, "fire-pit", 55.0, 23.5).await?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--overflows").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--overflows"))
         .to_have_count(1)
         .await
         .context("a fire pit on the house is flagged")?;

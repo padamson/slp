@@ -39,7 +39,10 @@ async fn expect_label(label: &Locator, expected: &str) -> Result<()> {
 async fn selects_a_shape_and_edits_its_nodes() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -51,12 +54,11 @@ async fn selects_a_shape_and_edits_its_nodes() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Draw a 10x8 ft rectangle (80 ft²).
     page.locator("[data-testid='draw-shape']")
-        .await
         .click(None)
         .await
         .context("arm the shape tool")?;
@@ -65,7 +67,7 @@ async fn selects_a_shape_and_edits_its_nodes() -> Result<()> {
         click_ft(&yard, ppf, fx, fy).await?;
     }
     click_ft(&yard, ppf, corners[0].0, corners[0].1).await?; // snap-close
-    let label = page.locator("[data-testid='yard'] .shape-label").await;
+    let label = page.locator("[data-testid='yard'] .shape-label");
     expect_label(&label, "80 ft²")
         .await
         .context("the drawn rectangle is 10x8 ft")?;
@@ -73,18 +75,18 @@ async fn selects_a_shape_and_edits_its_nodes() -> Result<()> {
     // Click inside its body (off any corner/label) to select it — no armed
     // tool, mirroring how clicking a tree selects it.
     click_ft(&yard, ppf, 12.0, 11.0).await?;
-    expect(page.locator("[data-testid='yard'] .shape--selected").await)
+    expect(page.locator("[data-testid='yard'] .shape--selected"))
         .to_have_count(1)
         .await
         .context("the shape is selected")?;
-    expect(page.locator("[data-testid='shape-node']").await)
+    expect(page.locator("[data-testid='shape-node']"))
         .to_have_count(4)
         .await
         .context("its corners become interactive node handles")?;
 
     // Drag node 0 (world (10,10)) up to (10,12) — the quad's area shrinks
     // from 80 to 70 ft².
-    let node0 = page.locator("[data-testid='shape-node']").await.nth(0);
+    let node0 = page.locator("[data-testid='shape-node']").nth(0);
     common::drag_to_ft(&node0, &yard, ppf, 10.0, 12.0).await?;
     expect_label(&label, "70 ft²")
         .await
@@ -92,29 +94,26 @@ async fn selects_a_shape_and_edits_its_nodes() -> Result<()> {
 
     // Select node 0 and the adjacent node 1 — the insert-between popup appears.
     page.locator("[data-testid='shape-node']")
-        .await
         .nth(0)
         .click(None)
         .await
         .context("select node 0")?;
     page.locator("[data-testid='shape-node']")
-        .await
         .nth(1)
         .click(None)
         .await
         .context("select adjacent node 1")?;
-    expect(page.locator("[data-testid='insert-node']").await)
+    expect(page.locator("[data-testid='insert-node']"))
         .to_be_visible()
         .await
         .context("the insert-between popup appears for an adjacent pair")?;
 
     // Insert — the boundary gains a fifth node.
     page.locator("[data-testid='insert-node']")
-        .await
         .click(None)
         .await
         .context("insert a node between them")?;
-    expect(page.locator("[data-testid='shape-node']").await)
+    expect(page.locator("[data-testid='shape-node']"))
         .to_have_count(5)
         .await
         .context("the inserted node joins the boundary")?;
@@ -122,7 +121,6 @@ async fn selects_a_shape_and_edits_its_nodes() -> Result<()> {
     // Select the newly-inserted node (index 1, between the original 0 and 1)
     // and delete it via Backspace — back down to 4 nodes.
     page.locator("[data-testid='shape-node']")
-        .await
         .nth(1)
         .click(None)
         .await
@@ -131,7 +129,7 @@ async fn selects_a_shape_and_edits_its_nodes() -> Result<()> {
         .press("Backspace", None)
         .await
         .context("delete the selected node")?;
-    expect(page.locator("[data-testid='shape-node']").await)
+    expect(page.locator("[data-testid='shape-node']"))
         .to_have_count(4)
         .await
         .context("the node is removed, back to the original boundary")?;

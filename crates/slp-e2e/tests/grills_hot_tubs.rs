@@ -19,7 +19,10 @@ use playwright_rs::protocol::Playwright;
 async fn a_grill_shows_a_rectangular_keep_clear_zone_that_flags_when_crowded() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -31,18 +34,18 @@ async fn a_grill_shows_a_rectangular_keep_clear_zone_that_flags_when_crowded() -
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // A grill is in the catalog from the start (its own "Grill" palette group).
-    expect(page.locator("[data-testid='palette-gas-grill']").await)
+    expect(page.locator("[data-testid='palette-gas-grill']"))
         .to_have_count(1)
         .await
         .context("the grill palette tile is available")?;
 
     // Place it — a rectangular footprint with a rounded-rect clearance zone.
     place_object(&page, &yard, ppf, "gas-grill", 20.0, 15.0).await?;
-    let zone = page.locator("[data-testid='clearance-ring']").await;
+    let zone = page.locator("[data-testid='clearance-ring']");
     expect(zone.clone())
         .to_have_count(1)
         .await
@@ -53,14 +56,14 @@ async fn a_grill_shows_a_rectangular_keep_clear_zone_that_flags_when_crowded() -
     );
 
     // Isolated, the zone is quiet.
-    expect(page.locator("[data-testid='yard'] .furniture-item--intrudes").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--intrudes"))
         .to_have_count(0)
         .await
         .context("nothing intrudes yet")?;
 
     // Drop a lounge chair just off the grill's east edge, inside the keep-clear.
     place_object(&page, &yard, ppf, "lounge-chair", 24.0, 15.0).await?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--intrudes").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--intrudes"))
         .to_have_count(1)
         .await
         .context("the grill zone flags the too-close chair")?;
@@ -73,7 +76,10 @@ async fn a_grill_shows_a_rectangular_keep_clear_zone_that_flags_when_crowded() -
 async fn a_hot_tub_is_water_blue_and_flags_when_off_a_surface() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -85,7 +91,7 @@ async fn a_hot_tub_is_water_blue_and_flags_when_off_a_surface() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?; // deck spans x:[28,42], y:[12,18]
     let ppf = measure_ppf(&yard).await?;
@@ -93,7 +99,7 @@ async fn a_hot_tub_is_water_blue_and_flags_when_off_a_surface() -> Result<()> {
     // Place a round hot tub off the deck — it fills water blue and flags,
     // because a heavy tub belongs on a deck/paver.
     place_object(&page, &yard, ppf, "hot-tub-round", 10.0, 24.0).await?;
-    let tub = page.locator("[data-testid='yard'] .furniture-item circle").await;
+    let tub = page.locator("[data-testid='yard'] .furniture-item circle");
     expect(tub.clone())
         .to_have_count(1)
         .await
@@ -103,7 +109,7 @@ async fn a_hot_tub_is_water_blue_and_flags_when_off_a_surface() -> Result<()> {
         Some("#6faec5"),
         "the hot tub fills water blue"
     );
-    expect(page.locator("[data-testid='yard'] .furniture-item--overflows").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--overflows"))
         .to_have_count(1)
         .await
         .context("a hot tub off a surface flags")?;

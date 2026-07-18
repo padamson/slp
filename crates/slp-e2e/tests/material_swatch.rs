@@ -36,9 +36,8 @@ async fn a_material_photo_becomes_the_swatch_in_every_panel() -> Result<()> {
 
     // The area material picker shows a paver swatch — a flat color square
     // (no photo) before any image is set.
-    let picker_swatch = page
-        .locator("[data-testid='area-mat-cat-paver'] [data-testid='material-swatch']")
-        .await;
+    let picker_swatch =
+        page.locator("[data-testid='area-mat-cat-paver'] [data-testid='material-swatch']");
     expect(picker_swatch.clone())
         .to_have_count(1)
         .await
@@ -50,25 +49,21 @@ async fn a_material_photo_becomes_the_swatch_in_every_panel() -> Result<()> {
 
     // Give the Pavers material a photo via the catalog inspector.
     page.locator("[data-testid='edit-catalog']")
-        .await
         .click(None)
         .await
         .context("open the catalog inspector")?;
     page.locator("[data-testid='catalog-row-paver']")
-        .await
         .click(None)
         .await
         .context("select the paver material")?;
     page.locator("[data-testid='catalog-image']")
-        .await
         .fill(TRANSPARENT_PNG_1X1, None)
         .await
         .context("set the material image")?;
 
     // 1) The catalog list row's swatch is now the photo.
-    let row_swatch = page
-        .locator("[data-testid='catalog-row-paver'] [data-testid='material-swatch']")
-        .await;
+    let row_swatch =
+        page.locator("[data-testid='catalog-row-paver'] [data-testid='material-swatch']");
     wait_attr(&row_swatch, "src", |s| s == TRANSPARENT_PNG_1X1)
         .await
         .context("the catalog row swatch becomes the photo")?;
@@ -79,22 +74,19 @@ async fn a_material_photo_becomes_the_swatch_in_every_panel() -> Result<()> {
         .context("the picker swatch becomes the photo")?;
 
     page.locator("[data-testid='catalog-close']")
-        .await
         .click(None)
         .await
         .context("close the catalog inspector")?;
 
     // 3) Draw a paver area and select it — the area inspector's swatch is the
     // photo too.
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     page.locator("[data-testid='area-mat-cat-paver']")
-        .await
         .click(None)
         .await
         .context("arm the Pavers material")?;
     page.locator("[data-testid='draw-shape']")
-        .await
         .click(None)
         .await
         .context("arm the area tool")?;
@@ -105,9 +97,8 @@ async fn a_material_photo_becomes_the_swatch_in_every_panel() -> Result<()> {
     click_ft(&yard, ppf, corners[0].0, corners[0].1).await?; // snap-close
     click_ft(&yard, ppf, 15.0, 14.0).await?; // click inside to select
 
-    let inspector_swatch = page
-        .locator("[data-testid='area-inspector'] [data-testid='material-swatch']")
-        .await;
+    let inspector_swatch =
+        page.locator("[data-testid='area-inspector'] [data-testid='material-swatch']");
     expect(inspector_swatch.clone())
         .to_have_count(1)
         .await

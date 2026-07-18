@@ -125,7 +125,13 @@ fn ft_pos(ppf: f64, fx: f64, fy: f64) -> Position {
 /// point at world feet `(fx, fy)`, via `Locator::drag_to` — the driver-side
 /// drag that, unlike a manual `mouse.down`→`move`→`up`, doesn't hit the
 /// Chromium-149 headless-Linux "button-held move hangs" bug.
-pub async fn drag_to_ft(source: &Locator, yard: &Locator, ppf: f64, fx: f64, fy: f64) -> Result<()> {
+pub async fn drag_to_ft(
+    source: &Locator,
+    yard: &Locator,
+    ppf: f64,
+    fx: f64,
+    fy: f64,
+) -> Result<()> {
     source
         .drag_to(
             yard,
@@ -168,13 +174,7 @@ pub async fn drag_within_ft(
 /// gesture whose exact page-pixel path matters (e.g. testing grid snapping),
 /// rather than a feet target. `(sx,sy)`/`(tx,ty)` are offsets inside the yard
 /// element.
-pub async fn drag_within_px(
-    yard: &Locator,
-    sx: f64,
-    sy: f64,
-    tx: f64,
-    ty: f64,
-) -> Result<()> {
+pub async fn drag_within_px(yard: &Locator, sx: f64, sy: f64, tx: f64, ty: f64) -> Result<()> {
     yard.drag_to(
         yard,
         Some(
@@ -246,8 +246,7 @@ pub async fn mouse_click_ft(page: &Page, yard: &Locator, ppf: f64, fx: f64, fy: 
 /// Arm an object for placement by clicking its palette tile. `id` is the
 /// catalog id (e.g. `lounge-chair`, `fire-pit`).
 pub async fn arm_object(page: &Page, id: &str) -> Result<()> {
-    page.locator(&format!("[data-testid='palette-{id}']"))
-        .await
+    page.locator(format!("[data-testid='palette-{id}']"))
         .click(None)
         .await
         .with_context(|| format!("arm the {id} tile"))?;
@@ -273,7 +272,7 @@ pub async fn place_object(
 ) -> Result<()> {
     arm_object(page, id).await?;
     click_ft(yard, ppf, fx, fy).await?;
-    expect(page.locator("[data-testid='hint']").await)
+    expect(page.locator("[data-testid='hint']"))
         .to_have_text("Pick a tool to draw.")
         .await
         .context("object tool disarms after placing")?;
@@ -285,7 +284,6 @@ pub async fn place_object(
 /// appears, so callers should re-measure `ppf` afterwards.
 pub async fn draw_central_deck(page: &Page, yard: &Locator, ppf: f64) -> Result<()> {
     page.locator("[data-testid='draw-deck']")
-        .await
         .click(None)
         .await
         .context("arm the deck tool")?;
@@ -294,7 +292,7 @@ pub async fn draw_central_deck(page: &Page, yard: &Locator, ppf: f64) -> Result<
         click_ft(yard, ppf, fx, fy).await?;
     }
     click_ft(yard, ppf, deck[0].0, deck[0].1).await?; // snap-close
-    expect(page.locator("[data-testid='yard'] .deck polygon").await)
+    expect(page.locator("[data-testid='yard'] .deck polygon"))
         .to_have_count(1)
         .await
         .context("the deck is drawn (and the catalog is seeded)")?;

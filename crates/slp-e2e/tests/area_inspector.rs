@@ -52,18 +52,16 @@ async fn selects_an_area_and_edits_it_through_the_inspector() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Set the mulch depth to 3 in, then draw a 10×8 ft bed (80 ft²). At 3 in:
     // yd³ = 80·3/324 ≈ 0.74; × $40/yd³ ≈ $29.63.
     page.locator("[data-testid='area-depth']")
-        .await
         .fill("3", None)
         .await
         .context("set mulch depth to 3 in")?;
     page.locator("[data-testid='draw-shape']")
-        .await
         .click(None)
         .await
         .context("arm the bed tool")?;
@@ -75,7 +73,7 @@ async fn selects_an_area_and_edits_it_through_the_inspector() -> Result<()> {
 
     // Click inside its body (off any corner/label) to select it.
     click_ft(&yard, ppf, 12.0, 11.0).await?;
-    let inspector = page.locator("[data-testid='area-inspector']").await;
+    let inspector = page.locator("[data-testid='area-inspector']");
     expect(inspector.clone())
         .to_be_visible()
         .await
@@ -85,11 +83,11 @@ async fn selects_an_area_and_edits_it_through_the_inspector() -> Result<()> {
     wait_contains(&inspector, "Mulch")
         .await
         .context("the inspector titles the mulch material")?;
-    let area = page.locator("[data-testid='area-inspector-area']").await;
+    let area = page.locator("[data-testid='area-inspector-area']");
     wait_contains(&area, "80 ft²")
         .await
         .context("the inspector reports 80 ft²")?;
-    let cost = page.locator("[data-testid='area-inspector-cost']").await;
+    let cost = page.locator("[data-testid='area-inspector-cost']");
     wait_contains(&cost, "$29.")
         .await
         .context("the inspector shows the volume cost at 3 in")?;
@@ -97,7 +95,6 @@ async fn selects_an_area_and_edits_it_through_the_inspector() -> Result<()> {
     // Deepen to 6 in through the panel — the per-area cost roughly doubles
     // (yd³ = 80·6/324 ≈ 1.48; × $40 ≈ $59.26), live.
     page.locator("[data-testid='area-inspector-depth']")
-        .await
         .fill("6", None)
         .await
         .context("deepen the bed to 6 in via the panel")?;
@@ -105,22 +102,21 @@ async fn selects_an_area_and_edits_it_through_the_inspector() -> Result<()> {
         .await
         .context("the cost updates live when the depth changes")?;
     // The estimate reflects the new depth too.
-    let estimate = page.locator("[data-testid='estimate']").await;
+    let estimate = page.locator("[data-testid='estimate']");
     wait_contains(&estimate, "Mulch")
         .await
         .context("the estimate still lists the mulch line")?;
 
     // Remove it — the bed leaves the plan and the estimate drops the line.
     page.locator("[data-testid='delete-area']")
-        .await
         .click(None)
         .await
         .context("remove the area via the panel")?;
-    expect(page.locator("[data-testid='yard'] .shape polygon").await)
+    expect(page.locator("[data-testid='yard'] .shape polygon"))
         .to_have_count(0)
         .await
         .context("the removed bed is gone from the plan")?;
-    expect(page.locator("[data-testid='area-inspector']").await)
+    expect(page.locator("[data-testid='area-inspector']"))
         .to_have_count(0)
         .await
         .context("its inspector disappears once nothing is selected")?;
@@ -151,13 +147,12 @@ async fn the_inspector_dodges_an_area_drawn_in_a_corner() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Draw a bed up in the NE corner of the default 70×30 ft yard (north = +y,
     // east = +x), then click inside it to select.
     page.locator("[data-testid='draw-shape']")
-        .await
         .click(None)
         .await
         .context("arm the bed tool")?;
@@ -170,20 +165,14 @@ async fn the_inspector_dodges_an_area_drawn_in_a_corner() -> Result<()> {
 
     // Its inspector avoids the occupied NE corner and lands in NW (next in the
     // NE → NW → SE → SW priority order).
-    expect(
-        page.locator("[data-testid='area-inspector'][data-corner='nw']")
-            .await,
-    )
-    .to_have_count(1)
-    .await
-    .context("the inspector dodges the bed in the NE corner and floats in NW")?;
-    expect(
-        page.locator("[data-testid='area-inspector'][data-corner='ne']")
-            .await,
-    )
-    .to_have_count(0)
-    .await
-    .context("it does not float over the bed it describes")?;
+    expect(page.locator("[data-testid='area-inspector'][data-corner='nw']"))
+        .to_have_count(1)
+        .await
+        .context("the inspector dodges the bed in the NE corner and floats in NW")?;
+    expect(page.locator("[data-testid='area-inspector'][data-corner='ne']"))
+        .to_have_count(0)
+        .await
+        .context("it does not float over the bed it describes")?;
 
     browser.close().await.context("close browser")?;
     Ok(())

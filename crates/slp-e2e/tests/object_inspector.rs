@@ -15,13 +15,13 @@ mod common;
 
 use anyhow::{Context, Result};
 use common::{click_ft, dist_dir, draw_central_deck, measure_ppf, place, serve};
-use playwright_rs::protocol::Playwright;
 use playwright_rs::expect;
+use playwright_rs::protocol::Playwright;
 
 /// Assert the inspector is showing in `corner` (`nw`/`sw`/`ne`/`se`).
 async fn assert_corner(page: &playwright_rs::Page, corner: &str) -> Result<()> {
     let sel = format!("[data-testid='object-inspector'][data-corner='{corner}']");
-    expect(page.locator(&sel).await)
+    expect(page.locator(sel))
         .to_have_count(1)
         .await
         .with_context(|| format!("inspector floats in the {corner} corner"))?;
@@ -32,7 +32,10 @@ async fn assert_corner(page: &playwright_rs::Page, corner: &str) -> Result<()> {
 async fn inspector_floats_in_the_first_empty_corner() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -44,7 +47,7 @@ async fn inspector_floats_in_the_first_empty_corner() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     // Full-width canvas here (the estimate panel only appears once furniture is
     // seeded), so this ppf is right for the deck.
     let ppf = measure_ppf(&yard).await?;
@@ -90,7 +93,10 @@ async fn inspector_floats_in_the_first_empty_corner() -> Result<()> {
 async fn dragging_the_handle_rotates_the_object() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -102,7 +108,7 @@ async fn dragging_the_handle_rotates_the_object() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     draw_central_deck(&page, &yard, ppf).await?;
@@ -114,7 +120,7 @@ async fn dragging_the_handle_rotates_the_object() -> Result<()> {
     let (cx_ft, cy_ft) = (35.0, 15.0);
     place(&page, &yard, ppf, cx_ft, cy_ft).await?;
     click_ft(&yard, ppf, cx_ft, cy_ft).await?; // select
-    expect(page.locator("[data-testid='yard'] .furniture-item[transform*='rotate(0)']").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item[transform*='rotate(0)']"))
         .to_have_count(1)
         .await
         .context("the object starts un-rotated")?;
@@ -123,10 +129,10 @@ async fn dragging_the_handle_rotates_the_object() -> Result<()> {
     // north edge turns to face the cursor, which snaps to 90°. +120 px east of
     // the object center = +120/ppf ft east at the same y. (`drag_to` hovers the
     // source itself, so no separate hover is needed.)
-    let rotate = page.locator("[data-testid='rotate-handle']").await;
+    let rotate = page.locator("[data-testid='rotate-handle']");
     common::drag_to_ft(&rotate, &yard, ppf, cx_ft + 120.0 / ppf, cy_ft).await?;
 
-    expect(page.locator("[data-testid='yard'] .furniture-item[transform*='rotate(90)']").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item[transform*='rotate(90)']"))
         .to_have_count(1)
         .await
         .context("dragging the handle east rotates the object to 90°")?;

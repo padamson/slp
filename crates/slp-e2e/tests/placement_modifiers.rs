@@ -23,15 +23,18 @@ use anyhow::{Context, Result};
 use common::{
     arm_object, click_ft_with, dist_dir, draw_central_deck, measure_ppf, mouse_click_ft, serve,
 };
+use playwright_rs::expect;
 use playwright_rs::protocol::Playwright;
 use playwright_rs::protocol::click::KeyboardModifier;
-use playwright_rs::expect;
 
 #[tokio::test]
 async fn shift_click_places_a_row_without_disarming() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -43,7 +46,7 @@ async fn shift_click_places_a_row_without_disarming() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
     let ppf = measure_ppf(&yard).await?;
@@ -52,17 +55,17 @@ async fn shift_click_places_a_row_without_disarming() -> Result<()> {
     page.keyboard().down("Shift").await.context("hold Shift")?;
     for fx in [31.0, 35.0, 39.0] {
         mouse_click_ft(&page, &yard, ppf, fx, 15.0).await?;
-        expect(page.locator("[data-testid='palette-lounge-chair'].armed").await)
+        expect(page.locator("[data-testid='palette-lounge-chair'].armed"))
             .to_have_count(1)
             .await
             .context("Shift keeps the tile armed after a placement")?;
     }
-    expect(page.locator("[data-testid='yard'] .furniture-item").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item"))
         .to_have_count(3)
         .await
         .context("three chairs placed in the sticky run")?;
     page.keyboard().up("Shift").await.context("release Shift")?;
-    expect(page.locator("[data-testid='palette-lounge-chair'].armed").await)
+    expect(page.locator("[data-testid='palette-lounge-chair'].armed"))
         .to_have_count(0)
         .await
         .context("releasing Shift ends the run")?;
@@ -75,7 +78,10 @@ async fn shift_click_places_a_row_without_disarming() -> Result<()> {
 async fn releasing_shift_ends_the_sticky_run() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -87,7 +93,7 @@ async fn releasing_shift_ends_the_sticky_run() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
     let ppf = measure_ppf(&yard).await?;
@@ -95,13 +101,13 @@ async fn releasing_shift_ends_the_sticky_run() -> Result<()> {
     arm_object(&page, "lounge-chair").await?;
     page.keyboard().down("Shift").await.context("hold Shift")?;
     mouse_click_ft(&page, &yard, ppf, 32.0, 15.0).await?;
-    expect(page.locator("[data-testid='palette-lounge-chair'].armed").await)
+    expect(page.locator("[data-testid='palette-lounge-chair'].armed"))
         .to_have_count(1)
         .await
         .context("still armed mid-run")?;
 
     page.keyboard().up("Shift").await.context("release Shift")?;
-    expect(page.locator("[data-testid='palette-lounge-chair'].armed").await)
+    expect(page.locator("[data-testid='palette-lounge-chair'].armed"))
         .to_have_count(0)
         .await
         .context("releasing Shift disarms the tool")?;
@@ -114,7 +120,10 @@ async fn releasing_shift_ends_the_sticky_run() -> Result<()> {
 async fn option_click_places_a_virtual_ghost() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -126,7 +135,7 @@ async fn option_click_places_a_virtual_ghost() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
     let ppf = measure_ppf(&yard).await?;
@@ -136,11 +145,11 @@ async fn option_click_places_a_virtual_ghost() -> Result<()> {
     // per-click `.modifiers()` is fine here.
     arm_object(&page, "lounge-chair").await?;
     click_ft_with(&yard, ppf, 35.0, 15.0, &[KeyboardModifier::Alt]).await?;
-    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual"))
         .to_have_count(1)
         .await
         .context("Option/Alt places a virtual ghost")?;
-    expect(page.locator("[data-testid='palette-lounge-chair'].armed").await)
+    expect(page.locator("[data-testid='palette-lounge-chair'].armed"))
         .to_have_count(0)
         .await
         .context("Option alone (no Shift) still disarms after placing")?;
@@ -153,7 +162,10 @@ async fn option_click_places_a_virtual_ghost() -> Result<()> {
 async fn shift_option_places_a_row_of_ghosts() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -165,7 +177,7 @@ async fn shift_option_places_a_row_of_ghosts() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
     let ppf = measure_ppf(&yard).await?;
@@ -178,11 +190,11 @@ async fn shift_option_places_a_row_of_ghosts() -> Result<()> {
     for fx in [31.0, 35.0] {
         mouse_click_ft(&page, &yard, ppf, fx, 15.0).await?;
     }
-    expect(page.locator("[data-testid='yard'] .furniture-item--virtual").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item--virtual"))
         .to_have_count(2)
         .await
         .context("Shift+Option places a row of ghosts")?;
-    expect(page.locator("[data-testid='palette-lounge-chair'].armed").await)
+    expect(page.locator("[data-testid='palette-lounge-chair'].armed"))
         .to_have_count(1)
         .await
         .context("still armed — Shift was held throughout")?;
@@ -197,7 +209,10 @@ async fn shift_option_places_a_row_of_ghosts() -> Result<()> {
 async fn escape_cancels_the_armed_tile_without_placing() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -209,22 +224,25 @@ async fn escape_cancels_the_armed_tile_without_placing() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
 
     arm_object(&page, "lounge-chair").await?;
-    expect(page.locator("[data-testid='palette-lounge-chair'].armed").await)
+    expect(page.locator("[data-testid='palette-lounge-chair'].armed"))
         .to_have_count(1)
         .await
         .context("armed before Escape")?;
 
-    page.keyboard().press("Escape", None).await.context("press Escape")?;
-    expect(page.locator("[data-testid='palette-lounge-chair'].armed").await)
+    page.keyboard()
+        .press("Escape", None)
+        .await
+        .context("press Escape")?;
+    expect(page.locator("[data-testid='palette-lounge-chair'].armed"))
         .to_have_count(0)
         .await
         .context("Escape cancels the armed tile")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item"))
         .to_have_count(0)
         .await
         .context("nothing was placed")?;

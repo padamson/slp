@@ -14,8 +14,8 @@ mod common;
 
 use anyhow::{Context, Result};
 use common::{click_ft, dist_dir, draw_central_deck, measure_ppf, serve};
-use playwright_rs::protocol::Playwright;
 use playwright_rs::expect;
+use playwright_rs::protocol::Playwright;
 
 #[tokio::test]
 async fn the_house_inspector_shows_status_and_hides_elevation() -> Result<()> {
@@ -36,12 +36,11 @@ async fn the_house_inspector_shows_status_and_hides_elevation() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Draw a house (kept clear of the corners), then click its body to select.
     page.locator("[data-testid='draw-house']")
-        .await
         .click(None)
         .await
         .context("arm the house tool")?;
@@ -52,28 +51,27 @@ async fn the_house_inspector_shows_status_and_hides_elevation() -> Result<()> {
     click_ft(&yard, ppf, corners[0].0, corners[0].1).await?; // snap-close
     click_ft(&yard, ppf, 30.0, 12.0).await?; // select the house
 
-    let inspector = page.locator("[data-testid='area-inspector']").await;
+    let inspector = page.locator("[data-testid='area-inspector']");
     expect(inspector.clone())
         .to_be_visible()
         .await
         .context("selecting the house floats its inspector")?;
     // Structure mode: a build-status control, and no elevation field (grade).
-    expect(page.locator("[data-testid='area-status']").await)
+    expect(page.locator("[data-testid='area-status']"))
         .to_have_count(1)
         .await
         .context("the house shows an existing/planned status control")?;
-    expect(page.locator("[data-testid='area-inspector-elevation']").await)
+    expect(page.locator("[data-testid='area-inspector-elevation']"))
         .to_have_count(0)
         .await
         .context("the grade-level house hides the elevation field")?;
 
     // Flip it to Planned — the button becomes active (proves the live wiring).
     page.locator("[data-testid='area-status-planned']")
-        .await
         .click(None)
         .await
         .context("mark the house planned")?;
-    expect(page.locator("[data-testid='area-status-planned'].active").await)
+    expect(page.locator("[data-testid='area-status-planned'].active"))
         .to_have_count(1)
         .await
         .context("the planned status sticks")?;
@@ -101,7 +99,7 @@ async fn a_deck_level_inspector_edits_status_and_elevation() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
     // The estimate panel appeared (catalog seeded) → re-measure the yard.
@@ -109,38 +107,36 @@ async fn a_deck_level_inspector_edits_status_and_elevation() -> Result<()> {
 
     // Click the deck level's body (off-center) to select it.
     click_ft(&yard, ppf, 32.0, 14.0).await?;
-    let inspector = page.locator("[data-testid='area-inspector']").await;
+    let inspector = page.locator("[data-testid='area-inspector']");
     expect(inspector.clone())
         .to_be_visible()
         .await
         .context("selecting a deck level floats its inspector")?;
 
     // Structure mode with an elevation field, and no cost row.
-    expect(page.locator("[data-testid='area-status']").await)
+    expect(page.locator("[data-testid='area-status']"))
         .to_have_count(1)
         .await
         .context("the deck level shows a status control")?;
-    expect(page.locator("[data-testid='area-inspector-elevation']").await)
+    expect(page.locator("[data-testid='area-inspector-elevation']"))
         .to_have_count(1)
         .await
         .context("a deck level exposes its elevation")?;
-    expect(page.locator("[data-testid='area-inspector-cost']").await)
+    expect(page.locator("[data-testid='area-inspector-cost']"))
         .to_have_count(0)
         .await
         .context("a structure has no material cost row")?;
 
     // Raise the level to 3 ft and flip it to planned — both edits are live.
     page.locator("[data-testid='area-inspector-elevation']")
-        .await
         .fill("3", None)
         .await
         .context("raise the deck level to 3 ft")?;
     page.locator("[data-testid='area-status-planned']")
-        .await
         .click(None)
         .await
         .context("mark the level planned")?;
-    expect(page.locator("[data-testid='area-status-planned'].active").await)
+    expect(page.locator("[data-testid='area-status-planned'].active"))
         .to_have_count(1)
         .await
         .context("the planned status sticks")?;

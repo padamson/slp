@@ -51,17 +51,15 @@ async fn draws_a_paver_area_and_costs_it_per_square_foot() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Arm the Pavers material, then draw a 10×8 ft area (80 ft²).
     page.locator("[data-testid='area-mat-cat-paver']")
-        .await
         .click(None)
         .await
         .context("arm the Pavers material")?;
     page.locator("[data-testid='draw-shape']")
-        .await
         .click(None)
         .await
         .context("arm the area tool")?;
@@ -72,7 +70,7 @@ async fn draws_a_paver_area_and_costs_it_per_square_foot() -> Result<()> {
     click_ft(&yard, ppf, corners[0].0, corners[0].1).await?; // snap-close
 
     // The area renders in the paver look (a gray fill, not mulch brown).
-    let poly = page.locator("[data-testid='yard'] .shape polygon").await;
+    let poly = page.locator("[data-testid='yard'] .shape polygon");
     expect(poly.clone())
         .to_have_count(1)
         .await
@@ -85,7 +83,7 @@ async fn draws_a_paver_area_and_costs_it_per_square_foot() -> Result<()> {
     assert_eq!(fill, "#9a9ca0", "the area fills paver gray");
 
     // The estimate shows a Pavers line reading ft² (80 × $8 = $640).
-    let estimate = page.locator("[data-testid='estimate']").await;
+    let estimate = page.locator("[data-testid='estimate']");
     let text = wait_contains(&estimate, "Pavers")
         .await
         .context("the estimate lists a Pavers line")?;
@@ -112,11 +110,11 @@ async fn draws_a_paver_area_and_costs_it_per_square_foot() -> Result<()> {
 
     // Reload — the paver area (and its cost) persist.
     page.reload(None).await.context("reload the page")?;
-    expect(page.locator("[data-testid='yard'] .shape polygon").await)
+    expect(page.locator("[data-testid='yard'] .shape polygon"))
         .to_have_count(1)
         .await
         .context("the paver area persists across a reload")?;
-    wait_contains(&page.locator("[data-testid='estimate']").await, "Pavers")
+    wait_contains(&page.locator("[data-testid='estimate']"), "Pavers")
         .await
         .context("the Pavers line persists across a reload")?;
 

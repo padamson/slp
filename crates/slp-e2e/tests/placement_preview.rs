@@ -15,14 +15,17 @@ use anyhow::Context;
 use anyhow::Result;
 use common::{arm_object, dist_dir, draw_central_deck, measure_ppf, serve};
 use playwright_rs::BoundingBox;
-use playwright_rs::protocol::Playwright;
 use playwright_rs::expect;
+use playwright_rs::protocol::Playwright;
 
 #[tokio::test]
 async fn the_preview_ghost_tracks_the_pointer_and_matches_the_armed_shape() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -34,7 +37,7 @@ async fn the_preview_ghost_tracks_the_pointer_and_matches_the_armed_shape() -> R
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
     let ppf = measure_ppf(&yard).await?;
@@ -51,7 +54,7 @@ async fn the_preview_ghost_tracks_the_pointer_and_matches_the_armed_shape() -> R
         .move_to(x + 30.0 * ppf, y + 15.0 * ppf, None)
         .await
         .context("hover with nothing armed")?;
-    expect(page.locator("[data-testid='yard'] .placement-object-preview").await)
+    expect(page.locator("[data-testid='yard'] .placement-object-preview"))
         .to_have_count(0)
         .await
         .context("no shape preview without an armed item")?;
@@ -62,9 +65,7 @@ async fn the_preview_ghost_tracks_the_pointer_and_matches_the_armed_shape() -> R
         .move_to(x + 32.0 * ppf, y + 15.0 * ppf, None)
         .await
         .context("hover the yard with the fire pit armed")?;
-    let preview = page
-        .locator("[data-testid='yard'] .placement-object-preview circle")
-        .await;
+    let preview = page.locator("[data-testid='yard'] .placement-object-preview circle");
     expect(preview.clone())
         .to_have_count(1)
         .await

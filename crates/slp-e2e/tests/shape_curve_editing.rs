@@ -54,12 +54,11 @@ async fn curves_an_edge_with_a_bezier_control_handle() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Draw a 10x8 ft rectangle (80 ft²).
     page.locator("[data-testid='draw-shape']")
-        .await
         .click(None)
         .await
         .context("arm the shape tool")?;
@@ -69,15 +68,15 @@ async fn curves_an_edge_with_a_bezier_control_handle() -> Result<()> {
     }
     click_ft(&yard, ppf, corners[0].0, corners[0].1).await?; // snap-close
 
-    let label = page.locator("[data-testid='yard'] .shape-label").await;
-    expect(page.locator("[data-testid='yard'] .shape polygon").await)
+    let label = page.locator("[data-testid='yard'] .shape-label");
+    expect(page.locator("[data-testid='yard'] .shape polygon"))
         .to_have_count(1)
         .await
         .context("a straight boundary is a polygon")?;
 
     // Select the shape → control handles appear (2 per edge = 8).
     click_ft(&yard, ppf, 12.0, 12.0).await?;
-    expect(page.locator("[data-testid='shape-control-handle']").await)
+    expect(page.locator("[data-testid='shape-control-handle']"))
         .to_have_count(8)
         .await
         .context("two control handles per straight edge")?;
@@ -87,17 +86,14 @@ async fn curves_an_edge_with_a_bezier_control_handle() -> Result<()> {
     // and drag it down to (13,6) — promoting edge 0 to a bezier that bows out,
     // growing the area and re-rendering the boundary as a path with a `C`.
     // Control handles render in edge order; nth(0) is edge 0's control1.
-    let control0 = page
-        .locator("[data-testid='shape-control-handle']")
-        .await
-        .nth(0);
+    let control0 = page.locator("[data-testid='shape-control-handle']").nth(0);
     common::drag_to_ft(&control0, &yard, ppf, 13.0, 6.0).await?;
 
-    expect(page.locator("[data-testid='yard'] .shape path").await)
+    expect(page.locator("[data-testid='yard'] .shape path"))
         .to_have_count(1)
         .await
         .context("the curved boundary renders as a path")?;
-    expect(page.locator("[data-testid='yard'] .shape polygon").await)
+    expect(page.locator("[data-testid='yard'] .shape polygon"))
         .to_have_count(0)
         .await
         .context("no polygon remains once an edge is a curve")?;
@@ -112,7 +108,7 @@ async fn curves_an_edge_with_a_bezier_control_handle() -> Result<()> {
 
     // Persists across a reload.
     page.reload(None).await.context("reload the page")?;
-    expect(page.locator("[data-testid='yard'] .shape path").await)
+    expect(page.locator("[data-testid='yard'] .shape path"))
         .to_have_count(1)
         .await
         .context("the curved boundary persists across a reload")?;

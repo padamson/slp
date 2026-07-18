@@ -54,12 +54,11 @@ async fn bows_an_edge_into_an_arc() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Draw a 10x8 ft rectangle (80 ft²): edge 0 is the bottom (10,10)->(20,10).
     page.locator("[data-testid='draw-shape']")
-        .await
         .click(None)
         .await
         .context("arm the shape tool")?;
@@ -69,16 +68,16 @@ async fn bows_an_edge_into_an_arc() -> Result<()> {
     }
     click_ft(&yard, ppf, corners[0].0, corners[0].1).await?; // snap-close
 
-    let label = page.locator("[data-testid='yard'] .shape-label").await;
+    let label = page.locator("[data-testid='yard'] .shape-label");
     // Straight boundary renders as a polygon, area 80 ft².
-    expect(page.locator("[data-testid='yard'] .shape polygon").await)
+    expect(page.locator("[data-testid='yard'] .shape polygon"))
         .to_have_count(1)
         .await
         .context("a straight boundary is a polygon")?;
 
     // Select the shape (click its body, off any corner/edge handle).
     click_ft(&yard, ppf, 12.0, 12.0).await?;
-    expect(page.locator("[data-testid='shape-edge-handle']").await)
+    expect(page.locator("[data-testid='shape-edge-handle']"))
         .to_have_count(4)
         .await
         .context("a bulge handle per edge appears when selected")?;
@@ -87,17 +86,17 @@ async fn bows_an_edge_into_an_arc() -> Result<()> {
     // (15,7) — bowing the edge outward, away from the interior → the area
     // grows past 80, and the boundary becomes an arc `<path>`.
     // The bottom-edge handle is the lowest-on-screen edge handle (largest y).
-    let handles = page.locator("[data-testid='shape-edge-handle']").await;
+    let handles = page.locator("[data-testid='shape-edge-handle']");
     // Edge order is 0=bottom,1=right,2=top,3=left, so nth(0) is the bottom edge.
     let bottom = handles.nth(0);
     common::drag_to_ft(&bottom, &yard, ppf, 15.0, 7.0).await?;
 
     // The boundary re-rendered as a path with an arc command, and the area grew.
-    expect(page.locator("[data-testid='yard'] .shape path").await)
+    expect(page.locator("[data-testid='yard'] .shape path"))
         .to_have_count(1)
         .await
         .context("the bowed boundary renders as a path")?;
-    expect(page.locator("[data-testid='yard'] .shape polygon").await)
+    expect(page.locator("[data-testid='yard'] .shape polygon"))
         .to_have_count(0)
         .await
         .context("no polygon remains once the edge is an arc")?;

@@ -45,7 +45,6 @@ async fn serve(dist: &PathBuf) -> Result<(SocketAddr, tokio::task::JoinHandle<()
 async fn assert_every_story_renders(page: &Page) -> Result<()> {
     let names = page
         .locator(".theoria > .theoria-nav button")
-        .await
         .all_inner_texts()
         .await
         .context("read story names from the sidebar")?;
@@ -53,14 +52,12 @@ async fn assert_every_story_renders(page: &Page) -> Result<()> {
 
     for name in &names {
         page.get_by_text(name, true)
-            .await
             .click(None)
             .await
             .with_context(|| format!("click story {name:?}"))?;
 
         let active = page
             .locator(".theoria > .theoria-nav button.active")
-            .await
             .inner_text()
             .await
             .context("read active story")?;
@@ -71,11 +68,13 @@ async fn assert_every_story_renders(page: &Page) -> Result<()> {
 
         let stage_children = page
             .locator(".theoria-stage *")
-            .await
             .count()
             .await
             .context("count stage content")?;
-        ensure!(stage_children > 0, "story {name:?} renders non-empty content");
+        ensure!(
+            stage_children > 0,
+            "story {name:?} renders non-empty content"
+        );
     }
     Ok(())
 }
@@ -128,30 +127,28 @@ async fn controls_drive_the_stage_live() -> Result<()> {
 
     // Select the knobs demo (a `#[story]` with args → renders a controls panel).
     page.get_by_text("Knobs · demo", true)
-        .await
         .click(None)
         .await
         .context("select the knobs demo")?;
 
     // Default `on = true` → the stage shows "ON".
-    expect(page.locator(".theoria-stage .k-flag").await)
+    expect(page.locator(".theoria-stage .k-flag"))
         .to_have_text("ON")
         .await
         .context("flag starts ON")?;
 
     // Toggle the bool control off; the stage re-renders to "OFF".
     page.locator(".theoria-panel input[type=checkbox]")
-        .await
         .click(None)
         .await
         .context("toggle the flag control")?;
-    expect(page.locator(".theoria-stage .k-flag").await)
+    expect(page.locator(".theoria-stage .k-flag"))
         .to_have_text("OFF")
         .await
         .context("toggling the control re-renders the stage")?;
 
     // Show-code carries the captured source.
-    expect(page.locator(".theoria-panel .theoria-code summary").await)
+    expect(page.locator(".theoria-panel .theoria-code summary"))
         .to_have_text("Show code")
         .await
         .context("show-code toggle present")?;
@@ -160,21 +157,18 @@ async fn controls_drive_the_stage_live() -> Result<()> {
     // argTypes table documents each arg's type.
     let strong = page
         .locator(".theoria-panel .theoria-md strong")
-        .await
         .count()
         .await
         .context("count rendered <strong>")?;
     ensure!(strong > 0, "description renders Markdown emphasis");
     let items = page
         .locator(".theoria-panel .theoria-md li")
-        .await
         .count()
         .await
         .context("count rendered <li>")?;
     ensure!(items > 0, "description renders a Markdown list");
     let types = page
         .locator(".theoria-panel .theoria-controls .control-type")
-        .await
         .all_inner_texts()
         .await
         .context("read argTypes type column")?;
@@ -207,18 +201,17 @@ async fn selection_persists_across_reload() -> Result<()> {
 
     // Select a non-default story...
     page.get_by_text("StoryNav · single", false)
-        .await
         .click(None)
         .await
         .context("select the second story")?;
-    expect(page.locator(".theoria > .theoria-nav button.active").await)
+    expect(page.locator(".theoria > .theoria-nav button.active"))
         .to_have_text("StoryNav · single")
         .await
         .context("second story is active before reload")?;
 
     // ...reload the page; the selection is restored from localStorage.
     page.reload(None).await.context("reload the page")?;
-    expect(page.locator(".theoria > .theoria-nav button.active").await)
+    expect(page.locator(".theoria > .theoria-nav button.active"))
         .to_have_text("StoryNav · single")
         .await
         .context("selected story persists across reload")?;

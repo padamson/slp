@@ -24,7 +24,10 @@ async fn click_yard(yard: &Locator, x: f64, y: f64) -> Result<()> {
 async fn places_a_door_on_a_wall_and_persists() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -38,37 +41,40 @@ async fn places_a_door_on_a_wall_and_persists() -> Result<()> {
 
     // Draw a rectangular house: enter draw mode, drop four corners, snap-close.
     page.locator("[data-testid='draw-house']")
-        .await
         .click(None)
         .await
         .context("enter draw mode")?;
-    let yard = page.locator("[data-testid='yard']").await;
-    let corners = [(120.0, 120.0), (360.0, 120.0), (360.0, 300.0), (120.0, 300.0)];
+    let yard = page.locator("[data-testid='yard']");
+    let corners = [
+        (120.0, 120.0),
+        (360.0, 120.0),
+        (360.0, 300.0),
+        (120.0, 300.0),
+    ];
     for (x, y) in corners {
         click_yard(&yard, x, y).await?;
     }
     click_yard(&yard, 120.0, 120.0).await?; // snap-close
-    expect(page.locator("[data-testid='yard'] .house-corner").await)
+    expect(page.locator("[data-testid='yard'] .house-corner"))
         .to_have_count(4)
         .await
         .context("the house is drawn")?;
 
     // Add a door on the top wall: click two points on it to span the opening.
     page.locator("[data-testid='add-door']")
-        .await
         .click(None)
         .await
         .context("arm door placement")?;
     click_yard(&yard, 200.0, 120.0).await?;
     click_yard(&yard, 280.0, 120.0).await?;
-    expect(page.locator("[data-testid='yard'] .door").await)
+    expect(page.locator("[data-testid='yard'] .door"))
         .to_have_count(1)
         .await
         .context("a door spans the two clicked points on the wall")?;
 
     // Reload — the door is restored from localStorage.
     page.reload(None).await.context("reload the page")?;
-    expect(page.locator("[data-testid='yard'] .door").await)
+    expect(page.locator("[data-testid='yard'] .door"))
         .to_have_count(1)
         .await
         .context("the door persists across a reload")?;

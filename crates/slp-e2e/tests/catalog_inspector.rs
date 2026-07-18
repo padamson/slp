@@ -52,13 +52,13 @@ async fn edits_a_catalog_item_and_propagates_to_placed_objects() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Place one lounge chair (the default first catalog item) — the only priced
     // object on the plan, so the grand total is just its price.
     place(&page, &yard, ppf, 35.0, 15.0).await?;
-    let footprint = page.locator("[data-testid='yard'] .furniture-item rect").await;
+    let footprint = page.locator("[data-testid='yard'] .furniture-item rect");
     let start_w = footprint
         .get_attribute("width")
         .await?
@@ -67,34 +67,30 @@ async fn edits_a_catalog_item_and_propagates_to_placed_objects() -> Result<()> {
 
     // Open the catalog inspector and select the lounge chair.
     page.locator("[data-testid='edit-catalog']")
-        .await
         .click(None)
         .await
         .context("open the catalog inspector")?;
     page.locator("[data-testid='catalog-row-lounge-chair']")
-        .await
         .click(None)
         .await
         .context("select the lounge chair")?;
-    expect(page.locator("[data-testid='catalog-editor']").await)
+    expect(page.locator("[data-testid='catalog-editor']"))
         .to_be_visible()
         .await
         .context("the editor opens for the selected item")?;
 
     // Reprice it to $500 — the estimate's grand total follows immediately.
     page.locator("[data-testid='catalog-price']")
-        .await
         .fill("500", None)
         .await
         .context("set the chair's price to $500")?;
-    wait_text(&page.locator("[data-testid='estimate-total']").await, "$500.00")
+    wait_text(&page.locator("[data-testid='estimate-total']"), "$500.00")
         .await
         .context("the estimate reprices the placed chair live")?;
 
     // Widen its footprint — the placed chair's rendered rect grows (width in px
     // is width_ft × px_ft), proving the render follows the catalog too.
     page.locator("[data-testid='catalog-width']")
-        .await
         .fill("8", None)
         .await
         .context("widen the chair to 8 ft")?;
@@ -104,11 +100,10 @@ async fn edits_a_catalog_item_and_propagates_to_placed_objects() -> Result<()> {
 
     // Close the panel.
     page.locator("[data-testid='catalog-close']")
-        .await
         .click(None)
         .await
         .context("close the catalog inspector")?;
-    expect(page.locator("[data-testid='catalog-panel']").await)
+    expect(page.locator("[data-testid='catalog-panel']"))
         .to_have_count(0)
         .await
         .context("the catalog inspector closes")?;
@@ -143,23 +138,20 @@ async fn sets_a_material_image_that_previews_and_persists() -> Result<()> {
 
     // Open the catalog inspector, edit the Pavers material, set its image.
     page.locator("[data-testid='edit-catalog']")
-        .await
         .click(None)
         .await
         .context("open the catalog inspector")?;
     page.locator("[data-testid='catalog-row-paver']")
-        .await
         .click(None)
         .await
         .context("select the paver material")?;
     page.locator("[data-testid='catalog-image']")
-        .await
         .fill(img, None)
         .await
         .context("set the material image")?;
 
     // The editor previews it.
-    let preview = page.locator("[data-testid='catalog-image-preview']").await;
+    let preview = page.locator("[data-testid='catalog-image-preview']");
     expect(preview.clone())
         .to_have_count(1)
         .await
@@ -173,18 +165,15 @@ async fn sets_a_material_image_that_previews_and_persists() -> Result<()> {
     // Reload — the image persists on the catalog item.
     page.reload(None).await.context("reload the page")?;
     page.locator("[data-testid='edit-catalog']")
-        .await
         .click(None)
         .await
         .context("reopen the catalog inspector")?;
     page.locator("[data-testid='catalog-row-paver']")
-        .await
         .click(None)
         .await
         .context("reselect the paver material")?;
     assert_eq!(
         page.locator("[data-testid='catalog-image']")
-            .await
             .input_value(None)
             .await?,
         img,
@@ -217,12 +206,10 @@ async fn uploads_a_material_image_from_a_file() -> Result<()> {
         .context("navigate to app")?;
 
     page.locator("[data-testid='edit-catalog']")
-        .await
         .click(None)
         .await
         .context("open the catalog inspector")?;
     page.locator("[data-testid='catalog-row-paver']")
-        .await
         .click(None)
         .await
         .context("select the paver material")?;
@@ -230,7 +217,6 @@ async fn uploads_a_material_image_from_a_file() -> Result<()> {
     // Upload a file — its bytes need not be a real PNG for the FileReader→data-URI
     // path; we only assert the resulting data:image/png preview appears.
     page.locator("[data-testid='catalog-image-file']")
-        .await
         .set_input_files_payload(
             FilePayload::new("swatch.png", "image/png", b"stand-in-image-bytes".to_vec()),
             None,
@@ -238,7 +224,7 @@ async fn uploads_a_material_image_from_a_file() -> Result<()> {
         .await
         .context("upload an image file")?;
 
-    let preview = page.locator("[data-testid='catalog-image-preview']").await;
+    let preview = page.locator("[data-testid='catalog-image-preview']");
     expect(preview.clone())
         .to_have_count(1)
         .await
@@ -278,34 +264,30 @@ async fn adds_and_authors_a_material_that_persists() -> Result<()> {
 
     // Open the catalog inspector and add a new material.
     page.locator("[data-testid='edit-catalog']")
-        .await
         .click(None)
         .await
         .context("open the catalog inspector")?;
     page.locator("[data-testid='catalog-add']")
-        .await
         .click(None)
         .await
         .context("add a new material")?;
-    expect(page.locator("[data-testid='catalog-editor']").await)
+    expect(page.locator("[data-testid='catalog-editor']"))
         .to_be_visible()
         .await
         .context("the new item is selected for editing")?;
 
     // Author it: a per-yd³ river gravel at $60.
     page.locator("[data-testid='catalog-name']")
-        .await
         .fill("River gravel", None)
         .await
         .context("name the material")?;
     page.locator("[data-testid='catalog-price']")
-        .await
         .fill("60", None)
         .await
         .context("price the material")?;
     // A new material defaults to a bulk (per-yd³) unit — change it to per-ft² to
     // prove the control mutates it.
-    let unit = page.locator("[data-testid='catalog-price-unit']").await;
+    let unit = page.locator("[data-testid='catalog-price-unit']");
     unit.select_option("per_square_foot", None)
         .await
         .context("price it per square foot")?;
@@ -316,7 +298,7 @@ async fn adds_and_authors_a_material_that_persists() -> Result<()> {
     );
 
     // A material is never a placeable object — it must not appear in the palette.
-    expect(page.locator("[data-testid='palette-material-1']").await)
+    expect(page.locator("[data-testid='palette-material-1']"))
         .to_have_count(0)
         .await
         .context("the added material is catalog-only, not a placeable tile")?;
@@ -324,23 +306,27 @@ async fn adds_and_authors_a_material_that_persists() -> Result<()> {
     // Reload — the authored material persists (catalog rides localStorage).
     page.reload(None).await.context("reload the page")?;
     page.locator("[data-testid='edit-catalog']")
-        .await
         .click(None)
         .await
         .context("reopen the catalog inspector")?;
-    let row = page.locator("[data-testid='catalog-row-material-1']").await;
+    let row = page.locator("[data-testid='catalog-row-material-1']");
     expect(row.clone())
         .to_have_count(1)
         .await
         .context("the added material survived the reload")?;
     let row_text = row.text_content().await?.unwrap_or_default();
-    assert!(row_text.contains("River gravel"), "authored name persisted: {row_text}");
-    assert!(row_text.contains("$60"), "authored price persisted: {row_text}");
+    assert!(
+        row_text.contains("River gravel"),
+        "authored name persisted: {row_text}"
+    );
+    assert!(
+        row_text.contains("$60"),
+        "authored price persisted: {row_text}"
+    );
     // Its price unit persisted too.
     row.click(None).await.context("reselect the material")?;
     assert_eq!(
         page.locator("[data-testid='catalog-price-unit']")
-            .await
             .input_value(None)
             .await?,
         "per_square_foot",
@@ -374,7 +360,6 @@ async fn deletes_an_unreferenced_item_and_blocks_a_referenced_one() -> Result<()
         .context("navigate to app")?;
 
     page.locator("[data-testid='edit-catalog']")
-        .await
         .click(None)
         .await
         .context("open the catalog inspector")?;
@@ -382,25 +367,24 @@ async fn deletes_an_unreferenced_item_and_blocks_a_referenced_one() -> Result<()
     // A hand-added material is referenced by nothing: Delete is live and
     // removes it (row gone, editor closed).
     page.locator("[data-testid='catalog-add']")
-        .await
         .click(None)
         .await
         .context("add a new material")?;
-    let del = page.locator("[data-testid='catalog-delete']").await;
+    let del = page.locator("[data-testid='catalog-delete']");
     assert!(
         !del.is_disabled().await?,
         "an unreferenced item's delete is enabled"
     );
-    expect(page.locator("[data-testid='catalog-delete-note']").await)
+    expect(page.locator("[data-testid='catalog-delete-note']"))
         .to_have_count(0)
         .await
         .context("no in-use note for an unreferenced item")?;
     del.click(None).await.context("delete the material")?;
-    expect(page.locator("[data-testid='catalog-row-material-1']").await)
+    expect(page.locator("[data-testid='catalog-row-material-1']"))
         .to_have_count(0)
         .await
         .context("the deleted material is gone from the list")?;
-    expect(page.locator("[data-testid='catalog-editor']").await)
+    expect(page.locator("[data-testid='catalog-editor']"))
         .to_have_count(0)
         .await
         .context("the editor closes with its item")?;
@@ -408,18 +392,16 @@ async fn deletes_an_unreferenced_item_and_blocks_a_referenced_one() -> Result<()
     // The starter paver's composition references its base gravel — deleting
     // the gravel is blocked, with a note saying why.
     page.locator("[data-testid='catalog-row-paver-base']")
-        .await
         .click(None)
         .await
         .context("select the paver's base gravel")?;
-    let del = page.locator("[data-testid='catalog-delete']").await;
+    let del = page.locator("[data-testid='catalog-delete']");
     assert!(
         del.is_disabled().await?,
         "a referenced item's delete is blocked"
     );
     let note = page
         .locator("[data-testid='catalog-delete-note']")
-        .await
         .text_content()
         .await?
         .unwrap_or_default();

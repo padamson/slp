@@ -15,8 +15,8 @@ mod common;
 
 use anyhow::{Context, Result};
 use common::{YARD_D, click_ft, dist_dir, measure_ppf, serve};
-use playwright_rs::protocol::Playwright;
 use playwright_rs::expect;
+use playwright_rs::protocol::Playwright;
 
 /// The app's fixed SVG user-space scale (`planner.rs::PX_FT`) — the `points`
 /// attribute is always in these units, independent of the rendered/CSS scale
@@ -43,12 +43,11 @@ async fn selects_the_house_and_moves_a_corner() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Draw a 10x8 ft house.
     page.locator("[data-testid='draw-house']")
-        .await
         .click(None)
         .await
         .context("arm the house tool")?;
@@ -57,7 +56,7 @@ async fn selects_the_house_and_moves_a_corner() -> Result<()> {
         click_ft(&yard, ppf, fx, fy).await?;
     }
     click_ft(&yard, ppf, corners[0].0, corners[0].1).await?; // snap-close
-    expect(page.locator("[data-testid='yard'] .house-corner").await)
+    expect(page.locator("[data-testid='yard'] .house-corner"))
         .to_have_count(4)
         .await
         .context("the house is drawn")?;
@@ -66,13 +65,12 @@ async fn selects_the_house_and_moves_a_corner() -> Result<()> {
     // about to move) — its position is derived live from the wall, so it's
     // the dependent geometry this test pins.
     page.locator("[data-testid='add-door']")
-        .await
         .click(None)
         .await
         .context("arm door placement")?;
     click_ft(&yard, ppf, 13.0, 10.0).await?;
     click_ft(&yard, ppf, 15.0, 10.0).await?;
-    expect(page.locator("[data-testid='yard'] .door").await)
+    expect(page.locator("[data-testid='yard'] .door"))
         .to_have_count(1)
         .await
         .context("a door spans the wall")?;
@@ -80,17 +78,17 @@ async fn selects_the_house_and_moves_a_corner() -> Result<()> {
     // Click inside the house body (off any corner/door) to select it — no
     // armed tool, mirroring how clicking a drawn area or a tree selects it.
     click_ft(&yard, ppf, 12.0, 12.0).await?;
-    expect(page.locator("[data-testid='yard'] .house--selected").await)
+    expect(page.locator("[data-testid='yard'] .house--selected"))
         .to_have_count(1)
         .await
         .context("the house is selected")?;
-    expect(page.locator("[data-testid='house-node']").await)
+    expect(page.locator("[data-testid='house-node']"))
         .to_have_count(4)
         .await
         .context("its corners become interactive node handles")?;
 
     // Drag corner 0 (world (10,10), on the door's wall) up to (10,13).
-    let node0 = page.locator("[data-testid='house-node']").await.nth(0);
+    let node0 = page.locator("[data-testid='house-node']").nth(0);
     common::drag_to_ft(&node0, &yard, ppf, 10.0, 13.0).await?;
 
     // The wall moved with the corner (its polygon should no longer contain
@@ -99,7 +97,6 @@ async fn selects_the_house_and_moves_a_corner() -> Result<()> {
     // not vanished or crashed.
     let points = page
         .locator("[data-testid='yard'] .house polygon")
-        .await
         .get_attribute("points")
         .await
         .context("read the house polygon points")?
@@ -111,7 +108,7 @@ async fn selects_the_house_and_moves_a_corner() -> Result<()> {
         !points.contains(&svg_pt(10.0, 10.0)),
         "the moved corner no longer sits at its original point"
     );
-    expect(page.locator("[data-testid='yard'] .door").await)
+    expect(page.locator("[data-testid='yard'] .door"))
         .to_have_count(1)
         .await
         .context("the door on that wall still renders after the move")?;
@@ -139,12 +136,11 @@ async fn selects_a_deck_level_and_moves_a_corner() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Draw a 10x8 ft deck level (default elevation 1.0 ft).
     page.locator("[data-testid='draw-deck']")
-        .await
         .click(None)
         .await
         .context("arm the deck tool")?;
@@ -153,32 +149,28 @@ async fn selects_a_deck_level_and_moves_a_corner() -> Result<()> {
         click_ft(&yard, ppf, fx, fy).await?;
     }
     click_ft(&yard, ppf, corners[0].0, corners[0].1).await?; // snap-close
-    expect(page.locator("[data-testid='yard'] .deck-corner").await)
+    expect(page.locator("[data-testid='yard'] .deck-corner"))
         .to_have_count(4)
         .await
         .context("the level is drawn")?;
 
     // Click inside the level's body (off any corner) to select it.
     click_ft(&yard, ppf, 32.0, 12.0).await?;
-    expect(
-        page.locator("[data-testid='yard'] .deck-level--selected")
-            .await,
-    )
-    .to_have_count(1)
-    .await
-    .context("the level is selected")?;
-    expect(page.locator("[data-testid='deck-node']").await)
+    expect(page.locator("[data-testid='yard'] .deck-level--selected"))
+        .to_have_count(1)
+        .await
+        .context("the level is selected")?;
+    expect(page.locator("[data-testid='deck-node']"))
         .to_have_count(4)
         .await
         .context("its corners become interactive node handles")?;
 
     // Drag corner 0 (world (30,10)) up to (30,13).
-    let node0 = page.locator("[data-testid='deck-node']").await.nth(0);
+    let node0 = page.locator("[data-testid='deck-node']").nth(0);
     common::drag_to_ft(&node0, &yard, ppf, 30.0, 13.0).await?;
 
     let points = page
         .locator("[data-testid='yard'] .deck-level polygon")
-        .await
         .get_attribute("points")
         .await
         .context("read the level polygon points")?

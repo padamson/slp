@@ -67,17 +67,15 @@ async fn edits_a_paver_areas_composition() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Arm Pavers, draw a 10×8 ft patio (80 ft²), then click it to select.
     page.locator("[data-testid='area-mat-cat-paver']")
-        .await
         .click(None)
         .await
         .context("arm the Pavers material")?;
     page.locator("[data-testid='draw-shape']")
-        .await
         .click(None)
         .await
         .context("arm the area tool")?;
@@ -89,27 +87,30 @@ async fn edits_a_paver_areas_composition() -> Result<()> {
     click_ft(&yard, ppf, 12.0, 11.0).await?; // select the patio
 
     // The composition editor opens, seeded with the paver's two courses.
-    expect(page.locator("[data-testid='course-editor']").await)
+    expect(page.locator("[data-testid='course-editor']"))
         .to_be_visible()
         .await
         .context("selecting the paver opens its composition editor")?;
-    let rows = page.locator("[data-testid^='course-row-']").await;
+    let rows = page.locator("[data-testid^='course-row-']");
     expect(rows.clone())
         .to_have_count(2)
         .await
         .context("seeded with a base + bedding course")?;
 
     // Only aggregates are offered as courses — mulch (a surface bed) is not.
-    let editor = page.locator("[data-testid='course-editor']").await;
+    let editor = page.locator("[data-testid='course-editor']");
     let editor_text = editor.text_content().await?.unwrap_or_default();
-    assert!(editor_text.contains("Gravel base"), "gravel is offered: {editor_text}");
+    assert!(
+        editor_text.contains("Gravel base"),
+        "gravel is offered: {editor_text}"
+    );
     assert!(
         !editor_text.contains("Mulch"),
         "mulch is never a paver course: {editor_text}"
     );
 
     // The estimate lists the gravel base at its seeded 4 in (80·4/324 ≈ 1.0 yd³).
-    let estimate = page.locator("[data-testid='estimate']").await;
+    let estimate = page.locator("[data-testid='estimate']");
     wait_contains(&estimate, "Gravel base")
         .await
         .context("the estimate itemizes the gravel base")?;
@@ -117,7 +118,6 @@ async fn edits_a_paver_areas_composition() -> Result<()> {
     // Deepen the base course (row 0) to 6 in — the gravel volume grows live
     // (80·6/324 ≈ 1.5 yd³).
     page.locator("[data-testid='course-row-0'] input")
-        .await
         .fill("6", None)
         .await
         .context("set the base course to 6 in")?;
@@ -128,7 +128,6 @@ async fn edits_a_paver_areas_composition() -> Result<()> {
     // Swap the base course's material to bedding sand — now no course is gravel,
     // so the Gravel base line leaves the estimate (per-area material choice).
     page.locator("[data-testid='course-row-0'] select")
-        .await
         .select_option("paver-sand", None)
         .await
         .context("change the base course material to sand")?;
@@ -138,7 +137,6 @@ async fn edits_a_paver_areas_composition() -> Result<()> {
 
     // Remove the bedding course (row 1) — down to one course.
     page.locator("[data-testid='course-remove-1']")
-        .await
         .click(None)
         .await
         .context("remove the bedding course")?;
@@ -149,7 +147,6 @@ async fn edits_a_paver_areas_composition() -> Result<()> {
 
     // Add a layer back — it defaults to a gravel aggregate, never mulch.
     page.locator("[data-testid='course-add']")
-        .await
         .click(None)
         .await
         .context("add a layer")?;
@@ -159,7 +156,6 @@ async fn edits_a_paver_areas_composition() -> Result<()> {
         .context("a course was added")?;
     assert_eq!(
         page.locator("[data-testid='course-row-1'] select")
-            .await
             .input_value(None)
             .await?,
         "paver-base",

@@ -17,7 +17,10 @@ use playwright_rs::protocol::Playwright;
 async fn editing_width_reflows_the_grid() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -30,7 +33,7 @@ async fn editing_width_reflows_the_grid() -> Result<()> {
         .context("navigate to app")?;
 
     // Default 70×30 yard: 71 vertical + 31 horizontal grid lines + 1 scale bar.
-    expect(page.locator("[data-testid='yard'] line").await)
+    expect(page.locator("[data-testid='yard'] line"))
         .to_have_count(103)
         .await
         .context("grid at the default width")?;
@@ -39,11 +42,10 @@ async fn editing_width_reflows_the_grid() -> Result<()> {
     // horizontal + 1 scale bar = 53 lines). `to_have_count` auto-retries, so it
     // waits for the reactive re-render.
     page.locator("[data-testid='yard-width']")
-        .await
         .fill("20", None)
         .await
         .context("set width to 20 ft")?;
-    expect(page.locator("[data-testid='yard'] line").await)
+    expect(page.locator("[data-testid='yard'] line"))
         .to_have_count(53)
         .await
         .context("the grid reflows when the width changes")?;

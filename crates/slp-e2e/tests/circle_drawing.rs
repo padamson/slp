@@ -56,24 +56,23 @@ async fn draws_persists_and_resizes_a_circle() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Arm the circle tool: click the center, then click again 5 ft east to
     // set the radius.
     page.locator("[data-testid='draw-circle']")
-        .await
         .click(None)
         .await
         .context("arm the circle tool")?;
     click_ft(&yard, ppf, 20.0, 15.0).await?;
     click_ft(&yard, ppf, 25.0, 15.0).await?;
 
-    expect(page.locator("[data-testid='yard'] .circle-area").await)
+    expect(page.locator("[data-testid='yard'] .circle-area"))
         .to_have_count(1)
         .await
         .context("the circle is drawn")?;
-    let label = page.locator("[data-testid='yard'] .circle-label").await;
+    let label = page.locator("[data-testid='yard'] .circle-label");
     // radius 5 ft -> area = π·25 ≈ 79 ft², diameter 10 ft.
     expect_label(&label, "79 ft² · ⌀10 ft")
         .await
@@ -81,7 +80,7 @@ async fn draws_persists_and_resizes_a_circle() -> Result<()> {
 
     // Reload — the circle is restored from localStorage.
     page.reload(None).await.context("reload the page")?;
-    expect(page.locator("[data-testid='yard'] .circle-area").await)
+    expect(page.locator("[data-testid='yard'] .circle-area"))
         .to_have_count(1)
         .await
         .context("the circle persists across a reload")?;
@@ -89,21 +88,18 @@ async fn draws_persists_and_resizes_a_circle() -> Result<()> {
     // Click inside its body (off the label) to select it — no armed tool,
     // mirroring how clicking a drawn area or a tree selects it.
     click_ft(&yard, ppf, 22.0, 17.0).await?;
-    expect(
-        page.locator("[data-testid='yard'] .circle-area--selected")
-            .await,
-    )
-    .to_have_count(1)
-    .await
-    .context("the circle is selected")?;
-    expect(page.locator("[data-testid='circle-resize-handle']").await)
+    expect(page.locator("[data-testid='yard'] .circle-area--selected"))
+        .to_have_count(1)
+        .await
+        .context("the circle is selected")?;
+    expect(page.locator("[data-testid='circle-resize-handle']"))
         .to_have_count(1)
         .await
         .context("its resize handle appears")?;
 
     // Drag the resize handle (starts at world (25,15)) out to (30,15) ->
     // radius 10 ft -> area π·100 ≈ 314 ft², diameter 20 ft.
-    let handle = page.locator("[data-testid='circle-resize-handle']").await;
+    let handle = page.locator("[data-testid='circle-resize-handle']");
     common::drag_to_ft(&handle, &yard, ppf, 30.0, 15.0).await?;
     expect_label(&label, "314 ft² · ⌀20 ft")
         .await

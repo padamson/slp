@@ -19,7 +19,10 @@ use playwright_rs::protocol::Playwright;
 async fn yard_size_persists_across_reload() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -34,11 +37,10 @@ async fn yard_size_persists_across_reload() -> Result<()> {
     // Change the width to 40 ft; the grid reflows to 41 vertical + 31 horizontal
     // + 1 scale bar = 73 lines (default 70 ft would be 103).
     page.locator("[data-testid='yard-width']")
-        .await
         .fill("40", None)
         .await
         .context("set width to 40 ft")?;
-    expect(page.locator("[data-testid='yard'] line").await)
+    expect(page.locator("[data-testid='yard'] line"))
         .to_have_count(73)
         .await
         .context("grid reflows to the new width")?;
@@ -46,7 +48,7 @@ async fn yard_size_persists_across_reload() -> Result<()> {
     // Reload — the Plan is restored from localStorage, so the grid is still 73
     // (it would reset to 103 if persistence were broken).
     page.reload(None).await.context("reload the page")?;
-    expect(page.locator("[data-testid='yard'] line").await)
+    expect(page.locator("[data-testid='yard'] line"))
         .to_have_count(73)
         .await
         .context("yard size persists across reload (restored from localStorage)")?;

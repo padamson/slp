@@ -47,14 +47,14 @@ async fn saves_the_plan_to_a_file_and_loads_it_back() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Make the plan distinctive: a non-default yard width + one placed chair.
-    let width = page.locator("[data-testid='yard-width']").await;
+    let width = page.locator("[data-testid='yard-width']");
     width.fill("42.5", None).await.context("set yard width")?;
     place(&page, &yard, ppf, 35.0, 15.0).await?;
-    expect(page.locator("[data-testid='yard'] .furniture-item").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item"))
         .to_have_count(1)
         .await
         .context("the chair is placed")?;
@@ -65,7 +65,6 @@ async fn saves_the_plan_to_a_file_and_loads_it_back() -> Result<()> {
         .await
         .context("arm the download waiter")?;
     page.locator("[data-testid='save-plan']")
-        .await
         .click(None)
         .await
         .context("click Save")?;
@@ -88,28 +87,27 @@ async fn saves_the_plan_to_a_file_and_loads_it_back() -> Result<()> {
         .await
         .context("clear localStorage")?;
     page.reload(None).await.context("reload the app")?;
-    let width = page.locator("[data-testid='yard-width']").await;
+    let width = page.locator("[data-testid='yard-width']");
     assert_ne!(
         width.input_value(None).await?,
         "42.5",
         "state was cleared before the import"
     );
-    expect(page.locator("[data-testid='yard'] .furniture-item").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item"))
         .to_have_count(0)
         .await
         .context("no placed objects after the wipe")?;
 
     // Open the saved file → the distinctive plan returns.
     page.locator("[data-testid='plan-file-input']")
-        .await
         .set_input_files(&path, None)
         .await
         .context("open the saved plan file")?;
-    expect(page.locator("[data-testid='yard-width']").await)
+    expect(page.locator("[data-testid='yard-width']"))
         .to_have_value("42.5")
         .await
         .context("the yard width is restored from the file")?;
-    expect(page.locator("[data-testid='yard'] .furniture-item").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item"))
         .to_have_count(1)
         .await
         .context("the placed chair is restored from the file")?;
@@ -147,7 +145,6 @@ async fn a_malformed_file_shows_an_error_and_keeps_the_current_plan() -> Result<
 
     // Set a distinctive width, then try to import garbage.
     page.locator("[data-testid='yard-width']")
-        .await
         .fill("33.5", None)
         .await
         .context("set yard width")?;
@@ -155,17 +152,16 @@ async fn a_malformed_file_shows_an_error_and_keeps_the_current_plan() -> Result<
     let bad = std::env::temp_dir().join("slp-e2e-not-a-plan.slp.json");
     std::fs::write(&bad, b"{ this is not valid json").context("write a bad file")?;
     page.locator("[data-testid='plan-file-input']")
-        .await
         .set_input_files(&bad, None)
         .await
         .context("try to open the malformed file")?;
 
     // An error is shown, and the current plan is untouched.
-    expect(page.locator("[data-testid='load-error']").await)
+    expect(page.locator("[data-testid='load-error']"))
         .to_be_visible()
         .await
         .context("a load error is surfaced")?;
-    expect(page.locator("[data-testid='yard-width']").await)
+    expect(page.locator("[data-testid='yard-width']"))
         .to_have_value("33.5")
         .await
         .context("the current plan is left untouched")?;
@@ -201,7 +197,7 @@ async fn save_as_is_disabled_with_a_note_when_the_fs_access_api_is_absent() -> R
 
     // Save As reads disabled (with the asterisk label) and the Chromium-only
     // footnote explains why; Save (the download) stays available.
-    let save_as = page.locator("[data-testid='save-plan-as']").await;
+    let save_as = page.locator("[data-testid='save-plan-as']");
     assert!(
         save_as.get_attribute("disabled").await?.is_some(),
         "Save As is disabled without the File System Access API"
@@ -214,13 +210,12 @@ async fn save_as_is_disabled_with_a_note_when_the_fs_access_api_is_absent() -> R
             .contains('*'),
         "Save As carries the asterisk"
     );
-    expect(page.locator("[data-testid='fsa-note']").await)
+    expect(page.locator("[data-testid='fsa-note']"))
         .to_be_visible()
         .await
         .context("the Chromium-only footnote is shown")?;
     assert!(
         page.locator("[data-testid='save-plan']")
-            .await
             .get_attribute("disabled")
             .await?
             .is_none(),

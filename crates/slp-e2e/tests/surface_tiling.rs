@@ -38,37 +38,31 @@ async fn a_material_photo_tiles_the_drawn_surfaces() -> Result<()> {
 
     // Give the Pavers material a photo via the catalog inspector.
     page.locator("[data-testid='edit-catalog']")
-        .await
         .click(None)
         .await
         .context("open the catalog inspector")?;
     page.locator("[data-testid='catalog-row-paver']")
-        .await
         .click(None)
         .await
         .context("select the paver material")?;
     page.locator("[data-testid='catalog-image']")
-        .await
         .fill(TRANSPARENT_PNG_1X1, None)
         .await
         .context("set the material image")?;
     page.locator("[data-testid='catalog-close']")
-        .await
         .click(None)
         .await
         .context("close the catalog inspector")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
 
     // Arm the Pavers material + area tool, then draw a 10×8 ft area.
     page.locator("[data-testid='area-mat-cat-paver']")
-        .await
         .click(None)
         .await
         .context("arm the Pavers material")?;
     page.locator("[data-testid='draw-shape']")
-        .await
         .click(None)
         .await
         .context("arm the area tool")?;
@@ -79,7 +73,7 @@ async fn a_material_photo_tiles_the_drawn_surfaces() -> Result<()> {
     click_ft(&yard, ppf, corners[0].0, corners[0].1).await?; // snap-close
 
     // The area's polygon is filled by the material's pattern, not the flat gray.
-    let poly = page.locator("[data-testid='yard'] .shape polygon").await;
+    let poly = page.locator("[data-testid='yard'] .shape polygon");
     expect(poly.clone())
         .to_have_count(1)
         .await
@@ -90,15 +84,12 @@ async fn a_material_photo_tiles_the_drawn_surfaces() -> Result<()> {
 
     // A round paver bed tiles with the same photo through its own pattern.
     page.locator("[data-testid='draw-circle']")
-        .await
         .click(None)
         .await
         .context("arm the circle tool")?;
     click_ft(&yard, ppf, 40.0, 15.0).await?; // center
     click_ft(&yard, ppf, 44.0, 15.0).await?; // rim (r = 4 ft)
-    let disk = page
-        .locator("[data-testid='yard'] .circle-area circle")
-        .await;
+    let disk = page.locator("[data-testid='yard'] .circle-area circle");
     expect(disk.clone())
         .to_have_count(1)
         .await
@@ -109,14 +100,13 @@ async fn a_material_photo_tiles_the_drawn_surfaces() -> Result<()> {
 
     // One pattern per component (both referencing the same photo) — not one
     // per drawn area.
-    let patterns = page.locator("[data-testid='yard'] pattern").await;
+    let patterns = page.locator("[data-testid='yard'] pattern");
     expect(patterns)
         .to_have_count(2)
         .await
         .context("one shared pattern per component tiles the surfaces")?;
     let image_href = page
         .locator("[data-testid='yard'] pattern image")
-        .await
         .first()
         .get_attribute("href")
         .await?

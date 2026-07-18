@@ -12,11 +12,9 @@
 mod common;
 
 use anyhow::{Context, Result};
-use common::{
-    YARD_D, click_ft, dist_dir, draw_central_deck, measure_ppf, place, serve,
-};
-use playwright_rs::protocol::Playwright;
+use common::{YARD_D, click_ft, dist_dir, draw_central_deck, measure_ppf, place, serve};
 use playwright_rs::expect;
+use playwright_rs::protocol::Playwright;
 
 /// The app draws the plan in a viewBox of 12 px/ft with the origin flush to the
 /// canvas and north up, so a footprint centered at world `(fx, fy)` renders with
@@ -36,7 +34,10 @@ fn translate_of(fx: f64, fy: f64) -> String {
 async fn dragging_an_object_moves_it() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -48,7 +49,7 @@ async fn dragging_an_object_moves_it() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
 
@@ -59,28 +60,22 @@ async fn dragging_an_object_moves_it() -> Result<()> {
     let (from_x, from_y) = (35.0, 15.0);
     place(&page, &yard, ppf, from_x, from_y).await?;
     let start = translate_of(from_x, from_y);
-    expect(
-        page.locator(&format!(
-            "[data-testid='yard'] .furniture-item[transform*='{start}']"
-        ))
-        .await,
-    )
+    expect(page.locator(format!(
+        "[data-testid='yard'] .furniture-item[transform*='{start}']"
+    )))
     .to_have_count(1)
     .await
     .context("the object starts at its placed position")?;
 
     // Grab the object at its center and drag it to (45, 20). Snap-to-grid (on by
     // default) lands the center exactly on the foot grid at the drop point.
-    let object = page.locator("[data-testid='yard'] .furniture-item").await;
+    let object = page.locator("[data-testid='yard'] .furniture-item");
     common::drag_to_ft(&object, &yard, ppf, 45.0, 20.0).await?;
 
     let dropped = translate_of(45.0, 20.0);
-    expect(
-        page.locator(&format!(
-            "[data-testid='yard'] .furniture-item[transform*='{dropped}']"
-        ))
-        .await,
-    )
+    expect(page.locator(format!(
+        "[data-testid='yard'] .furniture-item[transform*='{dropped}']"
+    )))
     .to_have_count(1)
     .await
     .context("dragging the object moves it to the drop point")?;
@@ -93,7 +88,10 @@ async fn dragging_an_object_moves_it() -> Result<()> {
 async fn remove_button_deletes_the_selected_object() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -105,7 +103,7 @@ async fn remove_button_deletes_the_selected_object() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
     let ppf = measure_ppf(&yard).await?;
@@ -113,31 +111,30 @@ async fn remove_button_deletes_the_selected_object() -> Result<()> {
     // Place a chair and select it — the estimate now has a line item.
     place(&page, &yard, ppf, 35.0, 15.0).await?;
     click_ft(&yard, ppf, 35.0, 15.0).await?; // select
-    expect(page.locator("[data-testid='yard'] .furniture-item").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item"))
         .to_have_count(1)
         .await
         .context("the object is on the plan")?;
-    expect(page.locator("[data-testid='estimate-total']").await)
+    expect(page.locator("[data-testid='estimate-total']"))
         .to_be_visible()
         .await
         .context("the estimate has a total")?;
 
     // Remove it from the inspector.
     page.locator("[data-testid='delete-object']")
-        .await
         .click(None)
         .await
         .context("click Remove")?;
 
-    expect(page.locator("[data-testid='yard'] .furniture-item").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item"))
         .to_have_count(0)
         .await
         .context("the footprint is gone")?;
-    expect(page.locator("[data-testid='object-inspector']").await)
+    expect(page.locator("[data-testid='object-inspector']"))
         .to_have_count(0)
         .await
         .context("the inspector closes with the selection")?;
-    expect(page.locator("[data-testid='estimate'] .estimate-empty").await)
+    expect(page.locator("[data-testid='estimate'] .estimate-empty"))
         .to_be_visible()
         .await
         .context("the estimate line drops")?;
@@ -150,7 +147,10 @@ async fn remove_button_deletes_the_selected_object() -> Result<()> {
 async fn delete_key_removes_the_selected_object() -> Result<()> {
     let dist = dist_dir();
     if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built (run `trunk build`).", dist.display());
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
         return Ok(());
     }
 
@@ -162,14 +162,14 @@ async fn delete_key_removes_the_selected_object() -> Result<()> {
         .await
         .context("navigate to app")?;
 
-    let yard = page.locator("[data-testid='yard']").await;
+    let yard = page.locator("[data-testid='yard']");
     let ppf = measure_ppf(&yard).await?;
     draw_central_deck(&page, &yard, ppf).await?;
     let ppf = measure_ppf(&yard).await?;
 
     place(&page, &yard, ppf, 35.0, 15.0).await?;
     click_ft(&yard, ppf, 35.0, 15.0).await?; // select
-    expect(page.locator("[data-testid='yard'] .furniture-item").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item"))
         .to_have_count(1)
         .await
         .context("the object is selected")?;
@@ -179,7 +179,7 @@ async fn delete_key_removes_the_selected_object() -> Result<()> {
         .await
         .context("press the Delete key")?;
 
-    expect(page.locator("[data-testid='yard'] .furniture-item").await)
+    expect(page.locator("[data-testid='yard'] .furniture-item"))
         .to_have_count(0)
         .await
         .context("Delete removes the selected object")?;
