@@ -18,7 +18,7 @@ slp-core = { path = "../slp-core" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 # JSON Schema for the vision extractor's tool-use output (structured data).
-schemars = "0.8"
+schemars = "1.2"
 # Only pulled in for the colocated `*.stories.rs` files (the `stories` feature),
 # never in the production app build.
 theoria = { path = "../theoria", optional = true }
