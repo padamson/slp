@@ -1254,6 +1254,31 @@ fn planner_body() -> impl IntoView {
         catalog_selected.set(Some(id));
     });
 
+    // How many places in the plan reference the selected catalog item —
+    // placements, area materials, courses, other items' base/bedding layers.
+    // Deletion is blocked while non-zero (no dangling refs).
+    let selected_in_use = Signal::derive(move || {
+        catalog_selected.get().map_or(0, |id| {
+            slp_core::reference_count(
+                &Plan {
+                    catalog: catalog.get(),
+                    objects: objects.get(),
+                    shapes: shapes.get(),
+                    circles: circles.get(),
+                    ..Default::default()
+                },
+                &id,
+            )
+        })
+    });
+    let on_delete_catalog = Callback::new(move |id: String| {
+        // Re-check at the action level (the button is disabled when in use).
+        if selected_in_use.get_untracked() == 0 {
+            catalog.update(|list| list.retain(|c| c.id != id));
+            catalog_selected.set(None);
+        }
+    });
+
     // Remove the selected shape's selected node (refused, per `delete_node`,
     // if it would leave the shape below its 3-node drawable minimum). Only the
     // csr keydown handler below uses it, so gate the definition to match — it's
@@ -1870,6 +1895,8 @@ fn planner_body() -> impl IntoView {
                             draft=draft
                             on_add_draft=on_add_draft
                             on_discard_draft=on_discard_draft
+                            selected_in_use=selected_in_use
+                            on_delete=on_delete_catalog
                             on_close=close_catalog
                         />
                     }

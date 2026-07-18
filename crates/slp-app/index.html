@@ -1085,6 +1085,31 @@
         border-radius: 6px;
         object-fit: cover;
       }
+      .catalog-delete-row {
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .catalog-delete {
+        font: inherit;
+        font-size: 12px;
+        padding: 4px 10px;
+        border: 1px solid #b64a3d;
+        border-radius: 6px;
+        background: #fff;
+        color: #b64a3d;
+        cursor: pointer;
+      }
+      .catalog-delete:disabled {
+        border-color: #cfc6ad;
+        color: #9b9277;
+        cursor: not-allowed;
+      }
+      .catalog-delete-note {
+        font-size: 11px;
+        color: #7b7461;
+      }
       /* The composition editor: a paver area's sub-base courses, inside the
          area inspector. */
       .course-editor {

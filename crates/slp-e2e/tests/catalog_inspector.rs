@@ -350,3 +350,84 @@ async fn adds_and_authors_a_material_that_persists() -> Result<()> {
     browser.close().await.context("close browser")?;
     Ok(())
 }
+
+#[tokio::test]
+async fn deletes_an_unreferenced_item_and_blocks_a_referenced_one() -> Result<()> {
+    // M4.3b: an unreferenced catalog item deletes outright; one that anything
+    // in the plan references (here: the starter paver's base-gravel layer) is
+    // blocked with an in-use note — never a dangling ref.
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
+        return Ok(());
+    }
+
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    page.locator("[data-testid='edit-catalog']")
+        .await
+        .click(None)
+        .await
+        .context("open the catalog inspector")?;
+
+    // A hand-added material is referenced by nothing: Delete is live and
+    // removes it (row gone, editor closed).
+    page.locator("[data-testid='catalog-add']")
+        .await
+        .click(None)
+        .await
+        .context("add a new material")?;
+    let del = page.locator("[data-testid='catalog-delete']").await;
+    assert!(
+        !del.is_disabled().await?,
+        "an unreferenced item's delete is enabled"
+    );
+    expect(page.locator("[data-testid='catalog-delete-note']").await)
+        .to_have_count(0)
+        .await
+        .context("no in-use note for an unreferenced item")?;
+    del.click(None).await.context("delete the material")?;
+    expect(page.locator("[data-testid='catalog-row-material-1']").await)
+        .to_have_count(0)
+        .await
+        .context("the deleted material is gone from the list")?;
+    expect(page.locator("[data-testid='catalog-editor']").await)
+        .to_have_count(0)
+        .await
+        .context("the editor closes with its item")?;
+
+    // The starter paver's composition references its base gravel — deleting
+    // the gravel is blocked, with a note saying why.
+    page.locator("[data-testid='catalog-row-paver-base']")
+        .await
+        .click(None)
+        .await
+        .context("select the paver's base gravel")?;
+    let del = page.locator("[data-testid='catalog-delete']").await;
+    assert!(
+        del.is_disabled().await?,
+        "a referenced item's delete is blocked"
+    );
+    let note = page
+        .locator("[data-testid='catalog-delete-note']")
+        .await
+        .text_content()
+        .await?
+        .unwrap_or_default();
+    assert!(
+        note.contains("reference"),
+        "the note explains the block: {note}"
+    );
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}

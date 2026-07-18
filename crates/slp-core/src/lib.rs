@@ -8,6 +8,7 @@
 pub mod arc;
 pub mod bezier;
 pub mod boundary;
+pub mod catalog;
 pub mod clearance;
 pub mod corner;
 pub mod dist;
@@ -23,6 +24,7 @@ pub mod wall;
 pub use arc::{ArcSvg, arc_svg, boundary_area, bulge_radius, segment_area};
 pub use bezier::bezier_segment_area;
 pub use boundary::{are_adjacent, delete_node, insert_node_between};
+pub use catalog::reference_count;
 pub use clearance::{circle_overlaps_circle, circle_overlaps_polygon, circle_overlaps_segment};
 pub use corner::{Corner, content_points, free_corner};
 pub use dist::{

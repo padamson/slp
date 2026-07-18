@@ -42,13 +42,15 @@ so that my estimate reflects things I can actually buy, not placeholder data.
     site — so it also deletes the per-site adapter + synthetic-fixture +
     weekly-contract-test machinery entirely. Extraction lives in `slp-ui`
     (browser), not a headless crate.
-  - **B1 — API-key config + gating** ✅ *(in progress)*
-    - [ ] the vision feature gates on a user-supplied Anthropic API key, stored
+  - **B1 — API-key config + gating** ✅
+    - [x] the vision feature gates on a user-supplied Anthropic API key, stored
           in **localStorage** as app config (`slp.anthropicKey`) — deliberately
           **not** in the `Plan`/`.slp.json`, so a shared plan file never leaks a
           billable secret. No key → the extract affordance is disabled with an
           "add your key" note (mirrors the Save-As-gates-on-FSA pattern).
-    - [ ] a **dev-only** `option_env!("SLP_ANTHROPIC_KEY")` seeds localStorage
+          E2e-covered: gating, persistence across reload, key absent from the
+          plan autosave.
+    - [x] a **dev-only** `option_env!("SLP_ANTHROPIC_KEY")` seeds localStorage
           when empty, for a local `trunk serve` (gitignored `.env`); **never**
           set in the hosted/CI build, or the key ships in the public WASM.
   - **B2 — clipboard paste** ✅ — paste a screenshot into the catalog inspector
@@ -160,13 +162,19 @@ so that my estimate reflects things I can actually buy, not placeholder data.
   - [x] editing a catalog item's footprint/price updates every object already
         placed from it (they reference it by `catalog_ref`, not a copy) — the
         estimate reprices and the footprint re-renders live (e2e-covered)
-  - [ ] deleting a catalog item the plan has no objects placed from removes it
-        outright; one that's in use is blocked (or asks to remove the
-        placements first) — never a dangling `catalog_ref` (M4.3b, next)
-  - [ ] **add** a new catalog item by hand (name/category/price/`price_unit`/
-        dimensions) — the manual-authoring entry point (also
-        [B3.0](B3-area-composition.md)); pairs with the `price_unit` `Select`
-        from [B3.3](B3-area-composition.md)
+  - [x] deleting a catalog item nothing references removes it outright; one
+        that's in use is **blocked** with an "In use — N references" note —
+        never a dangling ref (M4.3b). "In use" counts every reference kind:
+        placed objects (`catalog_ref`), area materials (`material_ref`), area
+        courses, and other items' base/bedding layers — `slp_core::
+        reference_count`, unit- and mutation-tested. E2e: a hand-added
+        material deletes (row + editor gone); the starter paver's base gravel
+        is blocked with the note.
+  - [x] **add** a new catalog item by hand (name/category/price/`price_unit`/
+        dimensions) — the manual-authoring entry point, shipped with
+        [B3.0](B3-area-composition.md)'s "+ Add" + `price_unit` `SelectField`
+        in the catalog inspector (a hand-added material is catalog-only, not a
+        placeable object)
 - **M4.4 — material images (visualization + surface tiling)** — *`PLAN.md` §2:
   "a material = {image(s), real dimensions, unit price, provenance}", feeding
   "both 2D tiling and 3D albedo".*

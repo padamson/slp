@@ -416,3 +416,50 @@ fn has_add_and_close_buttons() {
         "a close button"
     );
 }
+
+#[test]
+fn the_selected_item_offers_delete_when_unreferenced() {
+    let html = panel(
+        vec![item("chair", "Lounge chair", 199.0)],
+        Some("chair".to_string()),
+    );
+    assert!(
+        html.contains(r#"data-testid="catalog-delete""#),
+        "a delete button in the editor"
+    );
+    assert!(
+        !html.contains(r#"data-testid="catalog-delete-note""#),
+        "no in-use note when nothing references the item"
+    );
+}
+
+#[test]
+fn a_referenced_item_blocks_delete_with_an_in_use_note() {
+    let html = dokime::render(move || {
+        view! {
+            <CatalogPanel
+                catalog=Signal::derive(|| vec![item("chair", "Lounge chair", 199.0)])
+                selected=Signal::derive(|| Some("chair".to_string()))
+                selected_in_use=Signal::derive(|| 3)
+                on_select=noop_str()
+                on_name=noop_str()
+                on_category=noop_str()
+                on_price=noop_f64()
+                on_price_unit=noop_pu()
+                on_add=noop()
+                on_width=noop_f64()
+                on_depth=noop_f64()
+                on_height=noop_f64()
+                on_close=noop()
+            />
+        }
+    });
+    assert!(
+        html.contains(r#"data-testid="catalog-delete-note""#),
+        "the in-use note shows"
+    );
+    assert!(
+        html.contains("3 references in the plan"),
+        "the note counts the references: {html}"
+    );
+}

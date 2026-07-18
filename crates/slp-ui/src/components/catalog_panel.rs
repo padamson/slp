@@ -122,6 +122,14 @@ pub fn CatalogPanel(
     /// Discard the current draft.
     #[prop(default = Callback::new(|(): ()| {}))]
     on_discard_draft: Callback<()>,
+    /// How many places in the plan reference the selected item (placements,
+    /// area materials, courses, other items' base/bedding layers). Deletion is
+    /// blocked while non-zero — removing the item would leave dangling refs.
+    #[prop(into, default = Signal::derive(|| 0))]
+    selected_in_use: Signal<usize>,
+    /// Delete the selected catalog item (only reachable when unreferenced).
+    #[prop(default = Callback::new(|_: String| {}))]
+    on_delete: Callback<String>,
     /// Close the catalog panel.
     on_close: Callback<()>,
 ) -> impl IntoView {
@@ -283,6 +291,7 @@ pub fn CatalogPanel(
             {move || {
                 let sel = selected.get()?;
                 let item = catalog.get().into_iter().find(|c| c.id == sel)?;
+                let del_id = item.id.clone();
                 Some(
                     view! {
                         <div class="catalog-editor" data-testid="catalog-editor">
@@ -414,6 +423,36 @@ pub fn CatalogPanel(
                                         />
                                     }
                                 })}
+                            // Delete — blocked while anything in the plan still
+                            // references the item (no dangling refs, ever).
+                            <div class="catalog-delete-row">
+                                <button
+                                    class="catalog-delete"
+                                    data-testid="catalog-delete"
+                                    // Braced: a bare `> 0` here would end the tag.
+                                    disabled={move || selected_in_use.get() > 0}
+                                    on:click=move |_| on_delete.run(del_id.clone())
+                                >
+                                    "Delete"
+                                </button>
+                                {move || {
+                                    let n = selected_in_use.get();
+                                    (n > 0)
+                                        .then(|| {
+                                            view! {
+                                                <span
+                                                    class="catalog-delete-note"
+                                                    data-testid="catalog-delete-note"
+                                                >
+                                                    {format!(
+                                                        "In use — {n} reference{} in the plan",
+                                                        if n == 1 { "" } else { "s" },
+                                                    )}
+                                                </span>
+                                            }
+                                        })
+                                }}
+                            </div>
                         </div>
                     },
                 )
