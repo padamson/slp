@@ -155,7 +155,14 @@ pub fn boundary_span_length(
     let pts: Vec<Point> = corners.iter().map(|c| Point::new(c.x, c.y)).collect();
     let mut length = 0.0;
     let mut i = start;
-    while i != end {
+    // Bounded to `n` steps: a span crosses at most every edge once, and the
+    // guarantee keeps a mutated index update (which could otherwise miss
+    // `end` forever) from spinning — it yields a finite wrong answer a test
+    // catches instead of a hang.
+    for _ in 0..n {
+        if i == end {
+            break;
+        }
         length += edge_len(&pts, bulges, curves, i);
         i = (i + 1) % n;
     }
