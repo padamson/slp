@@ -1112,11 +1112,13 @@
       }
       /* The composition editor: a paver area's sub-base courses, inside the
          area inspector. */
+      .border-editor,
       .course-editor {
         margin-top: 10px;
         padding-top: 8px;
         border-top: 1px solid #e3dccb;
       }
+      .border-editor-label,
       .course-editor-label {
         font-size: 11px;
         text-transform: uppercase;
@@ -1124,16 +1126,19 @@
         color: #8a8275;
         margin-bottom: 4px;
       }
+      .border-row,
       .course-row {
         display: flex;
         align-items: center;
         gap: 4px;
         margin-bottom: 4px;
       }
+      .border-row .select-field,
       .course-row .select-field {
         flex: 1;
         min-width: 0;
       }
+      .border-row select,
       .course-row select {
         width: 100%;
         font: inherit;
@@ -1141,6 +1146,7 @@
         border: 1px solid #e3dccb;
         border-radius: 6px;
       }
+      .border-row input,
       .course-row input {
         width: 42px;
         font: inherit;
@@ -1148,6 +1154,25 @@
         border: 1px solid #e3dccb;
         border-radius: 6px;
       }
+      /* A border row is a two-line grid: the material select (wide) + width
+         on the first line; the From/To span selects + remove on the second.
+         (A single flex line squeezes every select to chevron width.) */
+      .border-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+        gap: 4px 6px;
+        align-items: center;
+      }
+      .border-row .select-field:first-child {
+        grid-column: 1 / 3;
+      }
+      .border-row .select-field {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        min-width: 0;
+      }
+      .border-remove,
       .course-remove {
         font: inherit;
         line-height: 1;
@@ -1158,6 +1183,7 @@
         color: #a94442;
         cursor: pointer;
       }
+      .border-add,
       .course-add {
         font: inherit;
         font-size: 12px;

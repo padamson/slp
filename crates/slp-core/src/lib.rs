@@ -21,8 +21,11 @@ pub mod snap;
 pub mod takeoff;
 pub mod wall;
 
-pub use arc::{ArcSvg, arc_svg, boundary_area, bulge_radius, segment_area};
-pub use bezier::bezier_segment_area;
+pub use arc::{
+    ArcSvg, arc_length, arc_svg, boundary_area, boundary_perimeter, boundary_span_length,
+    bulge_radius, segment_area,
+};
+pub use bezier::{bezier_length, bezier_segment_area};
 pub use boundary::{are_adjacent, delete_node, insert_node_between};
 pub use catalog::reference_count;
 pub use clearance::{circle_overlaps_circle, circle_overlaps_polygon, circle_overlaps_segment};
@@ -31,7 +34,7 @@ pub use dist::{
     dist_point_to_polygon, dist_point_to_segment, dist_segment_to_polygon, dist_segment_to_segment,
 };
 pub use generated::slp::{
-    CatalogItem, Circle, Coord, Course, CurveEdge, Deck, DeckLevel, FootprintShape, House,
+    Border, CatalogItem, Circle, Coord, Course, CurveEdge, Deck, DeckLevel, FootprintShape, House,
     ItemStatus, Object, Opening, OpeningKind, Plan, PriceUnit, Shape, StepRun,
 };
 pub use geom::{

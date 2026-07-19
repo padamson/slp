@@ -3,6 +3,7 @@
 //! (`cfg(test)`). Dotted file names use `#[path]` (not valid module idents).
 
 mod area_inspector;
+mod border_editor;
 mod catalog_panel;
 mod circles;
 mod course_editor;
@@ -37,6 +38,7 @@ mod yard;
 mod yard_controls;
 
 pub use area_inspector::AreaInspector;
+pub use border_editor::BorderEditor;
 pub use catalog_panel::CatalogPanel;
 pub use circles::Circles;
 pub use course_editor::CourseEditor;
@@ -197,6 +199,9 @@ pub struct Modifiers {
 #[path = "area_inspector.stories.rs"]
 mod area_inspector_stories;
 #[cfg(feature = "stories")]
+#[path = "border_editor.stories.rs"]
+mod border_editor_stories;
+#[cfg(feature = "stories")]
 #[path = "catalog_panel.stories.rs"]
 mod catalog_panel_stories;
 #[cfg(feature = "stories")]
@@ -310,6 +315,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(area_inspector_stories::stories());
     s.extend(catalog_panel_stories::stories());
     s.extend(material_picker_stories::stories());
+    s.extend(border_editor_stories::stories());
     s.extend(course_editor_stories::stories());
     s.extend(crop_editor_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
@@ -334,6 +340,9 @@ pub fn stories() -> Vec<theoria::Story> {
 #[cfg(test)]
 #[path = "area_inspector.tests.rs"]
 mod area_inspector_tests;
+#[cfg(test)]
+#[path = "border_editor.tests.rs"]
+mod border_editor_tests;
 #[cfg(test)]
 #[path = "catalog_panel.tests.rs"]
 mod catalog_panel_tests;

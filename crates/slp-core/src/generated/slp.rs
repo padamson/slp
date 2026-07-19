@@ -53,10 +53,55 @@ pub enum PriceUnit {
     per_cubic_yard,
     /// Price per placed object (the default).
     per_item,
-    /// Price per linear ft (e.g. bed edging) — not yet costed.
+    /// Price per linear ft (e.g. edging stones) — costed along a border
+    /// ring's centerline perimeter (B5).
     per_linear_foot,
     /// Price per ft² of a drawn area's surface (e.g. pavers).
     per_square_foot,
+}
+
+/// One border course along a drawn area's boundary — a contrasting paver
+/// laid as a soldier/sailor course, a cobble band, or a dedicated edging
+/// stone: the catalog material it's made of and the band's laid width in
+/// feet. With `start_node`/`end_node` absent it is a **full-perimeter
+/// ring**; with both set it is an **open span** covering the edges from
+/// `start_node` walking forward (in drawn node order, wrapping) to
+/// `end_node` — so a border can run along just one or two sides of a patio.
+/// An area's ordered `borders` run outermost first, each band hugging the
+/// boundary just inside the previous one; the field's surface material
+/// fills what remains. A per-ft² border material costs by band area
+/// (centerline length × width); a per-linear-ft material (edging stones)
+/// costs by centerline length. A `Circle` has no nodes, so its borders are
+/// always full rings (span fields are ignored).
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+pub struct Border {
+    /// The boundary node index a border span ends at — the companion of
+    /// `start_node`. The span covers the edges from `start_node` up to (not
+    /// through) this node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_node: Option<i64>,
+    /// Id of the catalog *material* a drawn area is made of (mulch, pavers, …),
+    /// the area analogue of an object's `catalog_ref`. Absent = uncategorized
+    /// geometry with no cost.
+    pub material_ref: String,
+    /// The boundary node index a border span starts at. Set together with
+    /// `end_node` to border only the edges between them (walking forward in
+    /// node order, wrapping); absent (or set alone) = a full-perimeter ring.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_node: Option<i64>,
+    /// The band's laid width, in feet.
+    pub width_ft: f64,
+}
+
+impl Border {
+    pub fn new(material_ref: String, width_ft: f64) -> Self {
+        Self {
+            end_node: None,
+            material_ref,
+            start_node: None,
+            width_ft,
+        }
+    }
 }
 
 /// A purchasable product or material the user has added to the plan's
@@ -241,6 +286,11 @@ impl CatalogItem {
 /// still a `Shape` (arc edges, F3.2) — `Circle` is for a true circle.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Circle {
+    /// A drawn area's ordered border rings, outermost first — each a
+    /// `{material_ref, width_ft}` band hugging the boundary just inside the
+    /// previous ring. Empty = no border; the surface material runs to the edge.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub borders: Vec<Border>,
     /// A circle's center point, in feet.
     pub center: Box<Coord>,
     /// A drawn area's ordered sub-layers beneath its surface material — a paver's
@@ -266,6 +316,7 @@ pub struct Circle {
 impl Circle {
     pub fn new(center: Box<Coord>, elevation: f64, radius_ft: f64) -> Self {
         Self {
+            borders: Vec::new(),
             center,
             courses: Vec::new(),
             depth_in: None,
@@ -553,6 +604,11 @@ impl Plan {
 /// `Shape` on its own is just geometry.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Shape {
+    /// A drawn area's ordered border rings, outermost first — each a
+    /// `{material_ref, width_ft}` band hugging the boundary just inside the
+    /// previous ring. Empty = no border; the surface material runs to the edge.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub borders: Vec<Border>,
     /// Per-edge arc bulge factors for a `Shape` (DXF convention: `tan(θ/4)`,
     /// the arc's signed subtended angle). `bulges[i]` is the edge from
     /// `corners[i]` to the next node; 0 (or absent) is a straight edge. A
@@ -587,6 +643,7 @@ pub struct Shape {
 impl Shape {
     pub fn new(elevation: f64) -> Self {
         Self {
+            borders: Vec::new(),
             bulges: Vec::new(),
             corners: Vec::new(),
             courses: Vec::new(),

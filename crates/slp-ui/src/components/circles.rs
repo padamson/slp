@@ -13,7 +13,9 @@ use leptos::prelude::*;
 use slp_core::{CatalogItem, Circle, circle_area};
 
 use super::Transform;
-use super::shapes::{find_material, has_texture, surface_fill, texture_patterns};
+use super::shapes::{
+    BorderPaint, border_paints, find_material, has_texture, surface_fill, texture_patterns,
+};
 use crate::style::{SELECTED_STROKE, area_style};
 
 /// A selected circle's resize-handle radius (px).
@@ -44,8 +46,15 @@ pub fn Circles(
     #[prop(default = None)]
     on_handle_press: Option<Callback<()>>,
 ) -> impl IntoView {
-    // One pattern per textured material, shared by every circle that uses it.
-    let refs: Vec<Option<String>> = circles.iter().map(|c| c.material_ref.clone()).collect();
+    // One pattern per textured material, shared by every circle that uses it —
+    // border-ring materials included, so a textured border tiles too.
+    let refs: Vec<Option<String>> = circles
+        .iter()
+        .flat_map(|c| {
+            std::iter::once(c.material_ref.clone())
+                .chain(c.borders.iter().map(|b| Some(b.material_ref.clone())))
+        })
+        .collect();
     let defs = texture_patterns(CIRCLE_PATTERN_PREFIX, &catalog, &refs, t);
     let items = circles
         .into_iter()
@@ -57,6 +66,7 @@ pub fn Circles(
             let item = find_material(&catalog, c.material_ref.as_deref());
             let category = item.and_then(|m| m.category.clone());
             let texture_id = item.filter(|m| has_texture(m)).map(|m| m.id.clone());
+            let rings = border_paints(CIRCLE_PATTERN_PREFIX, &catalog, &c.borders);
             circle_view(
                 t,
                 c,
@@ -64,6 +74,7 @@ pub fn Circles(
                 is_selected,
                 category,
                 texture_id,
+                rings,
                 on_circle_press,
                 on_handle_press,
             )
@@ -90,6 +101,7 @@ fn circle_view(
     is_selected: bool,
     category: Option<String>,
     texture_id: Option<String>,
+    border_rings: Vec<BorderPaint>,
     on_circle_press: Option<Callback<usize>>,
     on_handle_press: Option<Callback<()>>,
 ) -> impl IntoView {
@@ -126,6 +138,37 @@ fn circle_view(
     if is_selected {
         class.push_str(" circle-area--selected");
     }
+    // Border rings (B5): for a circle each ring is an exact annulus — a
+    // circle stroked at the ring's centerline radius with the ring's width.
+    // Outermost first in the data; drawn in that order (bands don't overlap).
+    let borders_view = {
+        let mut offset_ft = 0.0;
+        border_rings
+            .into_iter()
+            .filter_map(|bp| {
+                // A circle has no nodes, so any span tag is ignored: every
+                // band rings the full circumference.
+                let w = bp.width_ft;
+                let center_r = radius_ft - offset_ft - w / 2.0;
+                offset_ft += w;
+                (center_r > 0.0).then(|| {
+                    view! {
+                        <circle
+                            class="circle-border"
+                            data-testid="circle-border"
+                            cx=cx
+                            cy=cy
+                            r=center_r * t.px_ft
+                            fill="none"
+                            stroke=bp.paint
+                            stroke-opacity=bp.opacity
+                            stroke-width=w * t.px_ft
+                        />
+                    }
+                })
+            })
+            .collect::<Vec<_>>()
+    };
     let handle = is_selected.then(|| {
         view! {
             <circle
@@ -162,6 +205,7 @@ fn circle_view(
                 stroke=stroke
                 stroke-width="2"
             />
+            {borders_view}
             <text class="circle-label" x=cx y=cy text-anchor="middle" font-size="11" fill="#5a5540">
                 {label}
             </text>

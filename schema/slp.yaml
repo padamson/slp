@@ -206,6 +206,7 @@ classes:
       - material_ref
       - depth_in
       - courses
+      - borders
     slot_usage:
       elevation:
         required: true
@@ -225,6 +226,33 @@ classes:
         required: true
       depth_in:
         required: true
+
+  Border:
+    description: |-
+      One border course along a drawn area's boundary — a contrasting paver
+      laid as a soldier/sailor course, a cobble band, or a dedicated edging
+      stone: the catalog material it's made of and the band's laid width in
+      feet. With `start_node`/`end_node` absent it is a **full-perimeter
+      ring**; with both set it is an **open span** covering the edges from
+      `start_node` walking forward (in drawn node order, wrapping) to
+      `end_node` — so a border can run along just one or two sides of a patio.
+      An area's ordered `borders` run outermost first, each band hugging the
+      boundary just inside the previous one; the field's surface material
+      fills what remains. A per-ft² border material costs by band area
+      (centerline length × width); a per-linear-ft material (edging stones)
+      costs by centerline length. A `Circle` has no nodes, so its borders are
+      always full rings (span fields are ignored).
+    slots:
+      - material_ref
+      - width_ft
+      - start_node
+      - end_node
+    slot_usage:
+      material_ref:
+        required: true
+      width_ft:
+        required: true
+        description: The band's laid width, in feet.
 
   CurveEdge:
     description: |-
@@ -257,6 +285,7 @@ classes:
       - material_ref
       - depth_in
       - courses
+      - borders
     slot_usage:
       center:
         required: true
@@ -513,6 +542,26 @@ slots:
       A drawn area's ordered sub-layers beneath its surface material — a paver's
       gravel base then bedding sand — each a `{material_ref, depth_in}`. Empty =
       fall back to the surface material's catalog default courses (B2.2).
+  borders:
+    range: Border
+    multivalued: true
+    inlined_as_list: true
+    description: |-
+      A drawn area's ordered border rings, outermost first — each a
+      `{material_ref, width_ft}` band hugging the boundary just inside the
+      previous ring. Empty = no border; the surface material runs to the edge.
+  start_node:
+    range: integer
+    description: |-
+      The boundary node index a border span starts at. Set together with
+      `end_node` to border only the edges between them (walking forward in
+      node order, wrapping); absent (or set alone) = a full-perimeter ring.
+  end_node:
+    range: integer
+    description: |-
+      The boundary node index a border span ends at — the companion of
+      `start_node`. The span covers the edges from `start_node` up to (not
+      through) this node.
   edge:
     range: integer
     description: Index of the boundary edge (from node `edge` to node `edge + 1`).
@@ -606,7 +655,9 @@ enums:
           Price per yd³ of a drawn area's volume at its depth (e.g. mulch,
           gravel) — `yd³ = ft²·depth_in / 324`.
       per_linear_foot:
-        description: Price per linear ft (e.g. bed edging) — not yet costed.
+        description: |-
+          Price per linear ft (e.g. edging stones) — costed along a border
+          ring's centerline perimeter (B5).
 
   ItemStatus:
     description: |-

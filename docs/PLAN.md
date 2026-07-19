@@ -199,7 +199,8 @@ forces the **materials/catalog + cost engine** (M1–M3) to land with it.
 | 9 | **Paver areas** (ft² & cost) | B1, B2 |
 | 10 | **Grills** | D4 |
 | 11 | **Hot tubs** | D5 |
-| later | 3D view, material ingestion & swap-&-compare, per-area composition & material images, vertical hardscape, soldier-course border, deck presets, print | R2–R3, M4–M5, B3, C1, B5, E2, G2 |
+| later | 3D view, swap-&-compare, vertical hardscape, deck presets, print | R2–R3, M5, C1, E2, G2 |
+| done (later-row items shipped) | material ingestion (M4), per-area composition & material images (B3), area edge borders (B5) | M4, B3, B5 |
 
 All of items 4–11 (furniture, fire pit, trees, bushes, grills, hot tubs, and
 paver/mulch areas) share one capability — **place/draw an item from the catalog

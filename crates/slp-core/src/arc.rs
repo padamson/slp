@@ -13,7 +13,7 @@
 //!    straight/arc boundary's true enclosed area.
 //! 2. [`arc_svg`] — the radius + SVG `A`-command flags to render the arc.
 
-use crate::{Coord, Point, area, bezier_segment_area};
+use crate::{Coord, Point, area, bezier_length, bezier_segment_area};
 
 /// A circular arc's SVG `A`-command parameters (radius in the caller's units,
 /// plus the two boolean flags). The endpoint is the caller's own `b` point;
@@ -72,6 +72,17 @@ pub fn segment_area(chord_len: f64, bulge: f64) -> f64 {
     -radius * radius * (theta - theta.sin()) / 2.0
 }
 
+/// The length along the arc of bulge `b` across a chord of length `chord_len`
+/// — `r·θ` with `θ = 4·atan|b|` — or the chord itself for a straight edge.
+/// A semicircle (`|b| = 1`) measures `π·c/2`.
+#[must_use]
+pub fn arc_length(chord_len: f64, bulge: f64) -> f64 {
+    match bulge_radius(chord_len, bulge) {
+        Some(radius) => radius * 4.0 * bulge.abs().atan(),
+        None => chord_len,
+    }
+}
+
 /// The area (ft²) enclosed by a closed boundary whose edges may be straight,
 /// circular **arcs**, or cubic-Bézier **curves**. `corners` are the ring's
 /// nodes; `bulges[i]` is the arc bulge for edge `corners[i]`→`corners[i+1]`
@@ -103,6 +114,64 @@ pub fn boundary_area(corners: &[Coord], bulges: &[f64], curves: &[(usize, Point,
         }
     }
     signed.abs()
+}
+
+/// The total length (ft) of a closed boundary whose edges may be straight,
+/// circular arcs, or cubic-Bézier curves — the perimeter companion to
+/// [`boundary_area`], taking the same inputs and resolving each edge the same
+/// way (a curve wins over a bulge on the same edge). Costs a border ring's
+/// linear feet (B5). Fewer than two nodes has no edges → `0`.
+#[must_use]
+pub fn boundary_perimeter(
+    corners: &[Coord],
+    bulges: &[f64],
+    curves: &[(usize, Point, Point)],
+) -> f64 {
+    let n = corners.len();
+    if n < 2 {
+        return 0.0;
+    }
+    let pts: Vec<Point> = corners.iter().map(|c| Point::new(c.x, c.y)).collect();
+    (0..n).map(|i| edge_len(&pts, bulges, curves, i)).sum()
+}
+
+/// The length (ft) along a boundary from node `start` walking **forward** (in
+/// drawn node order, wrapping) to node `end` — the edges `start`, `start+1`,
+/// …, `end−1` (mod n), each resolved like [`boundary_perimeter`]. This is an
+/// open border span's centerline (B5). No edges — `start == end`, an
+/// out-of-range index, or fewer than two nodes — measures `0`.
+#[must_use]
+pub fn boundary_span_length(
+    corners: &[Coord],
+    bulges: &[f64],
+    curves: &[(usize, Point, Point)],
+    start: usize,
+    end: usize,
+) -> f64 {
+    let n = corners.len();
+    if n < 2 || start >= n || end >= n || start == end {
+        return 0.0;
+    }
+    let pts: Vec<Point> = corners.iter().map(|c| Point::new(c.x, c.y)).collect();
+    let mut length = 0.0;
+    let mut i = start;
+    while i != end {
+        length += edge_len(&pts, bulges, curves, i);
+        i = (i + 1) % n;
+    }
+    length
+}
+
+/// The length of boundary edge `i` (node `i` → `i+1`, wrapping): the Bézier
+/// length when the edge has controls, else the arc length from its bulge
+/// (a straight chord at bulge 0). Shared by the perimeter and span sums.
+fn edge_len(pts: &[Point], bulges: &[f64], curves: &[(usize, Point, Point)], i: usize) -> f64 {
+    let (p0, p3) = (pts[i], pts[(i + 1) % pts.len()]);
+    if let Some(&(_, c1, c2)) = curves.iter().find(|&&(e, _, _)| e == i) {
+        bezier_length(p0, c1, c2, p3)
+    } else {
+        arc_length(p0.dist(p3), bulges.get(i).copied().unwrap_or(0.0))
+    }
 }
 
 /// Signed polygon area (positive counter-clockwise) via the shoelace sum —
@@ -325,5 +394,111 @@ mod tests {
             boundary_area(&sq, &[0.9, 0.0, 0.0, 0.0], &[curve]),
             1.0 + seg.abs()
         ));
+    }
+
+    #[test]
+    fn arc_length_of_a_straight_edge_is_its_chord() {
+        assert!((arc_length(5.0, 0.0) - 5.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn arc_length_of_a_semicircle_is_half_its_circumference() {
+        // |b| = 1 → a semicircle over the chord (its diameter): π·c/2, either
+        // bow direction.
+        let want = std::f64::consts::PI * 10.0 / 2.0;
+        assert!((arc_length(10.0, 1.0) - want).abs() < 1e-9);
+        assert!((arc_length(10.0, -1.0) - want).abs() < 1e-9);
+    }
+
+    #[test]
+    fn boundary_perimeter_of_a_rectangle_sums_its_sides() {
+        let corners = vec![
+            Coord::new(0.0, 0.0),
+            Coord::new(10.0, 0.0),
+            Coord::new(10.0, 8.0),
+            Coord::new(0.0, 8.0),
+        ];
+        assert!((boundary_perimeter(&corners, &[], &[]) - 36.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn boundary_perimeter_follows_arcs_and_curves() {
+        // A 10×8 rectangle whose first edge is a semicircle (π·10/2 instead of
+        // 10) and whose third edge is a "curve" that is really its straight
+        // chord (controls at the thirds) — arc replaces its side, curve
+        // matches its side.
+        let corners = vec![
+            Coord::new(0.0, 0.0),
+            Coord::new(10.0, 0.0),
+            Coord::new(10.0, 8.0),
+            Coord::new(0.0, 8.0),
+        ];
+        let bulges = vec![1.0];
+        let curves = vec![(
+            2usize,
+            Point::new(10.0 - 10.0 / 3.0, 8.0),
+            Point::new(10.0 / 3.0, 8.0),
+        )];
+        let want = std::f64::consts::PI * 10.0 / 2.0 + 8.0 + 10.0 + 8.0;
+        let got = boundary_perimeter(&corners, &bulges, &curves);
+        assert!((got - want).abs() < 1e-6, "want {want}, got {got}");
+    }
+
+    #[test]
+    fn a_degenerate_boundary_has_no_perimeter() {
+        assert!(boundary_perimeter(&[Coord::new(1.0, 1.0)], &[], &[]).abs() < 1e-9);
+        assert!(boundary_perimeter(&[], &[], &[]).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_two_node_ring_of_semicircles_measures_its_circle() {
+        // Two nodes 10 apart, both edges bulge 1 (semicircles): the boundary
+        // is the full circle of diameter 10 — perimeter π·10. Guards the
+        // degenerate-count check (n < 2, not ≤/==).
+        let corners = vec![Coord::new(0.0, 0.0), Coord::new(10.0, 0.0)];
+        let got = boundary_perimeter(&corners, &[1.0, 1.0], &[]);
+        assert!((got - PI * 10.0).abs() < 1e-9, "got {got}");
+    }
+
+    #[test]
+    fn a_span_sums_only_its_forward_edges() {
+        // 10×8 rectangle: edge 0 = 10, edge 1 = 8, edge 2 = 10, edge 3 = 8.
+        let corners = vec![
+            Coord::new(0.0, 0.0),
+            Coord::new(10.0, 0.0),
+            Coord::new(10.0, 8.0),
+            Coord::new(0.0, 8.0),
+        ];
+        // Nodes 0 → 2: edges 0 and 1 (10 + 8).
+        assert!((boundary_span_length(&corners, &[], &[], 0, 2) - 18.0).abs() < 1e-9);
+        // Wrapping: nodes 3 → 1 crosses edges 3 and 0 (8 + 10).
+        assert!((boundary_span_length(&corners, &[], &[], 3, 1) - 18.0).abs() < 1e-9);
+        // A span follows an arc edge's true length: edge 0 as a semicircle.
+        let want = PI * 10.0 / 2.0 + 8.0;
+        let got = boundary_span_length(&corners, &[1.0], &[], 0, 2);
+        assert!((got - want).abs() < 1e-9, "got {got}");
+    }
+
+    #[test]
+    fn a_degenerate_span_measures_nothing() {
+        let corners = vec![
+            Coord::new(0.0, 0.0),
+            Coord::new(10.0, 0.0),
+            Coord::new(10.0, 8.0),
+            Coord::new(0.0, 8.0),
+        ];
+        assert!(boundary_span_length(&corners, &[], &[], 2, 2).abs() < 1e-9);
+        assert!(boundary_span_length(&corners, &[], &[], 0, 9).abs() < 1e-9);
+        assert!(boundary_span_length(&corners, &[], &[], 9, 0).abs() < 1e-9);
+        assert!(boundary_span_length(&[], &[], &[], 0, 0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_two_node_boundary_still_spans_its_edge() {
+        // The degenerate-count guard is `n < 2`, not ≤/==: two nodes joined by
+        // a semicircle edge span node 0 → 1 along that arc (π·c/2).
+        let corners = vec![Coord::new(0.0, 0.0), Coord::new(10.0, 0.0)];
+        let got = boundary_span_length(&corners, &[1.0], &[], 0, 1);
+        assert!((got - PI * 10.0 / 2.0).abs() < 1e-9, "got {got}");
     }
 }

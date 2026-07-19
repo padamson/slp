@@ -9,8 +9,8 @@
 //! the area (or volume) of every drawn `Shape`/`Circle` whose `material_ref`
 //! names it.
 
-use crate::generated::slp::{CatalogItem, Course, ItemStatus, Plan, PriceUnit};
-use crate::{Point, Shape, boundary_area, circle_area};
+use crate::generated::slp::{Border, CatalogItem, Course, ItemStatus, Plan, PriceUnit};
+use crate::{Point, Shape, boundary_area, boundary_perimeter, boundary_span_length, circle_area};
 
 /// One line of the bill of materials: a catalog item/material, the measured
 /// quantity referencing it (a count of objects, ft² of surface, or yd³ of
@@ -50,10 +50,12 @@ pub struct BillOfMaterials {
 /// **planned** and **real** (`!is_virtual`) objects referencing it (`existing`
 /// objects are already owned and `virtual` ones are ghosts — both excluded); a
 /// per-ft²/per-yd³ material line sums the surface area / volume of every drawn
-/// `Shape`/`Circle` whose `material_ref` names it. Lines come out in catalog
-/// order; an item with no counted quantity yields no line. A catalog item with
-/// no `unit_price` is priced at `0.0`. (Per-linear-ft materials aren't costed
-/// yet — they yield no line.)
+/// `Shape`/`Circle` whose `material_ref` names it — **minus** any border rings
+/// (B5), which cost separately: a per-ft² border material adds its ring areas,
+/// and a per-linear-ft material (edging stones) sums its rings' centerline
+/// perimeters. Lines come out in catalog order; an item with no counted
+/// quantity yields no line. A catalog item with no `unit_price` is priced at
+/// `0.0`.
 #[must_use]
 pub fn take_off(plan: &Plan) -> BillOfMaterials {
     let mut lines = Vec::new();
@@ -63,7 +65,7 @@ pub fn take_off(plan: &Plan) -> BillOfMaterials {
             PriceUnit::per_item => object_count(plan, &item.id),
             PriceUnit::per_square_foot => material_area(plan, &item.id),
             PriceUnit::per_cubic_yard => material_volume(plan, &item.id),
-            PriceUnit::per_linear_foot => 0.0,
+            PriceUnit::per_linear_foot => material_linear(plan, &item.id),
         };
         if quantity <= 0.0 {
             continue;
@@ -95,22 +97,125 @@ fn object_count(plan: &Plan, id: &str) -> f64 {
     f64::from(u32::try_from(n).unwrap_or(u32::MAX))
 }
 
-/// The total surface area (ft²) of every drawn `Shape`/`Circle` made of
-/// material `id`.
+/// The total surface area (ft²) of material `id` across the plan: the
+/// **field** of every drawn `Shape`/`Circle` made of it (its area minus its
+/// border rings' area — the border is bought separately), plus every border
+/// **ring** made of it on any area (a contrasting per-ft² border paver).
 fn material_area(plan: &Plan, id: &str) -> f64 {
-    let shapes: f64 = plan
-        .shapes
+    area_measures(plan)
         .iter()
-        .filter(|s| s.material_ref.as_deref() == Some(id))
-        .map(shape_area)
-        .sum();
-    let circles: f64 = plan
-        .circles
+        .map(|m| {
+            let rings = ring_measures(&m.rings);
+            let field = if m.material_ref == Some(id) {
+                let border_area: f64 = rings.iter().map(|r| r.area_ft2).sum();
+                (m.area_ft2 - border_area).max(0.0)
+            } else {
+                0.0
+            };
+            let ring_share: f64 = m
+                .rings
+                .iter()
+                .zip(&rings)
+                .filter(|(spec, _)| spec.material_ref == id)
+                .map(|(_, r)| r.area_ft2)
+                .sum();
+            field + ring_share
+        })
+        .sum()
+}
+
+/// The total linear feet of material `id` across the plan: the centerline
+/// perimeter of every border ring made of it (edging stones and other
+/// per-linear-ft border products).
+fn material_linear(plan: &Plan, id: &str) -> f64 {
+    area_measures(plan)
         .iter()
-        .filter(|c| c.material_ref.as_deref() == Some(id))
-        .map(|c| circle_area(c.radius_ft))
-        .sum();
-    shapes + circles
+        .map(|m| {
+            m.rings
+                .iter()
+                .zip(ring_measures(&m.rings))
+                .filter(|(spec, _)| spec.material_ref == id)
+                .map(|(_, r)| r.centerline_ft)
+                .sum::<f64>()
+        })
+        .sum()
+}
+
+/// One border ring's measured geometry under the rounded-offset model.
+struct RingMeasure {
+    /// The ring centerline's length (ft) — what a per-linear-ft product costs by.
+    centerline_ft: f64,
+    /// The ring band's area (ft²) — what a per-ft² border material costs by,
+    /// and what the field loses.
+    area_ft2: f64,
+}
+
+/// One border band's resolved geometry inputs: its material, laid width, the
+/// centerline's base length, and whether the band wraps the whole boundary
+/// (a closed ring) or runs open along a node span.
+struct RingSpec<'a> {
+    material_ref: &'a str,
+    width_ft: f64,
+    /// The band centerline's base length: the closed boundary perimeter for a
+    /// ring, the span's edge length for an open run (0 for a degenerate span).
+    base_len_ft: f64,
+    /// Whether the band wraps the boundary — only a closed ring shrinks by
+    /// `2π × offset` as it nests inward (an open band has no corners to
+    /// round off; its inner-offset length change is ignored).
+    closed: bool,
+}
+
+/// Resolve a border into its [`RingSpec`]: a full-perimeter ring unless
+/// **both** span nodes are set, in which case the open span from `start_node`
+/// forward to `end_node` (a bad or empty span measures 0 — it under-counts
+/// loudly rather than silently billing the whole perimeter). `span_len`
+/// resolves the span for the concrete boundary (shapes have nodes; a circle
+/// has none and always rings).
+fn ring_spec(
+    b: &Border,
+    perimeter_ft: f64,
+    span_len: impl Fn(usize, usize) -> f64,
+) -> RingSpec<'_> {
+    let span = match (b.start_node, b.end_node) {
+        (Some(s), Some(e)) => match (usize::try_from(s), usize::try_from(e)) {
+            (Ok(s), Ok(e)) => Some(span_len(s, e)),
+            _ => Some(0.0),
+        },
+        _ => None,
+    };
+    RingSpec {
+        material_ref: &b.material_ref,
+        width_ft: b.width_ft,
+        base_len_ft: span.unwrap_or(perimeter_ft),
+        closed: span.is_none(),
+    }
+}
+
+/// Measure each border band, outermost first. Insetting a **closed** boundary
+/// by `d` shortens its perimeter by `2π·d` (corners round off — exact for a
+/// circle, a good buy-estimate approximation elsewhere), so ring *i* at
+/// cumulative outer offset `o` has centerline length `P − 2π·(o + wᵢ/2)`,
+/// clamped at 0 once the rings have consumed the boundary; its band area is
+/// exactly `centerline × wᵢ` under that model. An **open** span band keeps
+/// its base length at any offset. A non-positive band width measures nothing.
+fn ring_measures(rings: &[RingSpec]) -> Vec<RingMeasure> {
+    let mut offset = 0.0;
+    rings
+        .iter()
+        .map(|r| {
+            let w = r.width_ft.max(0.0);
+            let centerline_ft = if r.closed {
+                (r.base_len_ft - std::f64::consts::TAU * (offset + w / 2.0)).max(0.0)
+            } else {
+                r.base_len_ft
+            };
+            offset += w;
+            RingMeasure {
+                centerline_ft,
+                area_ft2: centerline_ft * w,
+            }
+        })
+        .collect()
 }
 
 /// The total volume (yd³) of material `id` across the plan: every drawn area
@@ -121,26 +226,29 @@ fn material_area(plan: &Plan, id: &str) -> f64 {
 /// All by `yd³ = ft²·depth_in / 324`.
 fn material_volume(plan: &Plan, id: &str) -> f64 {
     let mut volume = 0.0;
-    for (material_ref, area_ft2, own_depth, courses) in area_measures(plan) {
+    for m in area_measures(plan) {
         // A bed literally made of `id` (mulch, gravel), at its own depth.
-        if material_ref == Some(id) {
-            volume += volume_yd3(area_ft2, own_depth);
+        if m.material_ref == Some(id) {
+            volume += volume_yd3(m.area_ft2, m.depth_in);
         }
         // The sub-base beneath a surface: this area's own courses when it has
-        // them, else its surface material's catalog default courses.
+        // them, else its surface material's catalog default courses. Courses
+        // use the **full** area — the base and bedding run beneath the border
+        // rings too (a border sits on the same prepared bed as the field).
         let fallback;
-        let effective: &[Course] = if courses.is_empty() {
-            fallback = material_ref
-                .and_then(|m| catalog_item(plan, m))
+        let effective: &[Course] = if m.courses.is_empty() {
+            fallback = m
+                .material_ref
+                .and_then(|mat| catalog_item(plan, mat))
                 .map(default_courses)
                 .unwrap_or_default();
             &fallback
         } else {
-            courses
+            m.courses
         };
         for course in effective {
             if course.material_ref == id {
-                volume += volume_yd3(area_ft2, course.depth_in);
+                volume += volume_yd3(m.area_ft2, course.depth_in);
             }
         }
     }
@@ -180,24 +288,63 @@ pub fn tile_size_ft(item: &CatalogItem) -> (f64, f64) {
     (effective(item.tile_width_ft), effective(item.tile_depth_ft))
 }
 
-/// Every drawn area's `(material_ref, area ft², own depth_in, courses)` — shapes
-/// then circles — the raw inputs for area/volume take-off.
-fn area_measures(plan: &Plan) -> Vec<(Option<&str>, f64, f64, &[Course])> {
+/// One drawn area's raw take-off inputs (a `Shape` or a `Circle`).
+struct AreaMeasure<'a> {
+    /// The surface material the area is made of, if any.
+    material_ref: Option<&'a str>,
+    /// The enclosed area, ft².
+    area_ft2: f64,
+    /// The area's own material depth (a bed's inches), 0 when unset.
+    depth_in: f64,
+    /// The area's own sub-base composition (empty = catalog default).
+    courses: &'a [Course],
+    /// The area's border bands, outermost first, resolved to ring/span
+    /// geometry (empty = none).
+    rings: Vec<RingSpec<'a>>,
+}
+
+/// Every drawn area's measures — shapes then circles — the raw inputs for
+/// area/volume/border take-off.
+fn area_measures(plan: &Plan) -> Vec<AreaMeasure<'_>> {
     let shapes = plan.shapes.iter().map(|s| {
-        (
-            s.material_ref.as_deref(),
-            shape_area(s),
-            s.depth_in.unwrap_or(0.0),
-            s.courses.as_slice(),
-        )
+        let curves = shape_curves(s);
+        let perimeter = boundary_perimeter(&s.corners, &s.bulges, &curves);
+        AreaMeasure {
+            material_ref: s.material_ref.as_deref(),
+            area_ft2: shape_area(s),
+            depth_in: s.depth_in.unwrap_or(0.0),
+            courses: s.courses.as_slice(),
+            rings: s
+                .borders
+                .iter()
+                .map(|b| {
+                    ring_spec(b, perimeter, |from, to| {
+                        boundary_span_length(&s.corners, &s.bulges, &curves, from, to)
+                    })
+                })
+                .collect(),
+        }
     });
     let circles = plan.circles.iter().map(|c| {
-        (
-            c.material_ref.as_deref(),
-            circle_area(c.radius_ft),
-            c.depth_in.unwrap_or(0.0),
-            c.courses.as_slice(),
-        )
+        // A circle has no nodes: every border is a full ring (span fields are
+        // ignored by resolving each one against the circumference).
+        let perimeter = std::f64::consts::TAU * c.radius_ft;
+        AreaMeasure {
+            material_ref: c.material_ref.as_deref(),
+            area_ft2: circle_area(c.radius_ft),
+            depth_in: c.depth_in.unwrap_or(0.0),
+            courses: c.courses.as_slice(),
+            rings: c
+                .borders
+                .iter()
+                .map(|b| RingSpec {
+                    material_ref: &b.material_ref,
+                    width_ft: b.width_ft,
+                    base_len_ft: perimeter,
+                    closed: true,
+                })
+                .collect(),
+        }
     });
     shapes.chain(circles).collect()
 }
@@ -207,10 +354,10 @@ fn catalog_item<'a>(plan: &'a Plan, id: &str) -> Option<&'a CatalogItem> {
     plan.catalog.iter().find(|c| c.id == id)
 }
 
-/// A shape's enclosed area (ft²), accounting for any arc/curve edges.
-fn shape_area(s: &Shape) -> f64 {
-    let curves: Vec<(usize, Point, Point)> = s
-        .curves
+/// A shape's Bézier edges as `(edge index, control1, control2)`, the form the
+/// boundary area/perimeter functions take.
+fn shape_curves(s: &Shape) -> Vec<(usize, Point, Point)> {
+    s.curves
         .iter()
         .filter_map(|c| {
             usize::try_from(c.edge).ok().map(|e| {
@@ -221,8 +368,12 @@ fn shape_area(s: &Shape) -> f64 {
                 )
             })
         })
-        .collect();
-    boundary_area(&s.corners, &s.bulges, &curves)
+        .collect()
+}
+
+/// A shape's enclosed area (ft²), accounting for any arc/curve edges.
+fn shape_area(s: &Shape) -> f64 {
+    boundary_area(&s.corners, &s.bulges, &shape_curves(s))
 }
 
 /// Volume in cubic yards of a `ft²` surface at `depth_in` inches:
@@ -803,5 +954,337 @@ mod tests {
         assert_eq!(bom.lines[0].unit, PriceUnit::per_item);
         assert_eq!(bom.lines[1].catalog_ref, "mulch");
         assert_eq!(bom.lines[1].unit, PriceUnit::per_cubic_yard);
+    }
+
+    // --- Border rings (B5): border courses + edging stones ---
+
+    use crate::generated::slp::Border;
+    use std::f64::consts::TAU;
+
+    /// A 10×10 paver patio with the given border rings.
+    fn paver_with_borders(borders: Vec<Border>) -> Shape {
+        let mut s = bed("paver", 10.0, 10.0, 0.0);
+        s.borders = borders;
+        s
+    }
+
+    #[test]
+    fn a_border_ring_costs_its_band_and_shrinks_the_field() {
+        // 10×10 patio (P = 40): one 0.5 ft border of a contrasting per-ft²
+        // paver. Centerline = 40 − 2π·0.25; band = centerline × 0.5; the field
+        // loses exactly that band.
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Field pavers", 6.0, PriceUnit::per_square_foot),
+                material("cobble", "Border cobble", 9.0, PriceUnit::per_square_foot),
+            ],
+            vec![paver_with_borders(vec![Border::new("cobble".into(), 0.5)])],
+            vec![],
+        ));
+        let centerline = 40.0 - TAU * 0.25;
+        let band = centerline * 0.5;
+        let field = bom.lines.iter().find(|l| l.catalog_ref == "paver").unwrap();
+        let border = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "cobble")
+            .unwrap();
+        assert!(
+            (field.quantity - (100.0 - band)).abs() < 1e-9,
+            "field shrinks by the band: want {}, got {}",
+            100.0 - band,
+            field.quantity
+        );
+        assert_eq!(border.unit, PriceUnit::per_square_foot);
+        assert!(
+            (border.quantity - band).abs() < 1e-9,
+            "band ft²: want {band}, got {}",
+            border.quantity
+        );
+    }
+
+    #[test]
+    fn an_edging_stone_costs_by_centerline_linear_feet() {
+        // The same patio edged with a per-linear-ft edging stone, 1/3 ft wide.
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Field pavers", 6.0, PriceUnit::per_square_foot),
+                material("edging", "Edging stones", 4.0, PriceUnit::per_linear_foot),
+            ],
+            vec![paver_with_borders(vec![Border::new(
+                "edging".into(),
+                1.0 / 3.0,
+            )])],
+            vec![],
+        ));
+        let centerline = 40.0 - TAU * (1.0 / 6.0);
+        let edging = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "edging")
+            .unwrap();
+        assert_eq!(edging.unit, PriceUnit::per_linear_foot);
+        assert!(
+            (edging.quantity - centerline).abs() < 1e-9,
+            "want {centerline}, got {}",
+            edging.quantity
+        );
+        assert!((edging.line_total - centerline * 4.0).abs() < 1e-9);
+        // The per-linear-ft ring still shrinks the field by its band area.
+        let field = bom.lines.iter().find(|l| l.catalog_ref == "paver").unwrap();
+        let band = centerline * (1.0 / 3.0);
+        assert!((field.quantity - (100.0 - band)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn inner_rings_measure_against_the_shrunken_boundary_in_order() {
+        // Outer 0.5 ft cobble, inner 0.25 ft edging: the inner ring's
+        // centerline offset is 0.5 + 0.125.
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Field pavers", 6.0, PriceUnit::per_square_foot),
+                material("cobble", "Border cobble", 9.0, PriceUnit::per_square_foot),
+                material("edging", "Edging stones", 4.0, PriceUnit::per_linear_foot),
+            ],
+            vec![paver_with_borders(vec![
+                Border::new("cobble".into(), 0.5),
+                Border::new("edging".into(), 0.25),
+            ])],
+            vec![],
+        ));
+        let outer_center = 40.0 - TAU * 0.25;
+        let inner_center = 40.0 - TAU * (0.5 + 0.125);
+        let cobble = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "cobble")
+            .unwrap();
+        let edging = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "edging")
+            .unwrap();
+        assert!(
+            (cobble.quantity - outer_center * 0.5).abs() < 1e-9,
+            "outer band"
+        );
+        assert!(
+            (edging.quantity - inner_center).abs() < 1e-9,
+            "inner centerline"
+        );
+        let field = bom.lines.iter().find(|l| l.catalog_ref == "paver").unwrap();
+        let want = 100.0 - outer_center * 0.5 - inner_center * 0.25;
+        assert!(
+            (field.quantity - want).abs() < 1e-9,
+            "field minus both bands"
+        );
+    }
+
+    #[test]
+    fn a_circle_border_is_exact() {
+        // A radius-5 circular patio (P = 2π·5) with a 0.5 ft border: the
+        // rounded-offset model is exact for a circle — centerline = 2π·4.75.
+        let mut circle = Circle {
+            material_ref: Some("paver".to_string()),
+            depth_in: Some(0.0),
+            ..Circle::new(Box::new(Coord::new(20.0, 20.0)), 0.0, 5.0)
+        };
+        circle.borders = vec![Border::new("cobble".into(), 0.5)];
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Field pavers", 6.0, PriceUnit::per_square_foot),
+                material("cobble", "Border cobble", 9.0, PriceUnit::per_square_foot),
+            ],
+            vec![],
+            vec![circle],
+        ));
+        let centerline = TAU * 4.75;
+        let cobble = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "cobble")
+            .unwrap();
+        assert!((cobble.quantity - centerline * 0.5).abs() < 1e-9);
+        // Exactness check: band area = π(5² − 4.5²) = centerline × 0.5.
+        let exact = std::f64::consts::PI * (25.0 - 4.5 * 4.5);
+        assert!((cobble.quantity - exact).abs() < 1e-9, "exact annulus area");
+    }
+
+    #[test]
+    fn oversized_borders_clamp_and_never_go_negative() {
+        // Absurd 40 ft-wide border on a 10×10 patio: centerline clamps to 0,
+        // the ring measures nothing, and the field never goes below 0.
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Field pavers", 6.0, PriceUnit::per_square_foot),
+                material("cobble", "Border cobble", 9.0, PriceUnit::per_square_foot),
+            ],
+            vec![paver_with_borders(vec![Border::new("cobble".into(), 40.0)])],
+            vec![],
+        ));
+        assert!(
+            bom.lines.iter().all(|l| l.catalog_ref != "cobble"),
+            "a fully-consumed ring measures nothing"
+        );
+        let field = bom.lines.iter().find(|l| l.catalog_ref == "paver").unwrap();
+        assert!(field.quantity > 0.0 && field.quantity <= 100.0);
+    }
+
+    #[test]
+    fn borders_leave_the_sub_base_at_full_area() {
+        // The gravel base runs beneath the border too: a bordered 10×10 paver
+        // patio still drives 100 ft² × 4 in of gravel.
+        let mut area = paver_with_borders(vec![Border::new("cobble".into(), 0.5)]);
+        area.courses = vec![Course::new(4.0, "gravel".into())];
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Field pavers", 6.0, PriceUnit::per_square_foot),
+                material("cobble", "Border cobble", 9.0, PriceUnit::per_square_foot),
+                material("gravel", "Gravel", 50.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![area],
+            vec![],
+        ));
+        let gravel = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "gravel")
+            .unwrap();
+        assert!(
+            (gravel.quantity - 100.0 * 4.0 / 324.0).abs() < 1e-9,
+            "full area, not field-only"
+        );
+    }
+
+    #[test]
+    fn a_curved_areas_take_off_follows_its_curve() {
+        // A 10×10 paver patio whose south edge bows outward as a Bézier: its
+        // costed ft² must match the curve-aware boundary area (more than the
+        // straight 100), not the straight-chord polygon.
+        use crate::generated::slp::CurveEdge;
+        let mut s = bed("paver", 10.0, 10.0, 0.0);
+        s.curves = vec![CurveEdge::new(
+            Box::new(Coord::new(2.5, -4.0)),
+            Box::new(Coord::new(7.5, -4.0)),
+            0,
+        )];
+        let expected = {
+            let curves = vec![(
+                0usize,
+                crate::Point::new(2.5, -4.0),
+                crate::Point::new(7.5, -4.0),
+            )];
+            crate::boundary_area(&s.corners, &s.bulges, &curves)
+        };
+        assert!(expected > 100.5, "the bow adds area: {expected}");
+        let bom = take_off(&plan_with_areas(
+            vec![material("paver", "Pavers", 6.0, PriceUnit::per_square_foot)],
+            vec![s],
+            vec![],
+        ));
+        assert!(
+            (bom.lines[0].quantity - expected).abs() < 1e-9,
+            "want {expected}, got {}",
+            bom.lines[0].quantity
+        );
+    }
+
+    #[test]
+    fn a_span_border_costs_only_its_edges_with_no_corner_shrink() {
+        // 10×10 patio (P = 40); a 0.5 ft edging span from node 0 to node 2
+        // covers edges 0 and 1 (10 + 10 = 20 lf) — an open band, so no 2π
+        // corner shrink — and the field loses exactly 20 × 0.5 ft².
+        let mut area = paver_with_borders(vec![]);
+        let mut b = Border::new("edging".into(), 0.5);
+        b.start_node = Some(0);
+        b.end_node = Some(2);
+        area.borders = vec![b];
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Field pavers", 6.0, PriceUnit::per_square_foot),
+                material("edging", "Edging stones", 4.0, PriceUnit::per_linear_foot),
+            ],
+            vec![area],
+            vec![],
+        ));
+        let edging = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "edging")
+            .unwrap();
+        assert!(
+            (edging.quantity - 20.0).abs() < 1e-9,
+            "span edges only: got {}",
+            edging.quantity
+        );
+        let field = bom.lines.iter().find(|l| l.catalog_ref == "paver").unwrap();
+        assert!(
+            (field.quantity - (100.0 - 10.0)).abs() < 1e-9,
+            "field minus the band"
+        );
+    }
+
+    #[test]
+    fn a_half_specified_or_bad_span_falls_back_predictably() {
+        // Only one node set → per the schema, still a full ring.
+        let mut ring = Border::new("cobble".into(), 0.5);
+        ring.start_node = Some(1);
+        // Both set but out of range → a dead span: measures nothing rather
+        // than silently billing the whole perimeter.
+        let mut dead = Border::new("edging".into(), 0.5);
+        dead.start_node = Some(0);
+        dead.end_node = Some(9);
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Field pavers", 6.0, PriceUnit::per_square_foot),
+                material("cobble", "Border cobble", 9.0, PriceUnit::per_square_foot),
+                material("edging", "Edging stones", 4.0, PriceUnit::per_linear_foot),
+            ],
+            vec![paver_with_borders(vec![ring, dead])],
+            vec![],
+        ));
+        let cobble = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "cobble")
+            .unwrap();
+        let want_ring = (40.0 - TAU * 0.25) * 0.5;
+        assert!((cobble.quantity - want_ring).abs() < 1e-9, "a full ring");
+        assert!(
+            bom.lines.iter().all(|l| l.catalog_ref != "edging"),
+            "a dead span measures nothing"
+        );
+    }
+
+    #[test]
+    fn a_circles_border_ignores_span_nodes() {
+        // A circle has no nodes: even a span-tagged border rings the whole
+        // circumference.
+        let mut circle = Circle {
+            material_ref: Some("paver".to_string()),
+            depth_in: Some(0.0),
+            ..Circle::new(Box::new(Coord::new(20.0, 20.0)), 0.0, 5.0)
+        };
+        let mut b = Border::new("edging".into(), 0.5);
+        b.start_node = Some(0);
+        b.end_node = Some(2);
+        circle.borders = vec![b];
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Field pavers", 6.0, PriceUnit::per_square_foot),
+                material("edging", "Edging stones", 4.0, PriceUnit::per_linear_foot),
+            ],
+            vec![],
+            vec![circle],
+        ));
+        let edging = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "edging")
+            .unwrap();
+        assert!(
+            (edging.quantity - TAU * 4.75).abs() < 1e-9,
+            "the full ring centerline"
+        );
     }
 }

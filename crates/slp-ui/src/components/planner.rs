@@ -9,11 +9,11 @@
 
 use leptos::prelude::*;
 use slp_core::{
-    CatalogItem, Circle, Commit, Coord, Corner, Course, CurveEdge, Deck, DeckLevel, FootprintShape,
-    House, ItemStatus, Object, Plan, Point, PriceUnit, Shape, StepRun, Tool, are_adjacent,
-    boundary_area, circle_area, commit_kind, content_points, default_courses, dragged_center,
-    free_corner, heading, insert_node_between, nearest_wall, object_at, opening_from_nodes,
-    snap_node, snap_to_grid, take_off,
+    Border, CatalogItem, Circle, Commit, Coord, Corner, Course, CurveEdge, Deck, DeckLevel,
+    FootprintShape, House, ItemStatus, Object, Plan, Point, PriceUnit, Shape, StepRun, Tool,
+    are_adjacent, boundary_area, circle_area, commit_kind, content_points, default_courses,
+    dragged_center, free_corner, heading, insert_node_between, nearest_wall, object_at,
+    opening_from_nodes, snap_node, snap_to_grid, take_off,
 };
 // Only the csr keydown handler deletes a node, so its slp-core helper is
 // imported there too (keeps a native build free of an unused-import warning).
@@ -715,6 +715,7 @@ fn planner_body() -> impl IntoView {
                         bulges: Vec::new(),
                         curves: Vec::new(),
                         courses: seed_courses(&catalog.get_untracked(), material.as_deref()),
+                        borders: Vec::new(),
                         material_ref: material,
                         depth_in: Some(area_depth.get_untracked()),
                     };
@@ -1092,6 +1093,70 @@ fn planner_body() -> impl IntoView {
             if let Some(id) = default_material.clone() {
                 courses.push(Course::new(2.0, id));
             }
+        });
+    });
+
+    // Border editor: edit the selected area's border rings (outermost first).
+    let edit_selected_borders = move |edit: &dyn Fn(&mut Vec<Border>)| {
+        if let Some(i) = selected_shape.get_untracked() {
+            shapes.update(|v| {
+                if let Some(s) = v.get_mut(i) {
+                    edit(&mut s.borders);
+                }
+            });
+        } else if let Some(i) = selected_circle.get_untracked() {
+            circles.update(|v| {
+                if let Some(c) = v.get_mut(i) {
+                    edit(&mut c.borders);
+                }
+            });
+        }
+    };
+    let set_border_material = Callback::new(move |(i, id): (usize, String)| {
+        edit_selected_borders(&|borders| {
+            if let Some(b) = borders.get_mut(i) {
+                b.material_ref.clone_from(&id);
+            }
+        });
+    });
+    let set_border_width = Callback::new(move |(i, w): (usize, f64)| {
+        edit_selected_borders(&|borders| {
+            if let Some(b) = borders.get_mut(i) {
+                b.width_ft = w;
+            }
+        });
+    });
+    let remove_border = Callback::new(move |i: usize| {
+        edit_selected_borders(&|borders| {
+            if i < borders.len() {
+                borders.remove(i);
+            }
+        });
+    });
+    let set_border_start = Callback::new(move |(i, v): (usize, Option<i64>)| {
+        edit_selected_borders(&|borders| {
+            if let Some(b) = borders.get_mut(i) {
+                b.start_node = v;
+            }
+        });
+    });
+    let set_border_end = Callback::new(move |(i, v): (usize, Option<i64>)| {
+        edit_selected_borders(&|borders| {
+            if let Some(b) = borders.get_mut(i) {
+                b.end_node = v;
+            }
+        });
+    });
+    // A new ring defaults to the first border material at its own laid width
+    // (a no-op when the catalog has nothing to edge with).
+    let add_border = Callback::new(move |()| {
+        let cat = catalog.get_untracked();
+        let Some((id, _)) = border_materials(&cat).into_iter().next() else {
+            return;
+        };
+        let width = default_border_width(cat.iter().find(|c| c.id == id));
+        edit_selected_borders(&|borders| {
+            borders.push(Border::new(id.clone(), width));
         });
     });
 
@@ -1776,6 +1841,15 @@ fn planner_body() -> impl IntoView {
                                 on_course_depth=set_course_depth
                                 on_course_add=add_course
                                 on_course_remove=remove_course
+                                borders=area.borders
+                                border_material_options=border_materials(&catalog.get())
+                                border_node_count=area.node_count
+                                on_border_material=set_border_material
+                                on_border_width=set_border_width
+                                on_border_start=set_border_start
+                                on_border_end=set_border_end
+                                on_border_add=add_border
+                                on_border_remove=remove_border
                                 on_elevation=set_area_elevation
                                 on_depth=set_area_depth
                                 on_delete=delete_selected_area
@@ -1959,6 +2033,10 @@ struct AreaInfo {
     /// This area's own sub-base courses (a paver's gravel/sand), for the
     /// composition editor. Empty for a mulch bed / bare surface.
     courses: Vec<Course>,
+    /// This area's border rings (outermost first), for the border editor.
+    borders: Vec<Border>,
+    /// The boundary's node count (0 for a circle), for border span selects.
+    node_count: usize,
 }
 
 /// Resolve the selected `Shape`/`Circle` (only one can be selected) into the
@@ -1972,26 +2050,31 @@ fn selected_area(
     circles: &[Circle],
     catalog: &[CatalogItem],
 ) -> Option<AreaInfo> {
-    let (material_ref, elevation, depth, area_ft2, courses) = if let Some(i) = sel_shape {
-        let s = shapes.get(i)?;
-        (
-            s.material_ref.as_deref(),
-            s.elevation,
-            s.depth_in.unwrap_or(0.0),
-            shape_area_ft2(s),
-            s.courses.clone(),
-        )
-    } else {
-        let i = sel_circle?;
-        let c = circles.get(i)?;
-        (
-            c.material_ref.as_deref(),
-            c.elevation,
-            c.depth_in.unwrap_or(0.0),
-            circle_area(c.radius_ft),
-            c.courses.clone(),
-        )
-    };
+    let (material_ref, elevation, depth, area_ft2, courses, borders, node_count) =
+        if let Some(i) = sel_shape {
+            let s = shapes.get(i)?;
+            (
+                s.material_ref.as_deref(),
+                s.elevation,
+                s.depth_in.unwrap_or(0.0),
+                shape_area_ft2(s),
+                s.courses.clone(),
+                s.borders.clone(),
+                s.corners.len(),
+            )
+        } else {
+            let i = sel_circle?;
+            let c = circles.get(i)?;
+            (
+                c.material_ref.as_deref(),
+                c.elevation,
+                c.depth_in.unwrap_or(0.0),
+                circle_area(c.radius_ft),
+                c.courses.clone(),
+                c.borders.clone(),
+                0,
+            )
+        };
     let item = material_ref.and_then(|m| catalog.iter().find(|c| c.id == m));
     let title = item
         .and_then(|i| i.name.clone())
@@ -2001,32 +2084,21 @@ fn selected_area(
     let price_unit = item.map(|i| i.price_unit.clone());
     let unit_price = item.and_then(|i| i.unit_price);
     let show_depth = price_unit == Some(PriceUnit::per_cubic_yard);
-    // Cost of this one area, by its material's pricing: per-ft² of surface, or
-    // per-yd³ of volume at its depth (`yd³ = ft²·in/324`). A surface material
-    // (pavers) adds the cost of its base + bedding courses beneath this area,
-    // so the panel shows the area's all-in cost — mirroring the itemized
-    // pavers/gravel/sand lines in the estimate.
+    // Cost of this one area, all-in — its surface (field minus any border
+    // rings), its sub-base courses (own or catalog default), and its border
+    // rings — by running the real take-off over a single-area plan, so the
+    // panel always matches the itemized estimate lines.
     let cost = match (&price_unit, unit_price) {
-        (Some(PriceUnit::per_square_foot), Some(p)) => {
-            let mut total = area_ft2 * p;
-            // The area's own sub-base courses, or the material's catalog
-            // defaults when it has none — matching how `take_off` costs them.
-            let effective = if courses.is_empty() {
-                item.map(default_courses).unwrap_or_default()
+        (Some(PriceUnit::per_square_foot | PriceUnit::per_cubic_yard), Some(_)) => {
+            let mut single = Plan::new(1.0, 1.0);
+            single.catalog = catalog.to_vec();
+            if let Some(i) = sel_shape {
+                single.shapes = vec![shapes.get(i)?.clone()];
             } else {
-                courses.clone()
-            };
-            for course in &effective {
-                total += course_cost(
-                    catalog,
-                    Some(&course.material_ref),
-                    Some(course.depth_in),
-                    area_ft2,
-                );
+                single.circles = vec![circles.get(sel_circle?)?.clone()];
             }
-            Some(total)
+            Some(take_off(&single).grand_total)
         }
-        (Some(PriceUnit::per_cubic_yard), Some(p)) => Some(area_ft2 * depth / 324.0 * p),
         _ => None,
     };
     Some(AreaInfo {
@@ -2039,30 +2111,9 @@ fn selected_area(
         show_depth,
         cost,
         courses,
+        borders,
+        node_count,
     })
-}
-
-/// The dollar cost of a sub-base course (gravel base / bedding sand) beneath a
-/// `area_ft2` surface: `yd³ = ft²·depth_in/324` at the referenced material's
-/// price. Zero when the surface names no such course, or it isn't in the
-/// catalog / has no price.
-fn course_cost(
-    catalog: &[CatalogItem],
-    material_ref: Option<&str>,
-    depth_in: Option<f64>,
-    area_ft2: f64,
-) -> f64 {
-    let Some(id) = material_ref else {
-        return 0.0;
-    };
-    let Some(price) = catalog
-        .iter()
-        .find(|c| c.id == id)
-        .and_then(|c| c.unit_price)
-    else {
-        return 0.0;
-    };
-    area_ft2 * depth_in.unwrap_or(0.0) / 324.0 * price
 }
 
 /// A shape's enclosed area (ft²), accounting for any arc/curve edges — the UI
@@ -2102,10 +2153,42 @@ fn tool_btn(
 /// Highlights when it's the armed material, and shows a swatch (the material's
 /// photo thumbnail, or its flat category color) resolved live from the catalog.
 /// Whether `item` is an **area material** — a surface/bed drawn as an area
-/// (priced per ft²/yd³/linear-ft), not a placeable object and not a sub-base
-/// aggregate (those are course layers, chosen in the area composition editor).
+/// (priced per ft² or per yd³), not a placeable object, not a sub-base
+/// aggregate (those are course layers, chosen in the area composition
+/// editor), and not a per-linear-ft product (edging stones ring an area's
+/// border, they aren't drawn as one).
 fn is_area_material(item: &CatalogItem) -> bool {
-    item.price_unit != PriceUnit::per_item && item.is_aggregate != Some(true)
+    matches!(
+        item.price_unit,
+        PriceUnit::per_square_foot | PriceUnit::per_cubic_yard
+    ) && item.is_aggregate != Some(true)
+}
+
+/// Whether `item` can make a **border ring** around a drawn area — a per-ft²
+/// surface (a contrasting border paver) or a per-linear-ft product (edging
+/// stones); never an aggregate.
+fn is_border_material(item: &CatalogItem) -> bool {
+    matches!(
+        item.price_unit,
+        PriceUnit::per_square_foot | PriceUnit::per_linear_foot
+    ) && item.is_aggregate != Some(true)
+}
+
+/// Border-ring material options for the border editor, as `(id, label)`.
+fn border_materials(catalog: &[CatalogItem]) -> Vec<(String, String)> {
+    catalog
+        .iter()
+        .filter(|c| is_border_material(c))
+        .map(|c| (c.id.clone(), c.name.clone().unwrap_or_else(|| c.id.clone())))
+        .collect()
+}
+
+/// A new border ring's default laid width (ft): the material's piece width
+/// (`width_ft`) when it declares one, else half a foot — a typical soldier
+/// course. Always editable afterwards.
+fn default_border_width(item: Option<&CatalogItem>) -> f64 {
+    item.and_then(|c| c.width_ft.filter(|w| *w > 0.0))
+        .unwrap_or(0.5)
 }
 
 /// The deck level whose nearest edge is closest to `anchor` (where a step run
@@ -2435,6 +2518,20 @@ fn starter_catalog() -> Vec<CatalogItem> {
                 42.0,
             );
             c.is_aggregate = Some(true);
+            c
+        },
+        // An edging stone (per linear ft) so an area can be edged before any
+        // product ingestion; `width_ft` is a piece's laid width, seeding a new
+        // border ring's default width.
+        {
+            let mut c = material(
+                "edging-stone",
+                "Edging stones",
+                "edging",
+                PriceUnit::per_linear_foot,
+                6.0,
+            );
+            c.width_ft = Some(1.0 / 3.0);
             c
         },
     ]

@@ -22,6 +22,7 @@ fn circle(elevation: f64) -> Circle {
         material_ref: None,
         depth_in: None,
         courses: Vec::new(),
+        borders: Vec::new(),
     }
 }
 
@@ -155,4 +156,29 @@ fn selection_overrides_the_texture() {
         !html.contains(r#"fill="url("#),
         "no pattern fill while selected"
     );
+}
+
+#[test]
+fn a_circle_border_renders_an_exact_annulus_stroke() {
+    // Radius 2 ft (20 px) with a 0.5 ft ring: centerline radius
+    // 2 − 0.25 = 1.75 ft → r=17.5 px, stroke-width 5 px.
+    let mut c = circle(0.0);
+    c.borders = vec![slp_core::Border::new("cobble".to_string(), 0.5)];
+    let html = dokime::render(move || view! { <Circles t=t() circles=vec![c.clone()] /> });
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="circle-border""#),
+        1,
+        "{html}"
+    );
+    assert!(html.contains(r#"r="17.5""#), "centerline radius: {html}");
+    assert!(html.contains(r#"stroke-width="5""#), "ring width: {html}");
+}
+
+#[test]
+fn an_oversized_circle_border_is_skipped() {
+    // A ring wider than the radius has no positive centerline — nothing draws.
+    let mut c = circle(0.0);
+    c.borders = vec![slp_core::Border::new("cobble".to_string(), 5.0)];
+    let html = dokime::render(move || view! { <Circles t=t() circles=vec![c.clone()] /> });
+    assert_eq!(dokime::count(&html, r#"data-testid="circle-border""#), 0);
 }

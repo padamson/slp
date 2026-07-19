@@ -22,6 +22,7 @@ fn round(elevation: f64) -> Circle {
         material_ref: None,
         depth_in: None,
         courses: Vec::new(),
+        borders: Vec::new(),
     }
 }
 

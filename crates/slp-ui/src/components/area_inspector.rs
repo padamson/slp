@@ -10,9 +10,9 @@
 //! plan, so the estimate updates as you type.
 
 use leptos::prelude::*;
-use slp_core::{Corner, Course, ItemStatus};
+use slp_core::{Border, Corner, Course, ItemStatus};
 
-use super::{CourseEditor, MaterialSwatch, NumberField};
+use super::{BorderEditor, CourseEditor, MaterialSwatch, NumberField};
 
 /// Short name for the corner the window floats in (for `data-corner`).
 fn corner_name(corner: Corner) -> &'static str {
@@ -99,6 +99,36 @@ pub fn AreaInspector(
     /// Remove course `i`.
     #[prop(default = Callback::new(|_: usize| {}))]
     on_course_remove: Callback<usize>,
+    /// A drawn area's border rings (a contrasting course, edging stones),
+    /// outermost first, editable.
+    #[prop(default = Vec::new())]
+    borders: Vec<Border>,
+    /// Materials a border ring may use, `(id, label)` — the catalog's per-ft²
+    /// and per-linear-ft materials. Empty hides the border editor (a
+    /// structure, or a catalog with nothing to edge with).
+    #[prop(default = Vec::new())]
+    border_material_options: Vec<(String, String)>,
+    /// Set ring `i`'s material.
+    #[prop(default = Callback::new(|_: (usize, String)| {}))]
+    on_border_material: Callback<(usize, String)>,
+    /// Set ring `i`'s laid width (ft).
+    #[prop(default = Callback::new(|_: (usize, f64)| {}))]
+    on_border_width: Callback<(usize, f64)>,
+    /// How many boundary nodes the area has (0 for a circle — no spans).
+    #[prop(default = 0)]
+    border_node_count: usize,
+    /// Set ring `i`'s span start node (`None` = whole perimeter).
+    #[prop(default = Callback::new(|_: (usize, Option<i64>)| {}))]
+    on_border_start: Callback<(usize, Option<i64>)>,
+    /// Set ring `i`'s span end node (`None` = whole perimeter).
+    #[prop(default = Callback::new(|_: (usize, Option<i64>)| {}))]
+    on_border_end: Callback<(usize, Option<i64>)>,
+    /// Append a border ring.
+    #[prop(default = Callback::new(|()| {}))]
+    on_border_add: Callback<()>,
+    /// Remove ring `i`.
+    #[prop(default = Callback::new(|_: usize| {}))]
+    on_border_remove: Callback<usize>,
     /// Remove the region from the plan.
     on_delete: Callback<()>,
 ) -> impl IntoView {
@@ -112,6 +142,22 @@ pub fn AreaInspector(
                 on_depth=on_course_depth
                 on_add=on_course_add
                 on_remove=on_course_remove
+            />
+        }
+    });
+    // Any drawn area can be edged when the catalog has border materials.
+    let border_editor = (!border_material_options.is_empty()).then(|| {
+        view! {
+            <BorderEditor
+                borders=borders
+                material_options=border_material_options
+                node_count=border_node_count
+                on_material=on_border_material
+                on_width=on_border_width
+                on_start=on_border_start
+                on_end=on_border_end
+                on_add=on_border_add
+                on_remove=on_border_remove
             />
         }
     });
@@ -205,6 +251,7 @@ pub fn AreaInspector(
                     })}
             </div>
             {course_editor}
+            {border_editor}
             <button
                 class="inspector-delete"
                 data-testid="delete-area"

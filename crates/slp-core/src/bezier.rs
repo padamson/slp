@@ -44,6 +44,31 @@ pub fn bezier_segment_area(p0: Point, c1: Point, c2: Point, p3: Point) -> f64 {
     (twice_curve - cross(p0, p3)) / 2.0
 }
 
+/// The approximate arc length of the cubic Bézier `p0`→`p3` (control points
+/// `c1`, `c2`), by summing 32 sampled chords — plenty for a costing perimeter
+/// (a border ring's linear feet), where sub-0.1% error is noise against the
+/// rounded-offset model it feeds. A curve whose controls sit on the chord
+/// measures the chord itself.
+#[must_use]
+pub fn bezier_length(p0: Point, c1: Point, c2: Point, p3: Point) -> f64 {
+    const SEGMENTS: u32 = 32;
+    let at = |t: f64| {
+        let u = 1.0 - t;
+        let (b0, b1, b2, b3) = (u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t);
+        Point::new(
+            b0 * p0.x + b1 * c1.x + b2 * c2.x + b3 * p3.x,
+            b0 * p0.y + b1 * c1.y + b2 * c2.y + b3 * p3.y,
+        )
+    };
+    (0..SEGMENTS)
+        .map(|i| {
+            let a = at(f64::from(i) / f64::from(SEGMENTS));
+            let b = at(f64::from(i + 1) / f64::from(SEGMENTS));
+            a.dist(b)
+        })
+        .sum()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,5 +129,41 @@ mod tests {
             Point::new(4.0, 0.0),
         );
         assert!(approx(area, 0.0), "got {area}");
+    }
+
+    #[test]
+    fn a_straight_curve_measures_its_chord() {
+        // Controls on the chord at its thirds: the "curve" is the 4-unit chord.
+        let len = bezier_length(
+            Point::new(0.0, 0.0),
+            Point::new(4.0 / 3.0, 0.0),
+            Point::new(8.0 / 3.0, 0.0),
+            Point::new(4.0, 0.0),
+        );
+        assert!(approx(len, 4.0), "got {len}");
+    }
+
+    #[test]
+    fn bezier_length_is_direction_independent_and_beyond_the_chord() {
+        // A bowed curve is strictly longer than its chord, and the same curve
+        // traversed backwards measures the same.
+        let (p0, p3) = (Point::new(0.0, 0.0), Point::new(4.0, 0.0));
+        let (c1, c2) = (Point::new(1.0, 3.0), Point::new(3.0, 3.0));
+        let forward = bezier_length(p0, c1, c2, p3);
+        let backward = bezier_length(p3, c2, c1, p0);
+        assert!(forward > 4.0, "bowed: longer than the 4-unit chord");
+        assert!(approx(forward, backward), "{forward} vs {backward}");
+    }
+
+    #[test]
+    fn a_diagonal_straight_curve_measures_its_chord() {
+        // Same straightness check but on a diagonal chord away from the
+        // origin, so no coordinate is 0 and no term drops out coincidentally.
+        let (p0, p3) = (Point::new(1.0, 2.0), Point::new(5.0, 4.0));
+        let c1 = third(p0, p3, 1.0 / 3.0);
+        let c2 = third(p0, p3, 2.0 / 3.0);
+        let want = p0.dist(p3);
+        let got = bezier_length(p0, c1, c2, p3);
+        assert!((got - want).abs() < 1e-9, "want {want}, got {got}");
     }
 }
