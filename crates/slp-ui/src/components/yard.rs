@@ -130,6 +130,10 @@ pub fn Yard(
     /// start a drag that curves that edge.
     #[prop(optional)]
     on_control_press: Option<Callback<(usize, usize)>>,
+    /// A selected shape's border seam handle was pressed `(border, which)` —
+    /// start a drag that slides that span endpoint along the boundary.
+    #[prop(optional)]
+    on_border_seam_press: Option<Callback<(usize, usize)>>,
     /// The house's body was pressed — select it.
     #[prop(optional)]
     on_house_press: Option<Callback<()>>,
@@ -275,6 +279,7 @@ pub fn Yard(
                         on_cancel_nodes=on_cancel_nodes
                         on_edge_press=on_edge_press
                         on_control_press=on_control_press
+                        on_border_seam_press=on_border_seam_press
                     />
                 }
             }}

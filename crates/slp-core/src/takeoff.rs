@@ -166,21 +166,14 @@ struct RingSpec<'a> {
 }
 
 /// Resolve a border into its [`RingSpec`]: a full-perimeter ring unless
-/// **both** span nodes are set, in which case the open span from `start_node`
-/// forward to `end_node` (a bad or empty span measures 0 — it under-counts
-/// loudly rather than silently billing the whole perimeter). `span_len`
-/// resolves the span for the concrete boundary (shapes have nodes; a circle
-/// has none and always rings).
-fn ring_spec(
-    b: &Border,
-    perimeter_ft: f64,
-    span_len: impl Fn(usize, usize) -> f64,
-) -> RingSpec<'_> {
+/// **both** span positions are set, in which case the open span from
+/// `start_node` forward to `end_node` (a stale or empty span measures 0 — it
+/// under-counts loudly rather than silently billing the whole perimeter).
+/// `span_len` resolves the span for the concrete boundary (shapes have nodes;
+/// a circle has none and always rings).
+fn ring_spec(b: &Border, perimeter_ft: f64, span_len: impl Fn(f64, f64) -> f64) -> RingSpec<'_> {
     let span = match (b.start_node, b.end_node) {
-        (Some(s), Some(e)) => match (usize::try_from(s), usize::try_from(e)) {
-            (Ok(s), Ok(e)) => Some(span_len(s, e)),
-            _ => Some(0.0),
-        },
+        (Some(s), Some(e)) => Some(span_len(s, e)),
         _ => None,
     };
     RingSpec {
@@ -1196,8 +1189,8 @@ mod tests {
         // corner shrink — and the field loses exactly 20 × 0.5 ft².
         let mut area = paver_with_borders(vec![]);
         let mut b = Border::new("edging".into(), 0.5);
-        b.start_node = Some(0);
-        b.end_node = Some(2);
+        b.start_node = Some(0.0);
+        b.end_node = Some(2.0);
         area.borders = vec![b];
         let bom = take_off(&plan_with_areas(
             vec![
@@ -1228,12 +1221,12 @@ mod tests {
     fn a_half_specified_or_bad_span_falls_back_predictably() {
         // Only one node set → per the schema, still a full ring.
         let mut ring = Border::new("cobble".into(), 0.5);
-        ring.start_node = Some(1);
+        ring.start_node = Some(1.0);
         // Both set but out of range → a dead span: measures nothing rather
         // than silently billing the whole perimeter.
         let mut dead = Border::new("edging".into(), 0.5);
-        dead.start_node = Some(0);
-        dead.end_node = Some(9);
+        dead.start_node = Some(0.0);
+        dead.end_node = Some(9.0);
         let bom = take_off(&plan_with_areas(
             vec![
                 material("paver", "Field pavers", 6.0, PriceUnit::per_square_foot),
@@ -1266,8 +1259,8 @@ mod tests {
             ..Circle::new(Box::new(Coord::new(20.0, 20.0)), 0.0, 5.0)
         };
         let mut b = Border::new("edging".into(), 0.5);
-        b.start_node = Some(0);
-        b.end_node = Some(2);
+        b.start_node = Some(0.0);
+        b.end_node = Some(2.0);
         circle.borders = vec![b];
         let bom = take_off(&plan_with_areas(
             vec![
@@ -1285,6 +1278,36 @@ mod tests {
         assert!(
             (edging.quantity - TAU * 4.75).abs() < 1e-9,
             "the full ring centerline"
+        );
+    }
+
+    #[test]
+    fn a_mid_edge_span_costs_its_partial_edges() {
+        // 10×10 patio: an edging span from position 0.5 (midpoint of edge 0)
+        // to 1.5 (midpoint of edge 1) = half edge0 (5) + half edge1 (5) = 10
+        // linear ft.
+        let mut area = paver_with_borders(vec![]);
+        let mut b = Border::new("edging".into(), 0.5);
+        b.start_node = Some(0.5);
+        b.end_node = Some(1.5);
+        area.borders = vec![b];
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Field pavers", 6.0, PriceUnit::per_square_foot),
+                material("edging", "Edging stones", 4.0, PriceUnit::per_linear_foot),
+            ],
+            vec![area],
+            vec![],
+        ));
+        let edging = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "edging")
+            .unwrap();
+        assert!(
+            (edging.quantity - 10.0).abs() < 1e-9,
+            "partial edges: got {}",
+            edging.quantity
         );
     }
 }

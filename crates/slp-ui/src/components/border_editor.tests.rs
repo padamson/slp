@@ -87,8 +87,8 @@ fn a_nodal_area_offers_from_to_span_selects() {
     // 4 boundary nodes: each row gets From/To selects with "—" (whole
     // perimeter) plus one option per node; a span border preselects its nodes.
     let mut b = Border::new("edging-stone".to_string(), 0.25);
-    b.start_node = Some(0);
-    b.end_node = Some(2);
+    b.start_node = Some(0.0);
+    b.end_node = Some(2.0);
     let html = editor_with_nodes(vec![b], 4);
     assert_eq!(dokime::count(&html, r#"data-testid="border-from""#), 1);
     assert_eq!(dokime::count(&html, r#"data-testid="border-to""#), 1);

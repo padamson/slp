@@ -22,8 +22,8 @@ pub mod takeoff;
 pub mod wall;
 
 pub use arc::{
-    ArcSvg, arc_length, arc_svg, boundary_area, boundary_perimeter, boundary_span_length,
-    bulge_radius, segment_area,
+    ArcSvg, arc_length, arc_svg, boundary_area, boundary_perimeter, boundary_project,
+    boundary_span_length, bulge_radius, constrain_seam, seam_edge, segment_area,
 };
 pub use bezier::{bezier_length, bezier_segment_area};
 pub use boundary::{are_adjacent, delete_node, insert_node_between};

@@ -118,11 +118,11 @@ pub fn AreaInspector(
     #[prop(default = 0)]
     border_node_count: usize,
     /// Set ring `i`'s span start node (`None` = whole perimeter).
-    #[prop(default = Callback::new(|_: (usize, Option<i64>)| {}))]
-    on_border_start: Callback<(usize, Option<i64>)>,
+    #[prop(default = Callback::new(|_: (usize, Option<f64>)| {}))]
+    on_border_start: Callback<(usize, Option<f64>)>,
     /// Set ring `i`'s span end node (`None` = whole perimeter).
-    #[prop(default = Callback::new(|_: (usize, Option<i64>)| {}))]
-    on_border_end: Callback<(usize, Option<i64>)>,
+    #[prop(default = Callback::new(|_: (usize, Option<f64>)| {}))]
+    on_border_end: Callback<(usize, Option<f64>)>,
     /// Append a border ring.
     #[prop(default = Callback::new(|()| {}))]
     on_border_add: Callback<()>,

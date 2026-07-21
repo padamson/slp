@@ -109,7 +109,11 @@ pub(crate) struct BorderPaint {
     pub paint: String,
     pub opacity: &'static str,
     pub width_ft: f64,
-    pub span: Option<(usize, usize)>,
+    /// The open **boundary-position** span it covers (`start` forward to
+    /// `end`; a position is a node index plus a fractional offset along its
+    /// edge), or `None` for a full-perimeter ring. A stale/degenerate span is
+    /// filtered downstream (draws nothing).
+    pub span: Option<(f64, f64)>,
 }
 
 /// Resolve each border band's paint through the catalog.
@@ -130,14 +134,7 @@ pub(crate) fn border_paints(
                 }
             };
             let span = match (b.start_node, b.end_node) {
-                (Some(from), Some(to)) => {
-                    match (usize::try_from(from), usize::try_from(to)) {
-                        (Ok(from), Ok(to)) => Some((from, to)),
-                        // Unrepresentable indices: a dead span (drawn as nothing),
-                        // matching the take-off's under-count-loudly choice.
-                        _ => Some((usize::MAX, usize::MAX)),
-                    }
-                }
+                (Some(from), Some(to)) => Some((from, to)),
                 _ => None,
             };
             BorderPaint {
@@ -151,113 +148,151 @@ pub(crate) fn border_paints(
 }
 
 /// One planned border stroke: which border (by list index) it paints, the
-/// run of consecutive edges it covers (`None` = the whole closed boundary),
-/// and its inner depth from the boundary edge.
+/// **boundary-position** run it covers (`None` = the whole closed ring), and
+/// its inner depth from the boundary edge.
 pub(crate) struct BorderStroke {
     pub border: usize,
-    /// `Some((start, end))` = an open run from node `start` forward to node
+    /// `Some((start, end))` = an open run from position `start` forward to
     /// `end`; `None` = the full closed ring.
-    pub run: Option<(usize, usize)>,
+    pub run: Option<(f64, f64)>,
     /// The stroke's inner depth (ft): this band's outer offset — the summed
-    /// widths of earlier bands that cover the same edges — plus its own width.
+    /// widths of earlier bands that overlap the same stretch — plus its own
+    /// width.
     pub depth_ft: f64,
 }
 
-/// Plan a boundary's border strokes with **per-edge offset stacking**: a band
-/// nests inward only under the earlier bands that actually cover each of its
-/// edges (bands on other edges don't push it inward), and where that offset
-/// changes along the band it splits into runs. Painting the result
-/// deepest-first lets each outer band overpaint the inner excess exactly
-/// where it covers — which a single cumulative width cannot do once spans
-/// cover different edges. Input: each border's `(width_ft, span)`, with
-/// `span = None` for a full ring; a dead span (equal or out-of-range nodes)
-/// covers nothing and yields no stroke.
-pub(crate) fn border_strokes(
-    borders: &[(f64, Option<(usize, usize)>)],
-    n: usize,
-) -> Vec<BorderStroke> {
+/// A small non-negative index/count as `f64`, lossless for any realistic node
+/// count — avoids the `usize as f64` precision-loss lint.
+fn index_f64(i: usize) -> f64 {
+    f64::from(u32::try_from(i).unwrap_or(u32::MAX))
+}
+
+/// The edge index a boundary position's whole part names, wrapped into
+/// `[0, n)`; a checked `f64.floor()` conversion (positions are in range, so
+/// the fallback never fires in practice).
+fn floor_index(p: f64, n: usize) -> usize {
+    let f = p.floor().max(0.0);
+    #[allow(clippy::cast_possible_truncation)]
+    let i = usize::try_from(f as i64).unwrap_or(0);
+    i % n.max(1)
+}
+
+/// A border band's boundary interval: a full ring, or an open span from one
+/// position forward to another. A stale/degenerate span has no interval
+/// (`band_interval` returns `None`) and covers nothing.
+#[derive(Clone, Copy)]
+enum BandInterval {
+    Ring,
+    Span(f64, f64),
+}
+
+/// The band's [`BandInterval`], or `None` for a stale/degenerate span.
+fn band_interval(span: Option<(f64, f64)>, n: usize) -> Option<BandInterval> {
+    let count = index_f64(n);
+    match span {
+        None => Some(BandInterval::Ring),
+        Some((start, end)) => {
+            let in_range = |p: f64| p >= 0.0 && p < count;
+            (in_range(start) && in_range(end) && (start - end).abs() > 1e-9)
+                .then_some(BandInterval::Span(start, end))
+        }
+    }
+}
+
+/// Whether band interval `iv` covers boundary position `pos` (its forward arc
+/// strictly contains `pos`, wrapping); a full ring covers everything.
+fn interval_covers(iv: BandInterval, pos: f64, n: usize) -> bool {
+    let count = index_f64(n);
+    match iv {
+        BandInterval::Ring => true,
+        BandInterval::Span(start, end) => {
+            let len = (end - start).rem_euclid(count);
+            let dist = (pos - start).rem_euclid(count);
+            dist > 1e-9 && dist < len - 1e-9
+        }
+    }
+}
+
+/// Plan a boundary's border strokes with **interval offset stacking**: a band
+/// nests inward only under the earlier bands that overlap the *same stretch*
+/// of boundary, splitting where that overlap (hence the offset) changes, and
+/// painting deepest-first so an outer band overpaints the inner excess it
+/// covers. Fractional positions are honored throughout, so a band can start
+/// or end mid-edge (B5.5). Input: each border's `(width_ft, span)`, `span =
+/// None` for a full ring; a stale/degenerate span yields no stroke.
+pub(crate) fn border_strokes(borders: &[(f64, Option<(f64, f64)>)], n: usize) -> Vec<BorderStroke> {
     if n == 0 {
         return Vec::new();
     }
-    // Which edges each band covers.
-    let coverage: Vec<Vec<bool>> = borders
+    let nf = index_f64(n);
+    let intervals: Vec<Option<BandInterval>> = borders
         .iter()
-        .map(|(_, span)| {
-            let mut cov = vec![false; n];
-            match span {
-                None => cov.iter_mut().for_each(|c| *c = true),
-                Some((from, to)) => {
-                    if *from < n && *to < n && from != to {
-                        let mut i = *from;
-                        while i != *to {
-                            cov[i] = true;
-                            i = (i + 1) % n;
-                        }
+        .map(|(_, span)| band_interval(*span, n))
+        .collect();
+    let mut strokes = Vec::new();
+    for (j, (w, _)) in borders.iter().enumerate() {
+        let Some(this_iv) = intervals[j] else {
+            continue;
+        };
+        let is_ring = matches!(this_iv, BandInterval::Ring);
+        // The band's own forward extent in unwrapped position space.
+        let (s0, e0) = match this_iv {
+            BandInterval::Ring => (0.0, nf),
+            BandInterval::Span(s, e) => (s, s + (e - s).rem_euclid(nf)),
+        };
+        // Cut points: the band's ends plus every earlier band's endpoints that
+        // fall strictly inside, so each sub-piece has a constant offset.
+        let mut cuts = vec![s0, e0];
+        for iv in intervals[..j].iter().flatten() {
+            if let BandInterval::Span(ks, ke) = iv {
+                for pt in [*ks, *ke] {
+                    let mut p = pt;
+                    while p < s0 {
+                        p += nf;
+                    }
+                    if p > s0 + 1e-9 && p < e0 - 1e-9 {
+                        cuts.push(p);
                     }
                 }
             }
-            cov
-        })
-        .collect();
-    let mut strokes = Vec::new();
-    for (j, (w, span)) in borders.iter().enumerate() {
-        if !coverage[j].iter().any(|&c| c) {
-            continue;
         }
-        // This band's outer offset at edge `e`.
-        let offset = |e: usize| -> f64 {
-            borders[..j]
-                .iter()
-                .zip(&coverage[..j])
-                .filter(|(_, cov)| cov[e])
-                .map(|((wi, _), _)| *wi)
-                .sum()
-        };
-        // The band's edges in walk order, with each edge's offset.
-        let mut edges: Vec<usize> = match span {
-            None => (0..n).collect(),
-            Some((from, to)) => {
-                let mut v = Vec::new();
-                let mut i = *from;
-                while i != *to {
-                    v.push(i);
-                    i = (i + 1) % n;
-                }
-                v
+        cuts.sort_by(f64::total_cmp);
+        cuts.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
+        // Build runs, merging adjacent pieces of equal offset.
+        let mut runs: Vec<(f64, f64, f64)> = Vec::new();
+        for pair in cuts.windows(2) {
+            let (a, b) = (pair[0], pair[1]);
+            if b - a < 1e-9 {
+                continue;
             }
-        };
-        let mut offs: Vec<f64> = edges.iter().map(|&e| offset(e)).collect();
-        let uniform = offs.windows(2).all(|p| (p[0] - p[1]).abs() < 1e-9);
-        if span.is_none() && uniform {
+            let mid = f64::midpoint(a, b);
+            let off: f64 = intervals[..j]
+                .iter()
+                .zip(&borders[..j])
+                .filter_map(|(iv, (wk, _))| iv.map(|iv| (iv, *wk)))
+                .filter(|(iv, _)| interval_covers(*iv, mid, n))
+                .map(|(_, wk)| wk)
+                .sum();
+            match runs.last_mut() {
+                Some(last) if (last.2 - off).abs() < 1e-9 && (last.1 - a).abs() < 1e-9 => {
+                    last.1 = b;
+                }
+                _ => runs.push((a, b, off)),
+            }
+        }
+        // A full ring that stayed whole renders as a closed annulus (no run).
+        let closed_whole = is_ring && runs.len() == 1;
+        for (a, b, off) in runs {
+            let run = if closed_whole {
+                None
+            } else {
+                Some((a.rem_euclid(nf), b.rem_euclid(nf)))
+            };
             strokes.push(BorderStroke {
                 border: j,
-                run: None,
-                depth_ft: offs[0] + w,
+                run,
+                depth_ft: off + w,
             });
-            continue;
-        }
-        // A closed band with varying offsets: rotate the walk so it starts at
-        // an offset change, putting the wrap seam on a real split.
-        if span.is_none()
-            && let Some(k) = (0..edges.len()).find(|&k| {
-                let prev = (k + edges.len() - 1) % edges.len();
-                (offs[k] - offs[prev]).abs() > 1e-9
-            })
-        {
-            edges.rotate_left(k);
-            offs.rotate_left(k);
-        }
-        // Contiguous runs of equal offset.
-        let mut run_start = 0usize;
-        for k in 1..=edges.len() {
-            if k == edges.len() || (offs[k] - offs[run_start]).abs() > 1e-9 {
-                strokes.push(BorderStroke {
-                    border: j,
-                    run: Some((edges[run_start], (edges[k - 1] + 1) % n)),
-                    depth_ft: offs[run_start] + w,
-                });
-                run_start = k;
-            }
         }
     }
     // Deepest first, so outer bands overpaint the inner excess they cover.
@@ -266,29 +301,26 @@ pub(crate) fn border_strokes(
 }
 
 /// Per-edge band summary for junction filling: each edge's **total** band
-/// depth (the stacked widths of every band covering it — the depth the
-/// painted bands reach) and its innermost covering band (the last in list
-/// order, whose paint faces the field). `(0.0, None)` for an uncovered edge.
+/// depth (the stacked widths of every band whose span touches it — the depth
+/// the painted bands reach at that edge) and its innermost covering band (the
+/// last in list order, whose paint faces the field). `(0.0, None)` for an
+/// uncovered edge. Edge-granular (a band touching any part of an edge counts
+/// for the whole edge) — junction patches are small corner triangles, so the
+/// approximation only slightly over-fills where a span ends mid-edge.
 pub(crate) fn edge_band_depths(
-    borders: &[(f64, Option<(usize, usize)>)],
+    borders: &[(f64, Option<(f64, f64)>)],
     n: usize,
 ) -> Vec<(f64, Option<usize>)> {
     let mut out = vec![(0.0, None); n];
     for (j, (w, span)) in borders.iter().enumerate() {
-        let mut cover = |e: usize| {
-            out[e].0 += w;
-            out[e].1 = Some(j);
+        let Some(iv) = band_interval(*span, n) else {
+            continue;
         };
-        match span {
-            None => (0..n).for_each(&mut cover),
-            Some((from, to)) => {
-                if *from < n && *to < n && from != to {
-                    let mut i = *from;
-                    while i != *to {
-                        cover(i);
-                        i = (i + 1) % n;
-                    }
-                }
+        for (e, slot) in out.iter_mut().enumerate() {
+            // A band touches edge e when its span covers the edge midpoint.
+            if interval_covers(iv, index_f64(e) + 0.5, n) {
+                slot.0 += w;
+                slot.1 = Some(j);
             }
         }
     }
@@ -389,32 +421,42 @@ pub(crate) fn junction_quad(
     Some([v, p1, miter, p2])
 }
 
-/// Sample boundary edge `i` as world-space points from its start node up to
-/// (not including) its end node: 1 point for a straight edge, `CURVE_SAMPLES`
-/// for an arc or Bézier. Consecutive edges chain into a polyline; the caller
-/// appends the final node.
+/// How many samples span a curved (arc/Bézier) edge; a straight edge needs
+/// only its two endpoints.
 const CURVE_SAMPLES: usize = 24;
+
+/// Whether edge `edge` bends (has a Bézier curve or a non-zero bulge).
+fn is_curved(bulges: &[f64], curves: &[CurveEdge], edge: usize) -> bool {
+    is_bezier(curves, edge) || bulges.get(edge).copied().unwrap_or(0.0).abs() >= 1e-9
+}
+
+/// The world-space point at **parameter** `t ∈ [0, 1]` along boundary edge
+/// `edge`: the cubic Bézier point, the arc point (angle sweep), or the chord
+/// lerp for a straight edge. Straight and arc edges are uniform in arc length
+/// so `t` doubles as the arc-length fraction; a Bézier's `t` is the curve
+/// parameter (a mid-Bézier span endpoint is a rare edge case where render
+/// param and cost arc-length fraction diverge slightly).
 #[allow(clippy::many_single_char_names)]
-fn sample_edge(corners: &[Coord], bulges: &[f64], curves: &[CurveEdge], edge: usize) -> Vec<Point> {
+fn edge_point(
+    corners: &[Coord],
+    bulges: &[f64],
+    curves: &[CurveEdge],
+    edge: usize,
+    t: f64,
+) -> Point {
     let n = corners.len();
     let (from, to) = (&corners[edge], &corners[(edge + 1) % n]);
     if let Some(c) = curves.iter().find(|c| usize::try_from(c.edge) == Ok(edge)) {
-        // Cubic Bézier, sampled uniformly in parameter.
-        return (0..CURVE_SAMPLES)
-            .map(|k| {
-                let t = f64::from(u32::try_from(k).unwrap_or(0)) / CURVE_SAMPLES as f64;
-                let u = 1.0 - t;
-                let (b0, b1, b2, b3) = (u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t);
-                Point::new(
-                    b0 * from.x + b1 * c.control1.x + b2 * c.control2.x + b3 * to.x,
-                    b0 * from.y + b1 * c.control1.y + b2 * c.control2.y + b3 * to.y,
-                )
-            })
-            .collect();
+        let u = 1.0 - t;
+        let (b0, b1, b2, b3) = (u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t);
+        return Point::new(
+            b0 * from.x + b1 * c.control1.x + b2 * c.control2.x + b3 * to.x,
+            b0 * from.y + b1 * c.control1.y + b2 * c.control2.y + b3 * to.y,
+        );
     }
     let bulge = bulges.get(edge).copied().unwrap_or(0.0);
     if bulge.abs() < 1e-9 {
-        return vec![Point::new(from.x, from.y)];
+        return Point::new(from.x + t * (to.x - from.x), from.y + t * (to.y - from.y));
     }
     // Circular arc: rotate around its center from the start angle by the
     // signed subtended angle θ = 4·atan(b). The center sits on the chord's
@@ -428,16 +470,39 @@ fn sample_edge(corners: &[Coord], bulges: &[f64], curves: &[CurveEdge], edge: us
     let center = Point::new(mid.x + normal.0 * off, mid.y + normal.1 * off);
     let theta = 4.0 * bulge.atan();
     let start = (from.y - center.y).atan2(from.x - center.x);
+    // A positive (bows-left) bulge sweeps **clockwise** in world coords, so the
+    // angle decreases by θ from start to end (sweeping +θ mirrors the arc).
+    let ang = start - theta * t;
+    Point::new(center.x + radius * ang.cos(), center.y + radius * ang.sin())
+}
+
+/// Sample boundary edge `edge` as world-space points over parameter
+/// `[t0, t1)` — one point (the range start) for a straight edge, `CURVE_SAMPLES`
+/// for an arc or Bézier. The caller appends the exact range end.
+fn sample_edge_range(
+    corners: &[Coord],
+    bulges: &[f64],
+    curves: &[CurveEdge],
+    edge: usize,
+    t0: f64,
+    t1: f64,
+) -> Vec<Point> {
+    if !is_curved(bulges, curves, edge) {
+        return vec![edge_point(corners, bulges, curves, edge, t0)];
+    }
     (0..CURVE_SAMPLES)
         .map(|k| {
-            let t = f64::from(u32::try_from(k).unwrap_or(0)) / CURVE_SAMPLES as f64;
-            // A positive (bows-left) bulge sweeps **clockwise** around its
-            // center in world coords — the angle decreases by θ from start
-            // to end (sweeping +θ traces the arc's mirror image).
-            let ang = start - theta * t;
-            Point::new(center.x + radius * ang.cos(), center.y + radius * ang.sin())
+            let t =
+                t0 + (t1 - t0) * f64::from(u32::try_from(k).unwrap_or(0)) / CURVE_SAMPLES as f64;
+            edge_point(corners, bulges, curves, edge, t)
         })
         .collect()
+}
+
+/// Sample the whole of boundary edge `edge` from its start node up to (not
+/// including) its end node.
+fn sample_edge(corners: &[Coord], bulges: &[f64], curves: &[CurveEdge], edge: usize) -> Vec<Point> {
+    sample_edge_range(corners, bulges, curves, edge, 0.0, 1.0)
 }
 
 /// Sample a run of boundary edges (`start` forward to `end`, wrapping; the
@@ -449,7 +514,7 @@ fn sample_run(
     corners: &[Coord],
     bulges: &[f64],
     curves: &[CurveEdge],
-    run: Option<(usize, usize)>,
+    run: Option<(f64, f64)>,
     inward: impl Fn((f64, f64)) -> (f64, f64),
 ) -> Vec<BoundarySample> {
     let n = corners.len();
@@ -465,13 +530,28 @@ fn sample_run(
             }
         }
         Some((start, end)) => {
-            let mut i = start;
-            while i != end {
-                world.extend(sample_edge(corners, bulges, curves, i));
-                i = (i + 1) % n;
+            // Boundary positions: node index (whole) + parameter into its edge.
+            let (se, st) = (floor_index(start, n), start - start.floor());
+            let (ee, et) = (floor_index(end, n), end - end.floor());
+            if se == ee && et > st {
+                // A sub-edge span, wholly within one edge.
+                world.extend(sample_edge_range(corners, bulges, curves, se, st, et));
+            } else {
+                world.extend(sample_edge_range(corners, bulges, curves, se, st, 1.0));
+                let mut i = (se + 1) % n;
+                for _ in 0..n {
+                    if i == ee {
+                        break;
+                    }
+                    world.extend(sample_edge(corners, bulges, curves, i));
+                    i = (i + 1) % n;
+                }
+                if et > 1e-9 {
+                    world.extend(sample_edge_range(corners, bulges, curves, ee, 0.0, et));
+                }
             }
-            let e = &corners[end];
-            world.push(Point::new(e.x, e.y));
+            // The exact end point (the ranges stop just short of it).
+            world.push(edge_point(corners, bulges, curves, ee, et));
         }
     }
     let pts: Vec<(f64, f64)> = world.iter().map(|p| (t.sx(p.x), t.sy(p.y))).collect();
@@ -560,6 +640,14 @@ const NODE_HANDLE_R: f64 = 5.0;
 const EDGE_HANDLE_R: f64 = 4.0;
 /// A selected shape's Bézier control-point handle radius (px).
 const CONTROL_HANDLE_R: f64 = 4.0;
+/// A border span's seam-handle radius (px) — smaller than a node handle so a
+/// seam dot reads as its own affordance.
+const SEAM_HANDLE_R: f64 = 4.0;
+/// The minimum inward float (px) of a seam handle off the paver boundary — a
+/// floor on its band's inner depth (about half a node-handle diameter) so even
+/// an ultra-thin band's dot clears the area's edge nodes. For a band of normal
+/// width the dot sits exactly on the band's parallel inner edge.
+const SEAM_INSET: f64 = NODE_HANDLE_R;
 
 /// Whether edge `ei` is a Bézier (has an entry in `curves`).
 fn is_bezier(curves: &[CurveEdge], ei: usize) -> bool {
@@ -633,6 +721,11 @@ pub fn Shapes(
     /// start a drag that curves that edge.
     #[prop(default = None)]
     on_control_press: Option<Callback<(usize, usize)>>,
+    /// A selected shape's border-span seam handle was pressed, as
+    /// `(border_index, which)` where `which` is 0 (start) or 1 (end) — start a
+    /// drag that slides that endpoint along the boundary.
+    #[prop(default = None)]
+    on_border_seam_press: Option<Callback<(usize, usize)>>,
 ) -> impl IntoView {
     // One pattern per textured material, shared by every area that uses it —
     // border-ring materials included, so a textured border tiles too.
@@ -676,6 +769,7 @@ pub fn Shapes(
                 on_cancel_nodes,
                 on_edge_press,
                 on_control_press,
+                on_border_seam_press,
             )
         })
         .collect::<Vec<_>>();
@@ -714,6 +808,7 @@ fn shape_view(
     on_cancel_nodes: Option<Callback<()>>,
     on_edge_press: Option<Callback<usize>>,
     on_control_press: Option<Callback<(usize, usize)>>,
+    on_border_seam_press: Option<Callback<(usize, usize)>>,
 ) -> impl IntoView {
     let Shape {
         corners,
@@ -868,6 +963,129 @@ fn shape_view(
     } else {
         Vec::new()
     };
+    // A selected shape's border **span seam handles**: a draggable dot at each
+    // set span endpoint, so the seam can be slid along the boundary (B5.5). Each
+    // dot floats off the paver boundary along the inward normal, onto its band's
+    // **inner edge** (parallel to the paver edge, inset by the band's stacked
+    // depth) plus a fixed clearance — so every band gets its own seam node,
+    // forming an inward array clear of the area's edge nodes.
+    let seam_handles = if is_selected {
+        let n = corners.len();
+        // Screen-space winding fixes which perpendicular of a travel tangent
+        // points into the interior (same convention the border ribbons use).
+        let signed2: f64 = {
+            let spt: Vec<(f64, f64)> = corners.iter().map(|c| (t.sx(c.x), t.sy(c.y))).collect();
+            (0..n)
+                .map(|k| {
+                    let (a, b) = (spt[k], spt[(k + 1) % n]);
+                    a.0 * b.1 - b.0 * a.1
+                })
+                .sum()
+        };
+        let inward = move |dir: (f64, f64)| -> (f64, f64) {
+            if signed2 > 0.0 {
+                (-dir.1, dir.0)
+            } else {
+                (dir.1, -dir.0)
+            }
+        };
+        // The band's inner-edge depth (ft) at `pos`: its own width plus every
+        // earlier band that still covers this position (matches the render's
+        // interval offset-stacking, so nested bands step further inward).
+        let inner_depth = |bi: usize, pos: f64| -> f64 {
+            border_paints
+                .iter()
+                .take(bi + 1)
+                .enumerate()
+                .filter_map(|(j, bp)| {
+                    let iv = band_interval(bp.span, n)?;
+                    (j == bi || interval_covers(iv, pos, n)).then_some(bp.width_ft)
+                })
+                .sum()
+        };
+        border_paints
+            .iter()
+            .enumerate()
+            .filter_map(|(bi, bp)| {
+                let (start, end) = bp.span?;
+                let handle = |which: usize, pos: f64| {
+                    // A run's END that lands exactly on a node belongs to the
+                    // *previous* edge — the run ends where that edge ends — so
+                    // anchor it at that edge's far end (f = 1), using that
+                    // edge's inward normal, not the next edge's start. A
+                    // fractional (mid-edge) endpoint and every START anchor to
+                    // `floor(pos)`.
+                    let frac = pos - pos.floor();
+                    let (ei, f) = if which == 1 && frac < 1e-9 {
+                        ((floor_index(pos, n) + n - 1) % n, 1.0)
+                    } else {
+                        (floor_index(pos, n), frac)
+                    };
+                    // A screen-space unit travel tangent for `edge` over a tiny
+                    // param sub-range (works for straight/arc/Bézier edges).
+                    let screen_tan = |edge: usize, g0: f64, g1: f64| -> Option<(f64, f64)> {
+                        let p0 = edge_point(&corners, &bulges, &curves, edge, g0);
+                        let p1 = edge_point(&corners, &bulges, &curves, edge, g1);
+                        let (tx, ty) = (t.sx(p1.x) - t.sx(p0.x), t.sy(p1.y) - t.sy(p0.y));
+                        let len = tx.hypot(ty);
+                        (len > 1e-9).then(|| (tx / len, ty / len))
+                    };
+                    // The inward direction to float the dot along. At a corner
+                    // (integer position) offset along the interior **bisector**
+                    // of the two edges meeting there, so the dot sits diagonally
+                    // inside the corner — not along one edge's normal, which
+                    // lands it on the *adjacent* edge. Mid-edge: the edge's own
+                    // inward normal.
+                    let d = 1e-3;
+                    let (nx, ny) = if frac < 1e-9 {
+                        let v = floor_index(pos, n);
+                        let n_in = screen_tan((v + n - 1) % n, 1.0 - d, 1.0).map(&inward);
+                        let n_out = screen_tan(v, 0.0, d).map(&inward);
+                        match (n_in, n_out) {
+                            (Some(a), Some(b)) => {
+                                let (sx, sy) = (a.0 + b.0, a.1 + b.1);
+                                let len = sx.hypot(sy);
+                                if len > 1e-9 { (sx / len, sy / len) } else { a }
+                            }
+                            (Some(a), None) | (None, Some(a)) => a,
+                            (None, None) => (0.0, 0.0),
+                        }
+                    } else {
+                        let (f0, f1) = if f + d <= 1.0 { (f, f + d) } else { (f - d, f) };
+                        inward(screen_tan(ei, f0, f1).unwrap_or((1.0, 0.0)))
+                    };
+                    let ep = edge_point(&corners, &bulges, &curves, ei, f);
+                    // Sit the dot *on* the band's inner edge (its stacked depth),
+                    // floored to a small clearance so an ultra-thin band's dot
+                    // still clears the paver edge node. A floor, not an addend:
+                    // adding the clearance would push the dot past the inner
+                    // edge, so the band looks like it tapers off before it.
+                    let inset = (inner_depth(bi, pos) * t.px_ft).max(SEAM_INSET);
+                    let (cx, cy) = (t.sx(ep.x) + nx * inset, t.sy(ep.y) + ny * inset);
+                    view! {
+                        <circle
+                            class="shape-seam-handle"
+                            data-testid="shape-seam-handle"
+                            cx=cx
+                            cy=cy
+                            r=SEAM_HANDLE_R
+                            fill=SELECTED_FILL
+                            stroke=SELECTED_STROKE
+                            on:mousedown=move |ev: leptos::ev::MouseEvent| {
+                                ev.stop_propagation();
+                                if let Some(cb) = on_border_seam_press {
+                                    cb.run((bi, which));
+                                }
+                            }
+                        />
+                    }
+                };
+                Some(view! { {handle(0, start)} {handle(1, end)} })
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     let n = f64::from(u32::try_from(corners.len()).unwrap_or(1).max(1));
     let cx = corners.iter().map(|c| t.sx(c.x)).sum::<f64>() / n;
     let cy = corners.iter().map(|c| t.sy(c.y)).sum::<f64>() / n;
@@ -991,7 +1209,7 @@ fn shape_view(
         // (a centered stroke does, at a concave pocket's lip). The area clip
         // stays as a guard for tight-curvature self-intersections, where an
         // inner offset can poke through the opposite boundary.
-        let plan: Vec<(f64, Option<(usize, usize)>)> = border_paints
+        let plan: Vec<(f64, Option<(f64, f64)>)> = border_paints
             .iter()
             .map(|bp| (bp.width_ft, bp.span))
             .collect();
@@ -1126,6 +1344,7 @@ fn shape_view(
             {markers}
             {edge_handles}
             {control_handles}
+            {seam_handles}
             <text class="shape-label" x=cx y=cy text-anchor="middle" font-size="11" fill="#5a5540">
                 {label}
             </text>

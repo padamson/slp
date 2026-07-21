@@ -425,8 +425,8 @@ fn a_span_border_renders_a_one_sided_ribbon() {
     // of it, which the old centered stroke would have painted.
     let mut shape = square(0.0);
     let mut band = slp_core::Border::new("edging".to_string(), 0.5);
-    band.start_node = Some(0);
-    band.end_node = Some(2);
+    band.start_node = Some(0.0);
+    band.end_node = Some(2.0);
     shape.borders = vec![band];
     let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
     assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 1);
@@ -452,8 +452,8 @@ fn a_span_border_renders_a_one_sided_ribbon() {
 fn a_degenerate_span_border_draws_nothing() {
     let mut s = square(0.0);
     let mut b = slp_core::Border::new("edging".to_string(), 0.5);
-    b.start_node = Some(0);
-    b.end_node = Some(9); // out of range
+    b.start_node = Some(0.0);
+    b.end_node = Some(9.0); // out of range
     s.borders = vec![b];
     let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
     assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 0);
@@ -478,9 +478,9 @@ fn disjoint_span_bands_do_not_inherit_each_others_depth() {
     // at its own depth (0.5), not the cumulative 1.5 — nothing covers its
     // edges to overpaint the excess.
     let borders = [
-        (0.5, Some((3usize, 4usize))),
-        (0.5, Some((3, 4))),
-        (0.5, Some((2, 3))),
+        (0.5, Some((3.0, 4.0))),
+        (0.5, Some((3.0, 4.0))),
+        (0.5, Some((2.0, 3.0))),
     ];
     let strokes = super::shapes::border_strokes(&borders, 5);
     assert_eq!(strokes.len(), 3);
@@ -493,7 +493,7 @@ fn disjoint_span_bands_do_not_inherit_each_others_depth() {
         "the 2→3 band stays at its own width: {}",
         third.depth_ft
     );
-    assert_eq!(third.run, Some((2, 3)));
+    assert_eq!(third.run, Some((2.0, 3.0)));
 }
 
 #[test]
@@ -501,13 +501,19 @@ fn a_ring_after_a_span_splits_where_the_offset_changes() {
     // A 0.5 ft span on edge 0→1, then a 0.25 ft full ring: the ring nests
     // under the span only on edge 0, so it splits into a (0→1) run at depth
     // 0.75 and a (1→0) run at depth 0.25.
-    let borders = [(0.5, Some((0usize, 1usize))), (0.25, None)];
+    let borders = [(0.5, Some((0.0, 1.0))), (0.25, None)];
     let strokes = super::shapes::border_strokes(&borders, 4);
     let ring_runs: Vec<_> = strokes.iter().filter(|s| s.border == 1).collect();
     assert_eq!(ring_runs.len(), 2, "the ring splits into two runs");
-    let deep = ring_runs.iter().find(|s| s.run == Some((0, 1))).unwrap();
+    let deep = ring_runs
+        .iter()
+        .find(|s| s.run == Some((0.0, 1.0)))
+        .unwrap();
     assert!((deep.depth_ft - 0.75).abs() < 1e-9, "nested under the span");
-    let shallow = ring_runs.iter().find(|s| s.run == Some((1, 0))).unwrap();
+    let shallow = ring_runs
+        .iter()
+        .find(|s| s.run == Some((1.0, 0.0)))
+        .unwrap();
     assert!(
         (shallow.depth_ft - 0.25).abs() < 1e-9,
         "at the edge elsewhere"
@@ -534,11 +540,11 @@ fn spans_meeting_at_a_convex_corner_need_no_junction_patch() {
     // square cap here would have overshot; the strokes are plain butt).
     let mut shape = square(0.0);
     let mut south = slp_core::Border::new("edging".to_string(), 0.5);
-    south.start_node = Some(0);
-    south.end_node = Some(1);
+    south.start_node = Some(0.0);
+    south.end_node = Some(1.0);
     let mut east = slp_core::Border::new("edging".to_string(), 0.5);
-    east.start_node = Some(1);
-    east.end_node = Some(2);
+    east.start_node = Some(1.0);
+    east.end_node = Some(2.0);
     shape.borders = vec![south, east];
     let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
     assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 2);
@@ -582,11 +588,11 @@ fn spans_meeting_at_a_reflex_corner_get_a_miter_joint_patch() {
     // leave a pie gap there, filled by exactly one junction quad.
     let mut s = ell(0.0);
     let mut a = slp_core::Border::new("edging".to_string(), 0.5);
-    a.start_node = Some(2);
-    a.end_node = Some(3);
+    a.start_node = Some(2.0);
+    a.end_node = Some(3.0);
     let mut b = slp_core::Border::new("edging".to_string(), 0.5);
-    b.start_node = Some(3);
-    b.end_node = Some(4);
+    b.start_node = Some(3.0);
+    b.end_node = Some(4.0);
     s.borders = vec![a, b];
     let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
     assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 2);
@@ -652,9 +658,9 @@ fn edge_band_depths_sum_stacked_widths_per_edge() {
     use super::shapes::edge_band_depths;
     // The manual-testing scenario: two bands on edge 3, one on edge 2 (n=5).
     let borders = [
-        (0.5, Some((3usize, 4usize))),
-        (0.5, Some((3, 4))),
-        (0.5, Some((2, 3))),
+        (0.5, Some((3.0, 4.0))),
+        (0.5, Some((3.0, 4.0))),
+        (0.5, Some((2.0, 3.0))),
     ];
     let d = edge_band_depths(&borders, 5);
     assert!((d[3].0 - 1.0).abs() < 1e-9, "edge 3 stacks both bands");
@@ -709,11 +715,11 @@ fn a_curved_edge_junction_uses_the_curve_tangent_not_its_chord() {
     // rotated stub.
     let mut s = ell(0.0);
     let mut a = slp_core::Border::new("edging".to_string(), 0.25);
-    a.start_node = Some(2);
-    a.end_node = Some(3);
+    a.start_node = Some(2.0);
+    a.end_node = Some(3.0);
     let mut b = slp_core::Border::new("edging".to_string(), 0.25);
-    b.start_node = Some(3);
-    b.end_node = Some(4);
+    b.start_node = Some(3.0);
+    b.end_node = Some(4.0);
     s.borders = vec![a, b];
     // Edge 2 runs (4,1) → (2,1); controls pulled up to y=2 sag it into the
     // interior of the notch strip above.
@@ -756,8 +762,8 @@ fn an_arc_edge_band_hugs_the_real_arc_not_its_mirror() {
     let mut shape = square(0.0);
     shape.bulges = vec![1.0];
     let mut band = slp_core::Border::new("edging".to_string(), 0.5);
-    band.start_node = Some(0);
-    band.end_node = Some(1);
+    band.start_node = Some(0.0);
+    band.end_node = Some(1.0);
     shape.borders = vec![band];
     let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
     assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 1);
@@ -782,5 +788,99 @@ fn an_arc_edge_band_hugs_the_real_arc_not_its_mirror() {
     assert!(
         min_y < 182.0,
         "the ribbon reaches the true apex (screen y ≈ 180): min y {min_y}"
+    );
+}
+
+#[test]
+fn a_mid_edge_span_renders_a_fractional_ribbon() {
+    // A span from position 0.5 (midpoint of edge 0) to 1.5 (midpoint of edge
+    // 1) renders one ribbon whose outer path starts at the edge-0 midpoint
+    // (screen (20, 200) on the 4×3 square at 10 px/ft) — a mid-edge start a
+    // node-granular span could not express.
+    let mut shape = square(0.0);
+    let mut band = slp_core::Border::new("edging".to_string(), 0.5);
+    band.start_node = Some(0.5);
+    band.end_node = Some(1.5);
+    shape.borders = vec![band];
+    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+    assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 1);
+    // The ribbon's outer polyline begins at the mid-edge point (20, 200).
+    let start = html.find(r#"data-testid="shape-border""#).unwrap();
+    let frag = &html[start..];
+    let d0 = frag.find(" d=\"M ").unwrap() + 6;
+    let m = &frag[d0..d0 + 20];
+    assert!(m.starts_with("20 200"), "starts at edge-0 midpoint: {m}");
+}
+
+#[test]
+fn a_selected_shape_with_a_span_shows_draggable_seam_handles() {
+    // A span from mid-edge 0 (0.5) to node 2 on a selected square shows two seam
+    // handles (its start and end); an unselected shape shows none, and a
+    // full-ring border (no span) shows none.
+    let mut shape = square(0.0);
+    let mut band = slp_core::Border::new("edging".to_string(), 0.5);
+    band.start_node = Some(0.5);
+    band.end_node = Some(2.0);
+    shape.borders = vec![band];
+    let html = dokime::render({
+        let shape = shape.clone();
+        move || view! { <Shapes t=t() shapes=vec![shape.clone()] selected=Some(0) /> }
+    });
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="shape-seam-handle""#),
+        2,
+        "one handle per span endpoint: {html}"
+    );
+    // Parse every seam dot's (cx, cy) center.
+    let centers = |html: &str| -> Vec<(f64, f64)> {
+        let attr = |s: &str, k: &str| -> f64 {
+            let i = s.find(k).unwrap() + k.len();
+            s[i..]
+                .trim_start_matches(['"', '\''])
+                .split(['"', '\''])
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap()
+        };
+        html.match_indices(r#"data-testid="shape-seam-handle""#)
+            .map(|(i, _)| {
+                let s = &html[i..];
+                (attr(s, " cx="), attr(s, " cy="))
+            })
+            .collect()
+    };
+    let dots = centers(&html);
+    // A **mid-edge** start (0.5 along edge 0, boundary screen (20, 200)) insets
+    // straight inward (up) by the 0.5 ft band × 10 px/ft = 5 px → (20, 195).
+    assert!(
+        (dots[0].0 - 20.0).abs() < 1e-6 && (dots[0].1 - 195.0).abs() < 1e-6,
+        "mid-edge start dot on the band's inner edge: {:?}",
+        dots[0]
+    );
+    // A **corner** end (node 2, screen (40, 170)) insets along the corner's
+    // interior bisector — diagonally into the shape (−x, +y here), 5/√2 each —
+    // not along one edge's normal (which would land it on the adjacent edge).
+    let d = 5.0 / 2.0_f64.sqrt();
+    assert!(
+        (dots[1].0 - (40.0 - d)).abs() < 1e-6 && (dots[1].1 - (170.0 + d)).abs() < 1e-6,
+        "corner end dot on the bisector, diagonally inside: {:?}",
+        dots[1]
+    );
+    // Unselected → no seam handles.
+    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="shape-seam-handle""#),
+        0
+    );
+    // A full-ring border has no span endpoints to drag.
+    let mut ring = square(0.0);
+    ring.borders = vec![slp_core::Border::new("edging".to_string(), 0.5)];
+    let html = dokime::render(move || {
+        view! { <Shapes t=t() shapes=vec![ring.clone()] selected=Some(0) /> }
+    });
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="shape-seam-handle""#),
+        0
     );
 }

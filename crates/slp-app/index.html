@@ -1154,34 +1154,47 @@
         border: 1px solid #e3dccb;
         border-radius: 6px;
       }
-      /* A border row is a two-line grid: the material select (wide) + width
-         on the first line; the From/To span selects + remove on the second.
-         (A single flex line squeezes every select to chevron width.) */
+      /* A border row is two STACKED lines: material (wide) + width + remove on
+         top; the From/To span selects share the FULL width below, so each shows
+         its node number instead of collapsing to chevron width. (Override the
+         shared `.border-row` flex-row above, which would sit them side by side.) */
       .border-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-        gap: 4px 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        margin-bottom: 8px;
+      }
+      .border-row-top,
+      .border-row-span {
+        display: flex;
         align-items: center;
+        gap: 6px;
       }
-      .border-row .select-field:first-child {
-        grid-column: 1 / 3;
+      .border-row-span {
+        margin-top: 4px;
       }
-      .border-row .select-field {
+      .border-row-top .select-field,
+      .border-row-span .select-field {
+        flex: 1;
         display: inline-flex;
         align-items: center;
         gap: 3px;
         min-width: 0;
       }
+      .border-row-span select {
+        min-width: 2.5rem;
+      }
       .border-remove,
       .course-remove {
         font: inherit;
         line-height: 1;
-        padding: 2px 6px;
+        padding: 1px 5px;
         border: 1px solid #e3dccb;
         border-radius: 6px;
         background: #fff;
         color: #a94442;
         cursor: pointer;
+        flex: 0 0 auto;
       }
       .border-add,
       .course-add {

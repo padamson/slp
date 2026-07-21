@@ -75,20 +75,23 @@ pub enum PriceUnit {
 /// always full rings (span fields are ignored).
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Border {
-    /// The boundary node index a border span ends at — the companion of
-    /// `start_node`. The span covers the edges from `start_node` up to (not
-    /// through) this node.
+    /// The **boundary position** a border span ends at — the companion of
+    /// `start_node`. The span covers the boundary from `start_node` forward to
+    /// this position (a node index plus a fractional offset along its edge).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub end_node: Option<i64>,
+    pub end_node: Option<f64>,
     /// Id of the catalog *material* a drawn area is made of (mulch, pavers, …),
     /// the area analogue of an object's `catalog_ref`. Absent = uncategorized
     /// geometry with no cost.
     pub material_ref: String,
-    /// The boundary node index a border span starts at. Set together with
-    /// `end_node` to border only the edges between them (walking forward in
-    /// node order, wrapping); absent (or set alone) = a full-perimeter ring.
+    /// The **boundary position** a border span starts at: an integer is a node
+    /// index, and a fraction runs along the following edge (`2.5` = the
+    /// midpoint of edge 2), so a span can start mid-edge (B5.5). Set together
+    /// with `end_node` to border only that stretch (walking forward, wrapping);
+    /// absent (or set alone) = a full-perimeter ring. An integer value from an
+    /// older plan loads unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub start_node: Option<i64>,
+    pub start_node: Option<f64>,
     /// The band's laid width, in feet.
     pub width_ft: f64,
 }

@@ -58,6 +58,27 @@ exclude_globs = [
 #    segment must cross an edge, so the per-edge `dist_segment_to_segment` already
 #    yields 0; `&&` skipping the early-out changes nothing. Neither inside → both
 #    skip it.
+#  - `boundary_project` `d2 < best.0` `<`→`<=` (the only `<` left in the fn):
+#    boundary-unspecified. It changes the winner only when two edges are
+#    *exactly* equidistant from the point — e.g. the point lies on a shared
+#    vertex, where which of the two adjacent edges' position (end-of-one ≈
+#    start-of-next) is returned is documented as a near-tie and unspecified. On
+#    every non-tie input `<` and `<=` agree. (The clamp's upper bound is a
+#    literal `EDGE_T_MAX` const, not `1.0 - 1e-9`, so it carries no `-` to
+#    mutate; the redundant `n < 2` guard was removed for the same reason.)
+#  - `seam_edge` `(pos - pos.floor()) < 1e-9` `<`→`<=`: boundary-unspecified.
+#    The whole-node test differs only when the fractional part equals `1e-9`
+#    exactly, which no real position hits (positions are node indices, snapped
+#    ends, or projections well clear of the epsilon).
+#  - `edge_point` `bulge.abs() < STRAIGHT_EPS` `<`→`<=`: boundary-unspecified —
+#    the straight-vs-arc threshold, agreeing except at a bulge of exactly
+#    `STRAIGHT_EPS` (same near-zero tie `bulge_radius` documents).
+#  - `constrain_seam` `> with >=` (all four): boundary-unspecified. `seg2 >
+#    1e-18` and `(cur_frac - of).abs() > 1e-9` are epsilon guards that never see
+#    their exact threshold (a segment is zero-length or clearly longer; two
+#    positions coincide or differ by far more than 1e-9); `cur_frac > of` runs
+#    only after that abs-difference guard proved them unequal, and `raw > of` is
+#    the coincident-seam tie-break, unspecified at exact equality.
 exclude_re = [
     'replace \+= with -= in area',
     'replace main -> Result',
@@ -70,4 +91,8 @@ exclude_re = [
     'replace > with >= in arc_svg',
     'replace > with >= in segments_cross',
     'replace \|\| with && in dist_segment_to_polygon',
+    'replace < with <= in boundary_project',
+    'replace < with <= in seam_edge',
+    'replace < with <= in edge_point',
+    'replace > with >= in constrain_seam',
 ]

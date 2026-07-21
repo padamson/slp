@@ -30,6 +30,13 @@ use crate::fs_access;
 
 /// Pixels per foot in the SVG user space.
 const PX_FT: f64 = 12.0;
+/// How close (screen px) a dragged border seam may come to an edge end before
+/// it snaps to the node — a 1 ft zone (at `PX_FT`).
+const SEAM_SNAP_PX: f64 = PX_FT;
+/// The keep-out (screen px) a dragged border seam holds from every *other* seam
+/// — a 1.5 ft gap, deliberately wider than the snap zone so two seams can't
+/// both snap to and pile up at the same edge end.
+const SEAM_GAP_PX: f64 = 1.5 * PX_FT;
 /// Grid padding (px). Zero in the app so the grid sits flush to its canvas box
 /// and lines up with the page layout; the scale bar has its own reserved strip.
 const PAD: f64 = 0.0;
@@ -141,6 +148,12 @@ fn planner_body() -> impl IntoView {
     // The `(edge, which-control)` whose Bézier control handle is being dragged,
     // if any — dragging it curves that edge (which=0 is control1, 1 is control2).
     let dragging_control = RwSignal::new(None::<(usize, usize)>);
+    // The `(border index, which-end, edge)` whose seam handle is being dragged,
+    // if any — dragging it slides that border span's start (which=0) or end
+    // (which=1) along its associated boundary `edge` (B5.5). The edge is fixed
+    // at press so the seam stays confined to it, held a standoff back from each
+    // end and clear of every other seam.
+    let dragging_border_seam = RwSignal::new(None::<(usize, usize, usize)>);
     // Whether the house is selected — its corners become interactive (mirrors
     // `selected_shape`, but there's only ever one house).
     let house_selected = RwSignal::new(false);
@@ -564,6 +577,68 @@ fn planner_body() -> impl IntoView {
             }
             return;
         }
+        // Dragging a selected border span's seam handle: slide that endpoint
+        // along its associated edge only — held a standoff back from each end
+        // (snapping to the end node inside it) and a standoff clear of every
+        // other seam, so seams never move past their edge, touch, or cross.
+        if let Some((bi, which, edge)) = dragging_border_seam.get_untracked() {
+            if let Some(si) = selected_shape.get_untracked() {
+                shapes.update(|v| {
+                    if let Some(s) = v.get_mut(si) {
+                        // This seam's current position fixes which side of each
+                        // neighbor it's on, so a fast drag can't jump past one.
+                        let current = s
+                            .borders
+                            .get(bi)
+                            .and_then(|b| if which == 0 { b.start_node } else { b.end_node })
+                            .unwrap_or(0.0);
+                        // Only *this* border's other endpoint repels the drag —
+                        // a band's own start/end can't cross, but seams from
+                        // different borders on the same edge may align freely.
+                        let others: Vec<f64> = s
+                            .borders
+                            .get(bi)
+                            .and_then(|b| if which == 0 { b.end_node } else { b.start_node })
+                            .into_iter()
+                            .collect();
+                        // Curved edges (arc bulge / Bézier) are projected along
+                        // their true curve, so the gap is measured along the arc.
+                        let curve_tuples: Vec<(usize, Point, Point)> = s
+                            .curves
+                            .iter()
+                            .filter_map(|c| {
+                                usize::try_from(c.edge).ok().map(|e| {
+                                    (
+                                        e,
+                                        Point::new(c.control1.x, c.control1.y),
+                                        Point::new(c.control2.x, c.control2.y),
+                                    )
+                                })
+                            })
+                            .collect();
+                        let pos = slp_core::constrain_seam(
+                            &s.corners,
+                            &s.bulges,
+                            &curve_tuples,
+                            edge,
+                            Point::new(raw.x, raw.y),
+                            SEAM_SNAP_PX / PX_FT,
+                            SEAM_GAP_PX / PX_FT,
+                            current,
+                            &others,
+                        );
+                        if let Some(b) = s.borders.get_mut(bi) {
+                            if which == 0 {
+                                b.start_node = Some(pos);
+                            } else {
+                                b.end_node = Some(pos);
+                            }
+                        }
+                    }
+                });
+            }
+            return;
+        }
         // Dragging a selected house corner: moving it only changes wall
         // geometry — each `Wall`/opening re-derives its position live from
         // the corners + its wall index, so doors/windows just follow.
@@ -649,6 +724,10 @@ fn planner_body() -> impl IntoView {
         }
         if dragging_control.get_untracked().is_some() {
             dragging_control.set(None);
+            return;
+        }
+        if dragging_border_seam.get_untracked().is_some() {
+            dragging_border_seam.set(None);
             return;
         }
         if dragging_house_node.get_untracked().is_some() {
@@ -946,6 +1025,29 @@ fn planner_body() -> impl IntoView {
         dragging_control.set(Some(ec));
     });
 
+    // Press a border span's seam handle → start dragging that endpoint along
+    // its associated boundary edge. `(border index, which end)`; the edge the
+    // seam sits on is fixed now so the drag can't wander onto a neighbor.
+    let on_border_seam_press = Callback::new(move |(bi, which): (usize, usize)| {
+        if tool.get_untracked().is_some() {
+            return;
+        }
+        let Some(si) = selected_shape.get_untracked() else {
+            return;
+        };
+        let bound = shapes.get_untracked().get(si).and_then(|s| {
+            let old = s
+                .borders
+                .get(bi)
+                .and_then(|b| if which == 0 { b.start_node } else { b.end_node })?;
+            let n = s.corners.len();
+            (n >= 2).then(|| slp_core::seam_edge(old, which, n))
+        });
+        if let Some(edge) = bound {
+            dragging_border_seam.set(Some((bi, which, edge)));
+        }
+    });
+
     // The insert-between popup's "Insert" button: split the edge between the
     // two selected nodes with a new one at its midpoint.
     let on_insert_node = Callback::new(move |()| {
@@ -1133,14 +1235,14 @@ fn planner_body() -> impl IntoView {
             }
         });
     });
-    let set_border_start = Callback::new(move |(i, v): (usize, Option<i64>)| {
+    let set_border_start = Callback::new(move |(i, v): (usize, Option<f64>)| {
         edit_selected_borders(&|borders| {
             if let Some(b) = borders.get_mut(i) {
                 b.start_node = v;
             }
         });
     });
-    let set_border_end = Callback::new(move |(i, v): (usize, Option<i64>)| {
+    let set_border_end = Callback::new(move |(i, v): (usize, Option<f64>)| {
         edit_selected_borders(&|borders| {
             if let Some(b) = borders.get_mut(i) {
                 b.end_node = v;
@@ -1710,6 +1812,7 @@ fn planner_body() -> impl IntoView {
                             on_cancel_nodes=on_cancel_nodes
                             on_edge_press=on_edge_press
                             on_control_press=on_control_press
+                            on_border_seam_press=on_border_seam_press
                             on_house_press=on_house_press
                             on_house_node_press=on_house_node_press
                             on_deck_level_press=on_deck_level_press

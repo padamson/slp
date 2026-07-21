@@ -10,12 +10,20 @@ use slp_core::Border;
 
 use super::{NumberField, SelectField};
 
-/// The From/To node options for a span select: "—" (whole perimeter) plus one
-/// entry per boundary node index.
-fn node_options(node_count: usize) -> Vec<(String, String)> {
-    std::iter::once((String::new(), "—".to_string()))
+/// The From/To options for a span select: "—" (whole perimeter) plus one entry
+/// per boundary node index, and — when the current value is a fractional
+/// boundary position set by dragging its handle — that position too, so the
+/// select shows the truth instead of falling back to "—".
+fn span_options(node_count: usize, current: Option<f64>) -> Vec<(String, String)> {
+    let mut opts: Vec<(String, String)> = std::iter::once((String::new(), "—".to_string()))
         .chain((0..node_count).map(|i| (i.to_string(), format!("n{i}"))))
-        .collect()
+        .collect();
+    if let Some(v) = current
+        && v.fract().abs() > 1e-9
+    {
+        opts.push((format!("{v}"), format!("{v:.2}")));
+    }
+    opts
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -34,12 +42,12 @@ pub fn BorderEditor(
     on_material: Callback<(usize, String)>,
     /// Set ring `i`'s laid width (feet).
     on_width: Callback<(usize, f64)>,
-    /// Set ring `i`'s span start node (`None` = whole perimeter).
-    #[prop(default = Callback::new(|_: (usize, Option<i64>)| {}))]
-    on_start: Callback<(usize, Option<i64>)>,
-    /// Set ring `i`'s span end node (`None` = whole perimeter).
-    #[prop(default = Callback::new(|_: (usize, Option<i64>)| {}))]
-    on_end: Callback<(usize, Option<i64>)>,
+    /// Set ring `i`'s span start position (`None` = whole perimeter).
+    #[prop(default = Callback::new(|_: (usize, Option<f64>)| {}))]
+    on_start: Callback<(usize, Option<f64>)>,
+    /// Set ring `i`'s span end position (`None` = whole perimeter).
+    #[prop(default = Callback::new(|_: (usize, Option<f64>)| {}))]
+    on_end: Callback<(usize, Option<f64>)>,
     /// Append a new ring (inside the current innermost).
     on_add: Callback<()>,
     /// Remove ring `i`.
@@ -50,56 +58,61 @@ pub fn BorderEditor(
         .enumerate()
         .map(|(i, border)| {
             let options = material_options.clone();
-            // From/To span selects: border only the edges between two nodes
-            // (walking forward in drawn order), or "—" for the whole ring.
+            // From/To span selects on their own full-width line, so each shows
+            // its node number: border only the edges between two nodes (walking
+            // forward in drawn order), or "—" for the whole ring.
             let span = (node_count > 0).then(|| {
-                let val = |v: Option<i64>| v.map_or_else(String::new, |v| v.to_string());
+                let val = |v: Option<f64>| v.map_or_else(String::new, |v| format!("{v}"));
                 view! {
-                    <SelectField
-                        label="from"
-                        testid="border-from"
-                        value=val(border.start_node)
-                        options=node_options(node_count)
-                        on_change=Callback::new(move |id: String| {
-                            on_start.run((i, id.parse().ok()));
-                        })
-                    />
-                    <SelectField
-                        label="to"
-                        testid="border-to"
-                        value=val(border.end_node)
-                        options=node_options(node_count)
-                        on_change=Callback::new(move |id: String| {
-                            on_end.run((i, id.parse().ok()));
-                        })
-                    />
+                    <div class="border-row-span">
+                        <SelectField
+                            label="from"
+                            testid="border-from"
+                            value=val(border.start_node)
+                            options=span_options(node_count, border.start_node)
+                            on_change=Callback::new(move |id: String| {
+                                on_start.run((i, id.parse().ok()));
+                            })
+                        />
+                        <SelectField
+                            label="to"
+                            testid="border-to"
+                            value=val(border.end_node)
+                            options=span_options(node_count, border.end_node)
+                            on_change=Callback::new(move |id: String| {
+                                on_end.run((i, id.parse().ok()));
+                            })
+                        />
+                    </div>
                 }
             });
             view! {
                 <div class="border-row" data-testid=format!("border-row-{i}")>
-                    <SelectField
-                        label=""
-                        testid="border-material"
-                        value=border.material_ref
-                        options=options
-                        on_change=Callback::new(move |id: String| on_material.run((i, id)))
-                    />
-                    <NumberField
-                        label="ft"
-                        testid="border-width"
-                        value=border.width_ft
-                        step=0.25
-                        min=0.0
-                        on_input=Callback::new(move |w: f64| on_width.run((i, w)))
-                    />
+                    <div class="border-row-top">
+                        <SelectField
+                            label=""
+                            testid="border-material"
+                            value=border.material_ref
+                            options=options
+                            on_change=Callback::new(move |id: String| on_material.run((i, id)))
+                        />
+                        <NumberField
+                            label="ft"
+                            testid="border-width"
+                            value=border.width_ft
+                            step=0.25
+                            min=0.0
+                            on_input=Callback::new(move |w: f64| on_width.run((i, w)))
+                        />
+                        <button
+                            class="border-remove"
+                            data-testid=format!("border-remove-{i}")
+                            on:click=move |_| on_remove.run(i)
+                        >
+                            "×"
+                        </button>
+                    </div>
                     {span}
-                    <button
-                        class="border-remove"
-                        data-testid=format!("border-remove-{i}")
-                        on:click=move |_| on_remove.run(i)
-                    >
-                        "×"
-                    </button>
                 </div>
             }
         })

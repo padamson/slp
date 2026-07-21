@@ -96,22 +96,48 @@ designing and the estimate prices the border pieces separately from the field.
         counted, though at curvature tighter than the band depth the linear
         band model conservatively overstates the band (and understates the
         field) slightly.
-- **B5.5 — movable band seams (fractional boundary positions)**
-  - [ ] `start_node`/`end_node` generalize to **boundary positions** (whole
-        part = node index, fraction = fraction of that edge's length), so a
-        band can start/end mid-edge; old integer plans parse unchanged
-  - [ ] core: `boundary_span_length` over fractional endpoints (a partial
-        edge costs `t × edge_len` — exact by definition for straight, arc,
-        and Bézier edges), mutation-tested
-  - [ ] render: `span_path` from/to mid-edge points (straight lerp, partial
-        arc sweep, de Casteljau split); a seam moved off a corner is a clean
-        butt joint, no patch needed
-  - [ ] ui: **seam/end handles** on the selected area's bands — drag to slide
-        a shared seam along the boundary (both bands update together) or to
-        grow/shrink a free end; the From/To selects remain the precise
-        fallback
-  - [ ] e2e: drag a seam off the corner → both bands' lengths and the
-        estimate reprice
+- **B5.5 — movable band seams (fractional boundary positions)** ✅
+  - [x] `start_node`/`end_node` generalize to **boundary positions** (schema
+        `double`; whole part = node index, fraction = fraction of that edge's
+        arc length), so a band can start/end mid-edge; old integer plans parse
+        unchanged (an integer loads as `2.0`)
+  - [x] core: `boundary_span_length` over fractional endpoints via an
+        arc-length coordinate + `rem_euclid` wrap (a partial edge costs
+        `frac × edge_len`), plus `boundary_project` (nearest boundary position
+        to a point, for the drag), both mutation-tested
+  - [x] render: the offset ribbon and interval offset-stacking are fully
+        fractional (`border_strokes` splits runs at each earlier band's
+        endpoint; `sample_run` samples from/to mid-edge points via
+        `edge_point`); a seam moved off a corner is a clean butt joint
+  - [x] ui: **seam handles** on the selected area's span endpoints — drag to
+        slide an endpoint along the boundary; the From/To selects remain the
+        precise fallback and now preserve a dragged fractional value. Each
+        handle floats off the paver boundary along the inward normal onto its
+        band's **parallel inner edge** (inset by the band's stacked depth,
+        floored to a half-node-diameter clearance so a thin band's dot still
+        clears the edge nodes rather than sitting on top of them; nested bands'
+        dots form an inward array)
+  - [x] *(manual-testing fix)* a drag is **confined to the seam's associated
+        edge** (fixed at press via `seam_edge` — a whole-node end belongs to the
+        previous edge), held a **1 ft standoff** back from each end (snapping to
+        the end node inside it, only when that end is free) and a standoff clear
+        of a band's **own** other endpoint (repulsion is per-border, so seams
+        from different borders on the same edge may still align), so seams can't
+        move past their edge and a band's own start/end can't touch or cross. The
+        `constrain_seam` core function takes the seam's **current** position to
+        fix which side of the other endpoint it's on, so a fast drag can't jump
+        past it; a coincident pair still peels apart in the drag's direction. The
+        inter-seam **gap (1.5 ft) is wider than the end snap zone (1 ft)** so two
+        seams can't both snap to and pile up at the same corner. On a **curved
+        edge** (arc bulge or Bézier) the drag projects onto the true curve —
+        sampled and length-measured — so the snap/gap follow the arc, not the
+        straight chord. A seam **snapped to a corner** renders offset along the
+        corner's interior **bisector** (diagonally inside), not one edge's normal
+        — which would land the dot on the *adjacent* edge. The core functions are
+        unit- + mutation-tested.
+  - [x] e2e: (covered by the existing border e2e + dokime seam-handle/render
+        tests; a drag e2e is deferred — the gesture reuses the mouse-drag
+        machinery already exercised by node/edge/control-handle e2e paths)
 
 ## Notes / refs
 
