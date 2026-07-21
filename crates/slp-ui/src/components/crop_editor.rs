@@ -120,6 +120,9 @@ pub fn CropEditor(
     let on_up = move |_ev: leptos::ev::PointerEvent| drag.set(None);
 
     let current = move || BBox {
+        // Preserve which screenshot this box is on — the editor only nudges the
+        // rectangle, not the source image.
+        image: bbox.image,
         x: (x.get() / 100.0).clamp(0.0, 1.0),
         y: (y.get() / 100.0).clamp(0.0, 1.0),
         width: (w.get() / 100.0).clamp(0.0, 1.0),
@@ -137,7 +140,15 @@ pub fn CropEditor(
     let pct = |v: RwSignal<f64>| Callback::new(move |val: f64| v.set(val.clamp(0.0, 100.0)));
     // A modal: the dimmed backdrop closes on click, while clicks inside the
     // dialog stop there so adjusting the crop never dismisses it.
-    view! {
+    //
+    // In the browser it renders through a `<Portal>` into `<body>`: the catalog
+    // panel is `position: fixed` + scrollable, and WebKit clips fixed-position
+    // descendants to such an ancestor's box — an inline modal paints only
+    // within the panel in Safari (dimmed strip, dialog clipped away) while
+    // Chrome shows it fine. Portaling out escapes that clip. Off the browser
+    // (dokime/SSR) the Portal would render nothing, so emit the markup inline.
+    let dialog = move || {
+        view! {
         <div
             class="crop-backdrop"
             data-testid="crop-backdrop"
@@ -222,5 +233,14 @@ pub fn CropEditor(
                 </div>
             </div>
         </div>
-    }
+        }
+    };
+    #[cfg(feature = "csr")]
+    let out = {
+        use leptos::portal::Portal;
+        view! { <Portal>{dialog}</Portal> }.into_any()
+    };
+    #[cfg(not(feature = "csr"))]
+    let out = dialog().into_any();
+    out
 }

@@ -32,24 +32,30 @@ async fn open_catalog(page: &Page) -> Result<()> {
 /// PNG rather than a 1×1 stub, so the crop stage renders with real pixels (a
 /// drag needs geometry to move across).
 async fn paste_screenshot(page: &Page) -> Result<()> {
+    paste_screenshot_color(page, "#88aacc").await
+}
+
+/// Paste a synthetic screenshot filled with `fill` (a CSS color), so multiple
+/// pastes can be told apart by their data URI.
+async fn paste_screenshot_color(page: &Page, fill: &str) -> Result<()> {
     let r = page
-        .evaluate_value(
-            r#"(() => {
+        .evaluate_value(&format!(
+            r#"(() => {{
                  const el = document.querySelector("[data-testid='ingest-paste']");
                  if (!el) return 'no-zone';
                  const canvas = document.createElement('canvas');
                  canvas.width = 300; canvas.height = 200;
                  const ctx = canvas.getContext('2d');
-                 ctx.fillStyle = '#88aacc'; ctx.fillRect(0, 0, 300, 200);
+                 ctx.fillStyle = '{fill}'; ctx.fillRect(0, 0, 300, 200);
                  const b64 = canvas.toDataURL('image/png').split(',')[1];
                  const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-                 const file = new File([bytes], 'shot.png', { type: 'image/png' });
+                 const file = new File([bytes], 'shot.png', {{ type: 'image/png' }});
                  const dt = new DataTransfer();
                  dt.items.add(file);
-                 el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true }));
+                 el.dispatchEvent(new ClipboardEvent('paste', {{ clipboardData: dt, bubbles: true }}));
                  return 'ok';
-               })()"#,
-        )
+               }})()"#,
+        ))
         .await
         .context("dispatch a synthetic paste")?;
     if r != "ok" {
@@ -178,6 +184,165 @@ async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
 
     browser.close().await.context("close browser")?;
     Ok(())
+}
+
+/// A product page is often several screenshots (colors, sizes, laying
+/// patterns), so repeated pastes append to a list, each with its own remove,
+/// and "Clear all" empties it (M4.6).
+#[tokio::test]
+async fn pasting_multiple_screenshots_lists_them_with_per_image_remove() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
+        return Ok(());
+    }
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    open_catalog(&page).await?;
+    page.locator("[data-testid='ingest-api-key']")
+        .fill(KEY, None)
+        .await
+        .context("enter the API key")?;
+
+    // Two ⌘V pastes → two thumbnails.
+    paste_screenshot(&page).await?;
+    paste_screenshot(&page).await?;
+    expect(page.locator("[data-testid='ingest-screenshot']"))
+        .to_have_count(2)
+        .await
+        .context("two pastes list two thumbnails")?;
+
+    // Per-image remove drops just that one.
+    page.locator("[data-testid='ingest-remove-0']")
+        .click(None)
+        .await
+        .context("remove the first screenshot")?;
+    expect(page.locator("[data-testid='ingest-screenshot']"))
+        .to_have_count(1)
+        .await
+        .context("per-image remove leaves one")?;
+
+    // Clear all empties the list.
+    page.locator("[data-testid='ingest-clear']")
+        .click(None)
+        .await
+        .context("clear all screenshots")?;
+    expect(page.locator("[data-testid='ingest-screenshot']"))
+        .to_have_count(0)
+        .await
+        .context("clear-all empties the list")?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+/// When a color's bounding box names screenshot 1, its swatch is cropped out of
+/// screenshot 1 — not screenshot 0 (M4.6 indexed crops).
+#[tokio::test]
+async fn a_swatch_crop_resolves_against_the_screenshot_its_box_names() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
+        return Ok(());
+    }
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    // Stub the bridge: `extract` records the images it received and returns a
+    // color whose box is on image index 1; `crop` records which image it cropped.
+    page.evaluate_value(
+        r#"(() => {
+             window.__uris = null; window.__cropUri = null;
+             window.slpVision = {
+               extract: async (key, model, uris) => {
+                 window.__uris = uris;
+                 return JSON.stringify({
+                   name: "Two-Shot Slab", category: "slab",
+                   price_unit: "per_square_foot", unit_price: null,
+                   colors: [{name:"Grey",available:true,bbox:{image:1,x:0.1,y:0.2,width:0.1,height:0.1}}],
+                   textures: [], sizes: [], notes: null
+                 });
+               },
+               crop: async (dataUri) => { window.__cropUri = dataUri; return "data:image/png;base64,CROPPED"; },
+             };
+             return 'ok';
+           })()"#,
+    )
+    .await
+    .context("stub the vision bridge")?;
+
+    open_catalog(&page).await?;
+    page.locator("[data-testid='ingest-api-key']")
+        .fill(KEY, None)
+        .await
+        .context("enter the API key")?;
+    // Two distinguishable screenshots.
+    paste_screenshot_color(&page, "#112233").await?;
+    paste_screenshot_color(&page, "#ccbbaa").await?;
+    page.locator("[data-testid='ingest-extract']")
+        .click(None)
+        .await
+        .context("run extraction")?;
+    expect(page.locator("[data-testid='ingest-draft']"))
+        .to_be_visible()
+        .await
+        .context("the draft appears")?;
+
+    // The crop ran against screenshot 1 (the box's `image` index), not 0.
+    let r = page
+        .evaluate_value(
+            "(() => (window.__cropUri && window.__cropUri === window.__uris[1]) ? 'match' \
+             : (window.__cropUri === window.__uris[0] ? 'wrong-image' : 'no-crop'))()",
+        )
+        .await
+        .context("read which screenshot was cropped")?;
+    assert_eq!(r, "match", "the swatch was cropped from the indexed screenshot");
+
+    // Opening the crop editor for that color shows the screenshot its box names
+    // (screenshot 1), not a blank stage.
+    page.locator("[data-testid='ingest-color-swatch-0']")
+        .click(None)
+        .await
+        .context("open the crop editor")?;
+    expect(page.locator("[data-testid='crop-editor']"))
+        .to_have_count(1)
+        .await
+        .context("the crop editor opens")?;
+    let img_src = page
+        .locator("[data-testid='crop-stage'] img.crop-image")
+        .get_attribute("src")
+        .await?
+        .unwrap_or_default();
+    assert!(
+        img_src == uris_1(&page).await?,
+        "the crop editor shows the indexed screenshot, got a {}-char src",
+        img_src.len()
+    );
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+/// Read `window.__uris[1]` (the second pasted screenshot's data URI).
+async fn uris_1(page: &Page) -> Result<String> {
+    Ok(page.evaluate_value("(() => window.__uris[1])()").await?)
 }
 
 /// The REAL crop bridge (`window.slpVision.crop`, not the stub the other tests

@@ -12,6 +12,7 @@ pub fn stories() -> Vec<Story> {
             <CropEditor
                 screenshot="data:image/png;base64,iVBORw0KGgo=".to_string()
                 bbox=BBox {
+                    image: 0,
                     x: 0.1,
                     y: 0.2,
                     width: 0.2,

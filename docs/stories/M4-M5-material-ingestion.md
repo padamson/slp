@@ -125,6 +125,11 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         close; clicks inside stay put) centering the dialog, with the stage
         sized to the viewport (`min(86vw, 940px)` × `72vh`) instead of the
         catalog panel's narrow column — you can see what you're cropping.
+        *(Safari fix)* the modal renders through a `<Portal>` into `<body>`:
+        WebKit clips `position: fixed` descendants to the scrollable fixed
+        catalog panel's box, so an inline modal showed only a dimmed strip in
+        Safari (fine in Chrome); portaling out escapes the clip. Off-browser
+        (dokime/SSR) it renders inline so markup tests still see it.
   - [x] the crop bridge **trims near-white borders**: product pages wrap color
         chips in white cards and vision boxes include a sliver of that margin,
         which tiled as an area texture rendered as white grid lines between
@@ -210,20 +215,22 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         `Shapes` and `Circles`; one e2e draws a textured polygon *and* circle.
         Textured surfaces render opaque by design (a real material occludes the
         grid/deck beneath; select the area to see through it while editing).
-- **M4.6 — multi-screenshot paste** — *product docs spread one product across
+- **M4.6 — multi-screenshot paste** ✅ — *product docs spread one product across
   several screenshots (colors grid, size table, laying patterns), so the
   ingest session holds a **list** of pasted images, not one.*
-  - [ ] the paste zone appends: each ⌘V adds a screenshot; thumbnails render
-        with a per-image remove (Clear empties the list). The lone-screenshot
-        UI is the same flow with a one-element list.
-  - [ ] extraction sends **every** pasted image in one Messages call (multiple
-        image content blocks + the prompt notes they show the same product);
-        the extractor merges them into the one draft
-  - [ ] `BBox` gains an image index (`image`, default 0) so a vision bounding
-        box says *which* screenshot it's on; `vision::crop` and the crop
-        editor resolve against that screenshot
-  - [ ] e2e: paste two synthetic screenshots → two thumbnails; extract (stub)
-        → a draft whose swatch crops resolve against the indexed image
+  - [x] the paste zone appends: each ⌘V adds a screenshot; thumbnails render
+        with a per-image remove (× on each) and a "Clear all" that empties the
+        list. The lone-screenshot UI is the same flow with a one-element list.
+  - [x] extraction sends **every** pasted image in one Messages call (an image
+        content block per screenshot + the prompt notes they show the same
+        product and to tag each box with its image index); the extractor merges
+        them into the one draft
+  - [x] `BBox` gains an image index (`image`, default 0) so a vision bounding
+        box says *which* screenshot it's on; the extract-time swatch crop and
+        the crop editor resolve against that screenshot
+  - [x] e2e: paste two synthetic screenshots → two thumbnails (+ per-image
+        remove, Clear all); extract (stub) a color whose box is on image 1 →
+        its swatch is cropped from screenshot 1, not 0
 - **M4.7 — laying patterns on pavers/slabs** — *the product docs publish the
   patterns a format supports (herringbone, parquet, linear …); capturing them
   tells the buyer which piece mix to order. Pattern-accurate field rendering

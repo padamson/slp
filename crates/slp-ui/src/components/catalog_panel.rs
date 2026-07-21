@@ -92,12 +92,19 @@ pub fn CatalogPanel(
     #[prop(default = Callback::new(|_: String| {}))]
     on_api_key: Callback<String>,
     /// The pasted product screenshot as a `data:` URI (empty when none) — the
-    /// input the vision extractor will read.
-    #[prop(into, default = Signal::derive(String::new))]
-    screenshot: Signal<String>,
-    /// Set the pasted screenshot (a `data:` URI); an empty value clears it.
+    /// input the vision extractor will read. A product's page is often several
+    /// screenshots (colors, sizes, laying patterns), so this is a list.
+    #[prop(into, default = Signal::derive(Vec::new))]
+    screenshots: Signal<Vec<String>>,
+    /// Append a pasted screenshot (a `data:` URI) to the list.
     #[prop(default = Callback::new(|_: String| {}))]
-    on_screenshot: Callback<String>,
+    on_paste_image: Callback<String>,
+    /// Remove the screenshot at the given index.
+    #[prop(default = Callback::new(|_: usize| {}))]
+    on_remove_image: Callback<usize>,
+    /// Clear all pasted screenshots.
+    #[prop(default = Callback::new(|(): ()| {}))]
+    on_clear_images: Callback<()>,
     /// The vision model id used for extraction (editable).
     #[prop(into, default = Signal::derive(|| crate::vision::DEFAULT_MODEL.to_string()))]
     model: Signal<String>,
@@ -186,43 +193,60 @@ pub fn CatalogPanel(
                             >
                                 "Screenshot ingestion enabled."
                             </p>
-                            // Paste a product screenshot (⌘⇧4 → ⌘V) → a data URI
-                            // the vision extractor (B3) will read.
+                            // Paste one or more product screenshots (⌘⇧4 → ⌘V,
+                            // repeat) → data URIs the vision extractor (B3) reads.
                             <div
                                 class="ingest-paste"
                                 data-testid="ingest-paste"
                                 tabindex="0"
-                                on:paste=move |ev| read_pasted_image(&ev, on_screenshot)
+                                on:paste=move |ev| read_pasted_image(&ev, on_paste_image)
                             >
-                                "Click here, then paste a product screenshot (⌘V)."
+                                "Click here, then paste product screenshots (⌘V — one or more)."
                             </div>
                             {move || {
-                                let shot = screenshot.get();
-                                (!shot.is_empty())
+                                let shots = screenshots.get();
+                                (!shots.is_empty())
                                     .then(|| {
+                                        let thumbs = shots
+                                            .into_iter()
+                                            .enumerate()
+                                            .map(|(i, shot)| {
+                                                view! {
+                                                    <div class="ingest-thumb">
+                                                        <img
+                                                            class="ingest-screenshot"
+                                                            data-testid="ingest-screenshot"
+                                                            src=shot
+                                                            alt="pasted screenshot"
+                                                        />
+                                                        <button
+                                                            class="ingest-thumb-remove"
+                                                            data-testid=format!("ingest-remove-{i}")
+                                                            title="Remove this screenshot"
+                                                            on:click=move |_| on_remove_image.run(i)
+                                                        >
+                                                            "×"
+                                                        </button>
+                                                    </div>
+                                                }
+                                            })
+                                            .collect::<Vec<_>>();
                                         view! {
-                                            <div class="ingest-shot">
-                                                <img
-                                                    class="ingest-screenshot"
-                                                    data-testid="ingest-screenshot"
-                                                    src=shot.clone()
-                                                    alt="pasted screenshot"
-                                                />
-                                                <button
-                                                    class="ingest-clear"
-                                                    data-testid="ingest-clear"
-                                                    on:click=move |_| on_screenshot.run(String::new())
-                                                >
-                                                    "Clear"
-                                                </button>
-                                            </div>
+                                            <div class="ingest-shots">{thumbs}</div>
+                                            <button
+                                                class="ingest-clear"
+                                                data-testid="ingest-clear"
+                                                on:click=move |_| on_clear_images.run(())
+                                            >
+                                                "Clear all"
+                                            </button>
                                         }
                                     })
                             }}
                             // Once a screenshot is pasted: pick a model and run
                             // the vision extraction.
                             {move || {
-                                (!screenshot.get().is_empty())
+                                (!screenshots.get().is_empty())
                                     .then(|| {
                                         view! {
                                             <TextField
@@ -268,7 +292,7 @@ pub fn CatalogPanel(
                                                 product=d
                                                 on_add=on_add_draft
                                                 on_discard=on_discard_draft
-                                                screenshot=screenshot
+                                                screenshots=screenshots
                                             />
                                         }
                                     })

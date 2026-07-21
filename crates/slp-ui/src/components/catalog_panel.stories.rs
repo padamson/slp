@@ -172,7 +172,9 @@ pub fn stories() -> Vec<Story> {
                     on_depth=noop_f64()
                     on_height=noop_f64()
                     api_key=Signal::derive(|| "sk-ant-demo".to_string())
-                    screenshot=Signal::derive(|| "data:image/png;base64,iVBORw0KGgo=".to_string())
+                    screenshots=Signal::derive(|| {
+                        vec!["data:image/png;base64,iVBORw0KGgo=".to_string()]
+                    })
                     draft=Signal::derive(move || Some(draft.clone()))
                     on_close=noop()
                 />

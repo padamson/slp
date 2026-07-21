@@ -1313,10 +1313,19 @@ fn planner_body() -> impl IntoView {
         api_key::set_api_key(&v);
         set_api_key_val.set(v);
     });
-    // The pasted product screenshot (a `data:` URI) awaiting vision extraction.
-    // Transient UI state — never persisted in the plan.
-    let (screenshot, set_screenshot) = signal(String::new());
-    let on_screenshot = Callback::new(move |v: String| set_screenshot.set(v));
+    // The pasted product screenshots (each a `data:` URI) awaiting vision
+    // extraction — a product's page is often several images (colors, sizes,
+    // laying patterns), so it's a list. Transient UI state, never persisted.
+    let (screenshots, set_screenshots) = signal(Vec::<String>::new());
+    let on_paste_image = Callback::new(move |v: String| set_screenshots.update(|l| l.push(v)));
+    let on_remove_image = Callback::new(move |i: usize| {
+        set_screenshots.update(|l| {
+            if i < l.len() {
+                l.remove(i);
+            }
+        });
+    });
+    let on_clear_images = Callback::new(move |()| set_screenshots.set(Vec::new()));
     // Vision extraction (B3): the (editable) model, the in-flight flag, the last
     // error, and the extracted draft product — all transient.
     let (model, set_model) = signal(crate::vision::DEFAULT_MODEL.to_string());
@@ -1325,18 +1334,18 @@ fn planner_body() -> impl IntoView {
     let extract_error = RwSignal::new(None::<String>);
     let draft = RwSignal::new(None::<crate::vision::ExtractedProduct>);
     let on_extract = Callback::new(move |()| {
-        let (shot, key, mdl) = (
-            screenshot.get_untracked(),
+        let (shots, key, mdl) = (
+            screenshots.get_untracked(),
             api_key_val.get_untracked(),
             model.get_untracked(),
         );
-        if shot.is_empty() || key.trim().is_empty() || extracting.get_untracked() {
+        if shots.is_empty() || key.trim().is_empty() || extracting.get_untracked() {
             return;
         }
         extracting.set(true);
         extract_error.set(None);
         leptos::task::spawn_local(async move {
-            match crate::vision::extract(&key, &mdl, &shot).await {
+            match crate::vision::extract(&key, &mdl, &shots).await {
                 Ok(product) => draft.set(Some(product)),
                 Err(e) => extract_error.set(Some(e)),
             }
@@ -1357,11 +1366,11 @@ fn planner_body() -> impl IntoView {
             }
         });
         draft.set(None);
-        set_screenshot.set(String::new());
+        set_screenshots.set(Vec::new());
     });
     let on_discard_draft = Callback::new(move |()| {
         draft.set(None);
-        set_screenshot.set(String::new());
+        set_screenshots.set(Vec::new());
     });
     // Apply `edit` to the catalog item currently selected in the panel.
     let edit_selected_catalog = move |edit: &dyn Fn(&mut CatalogItem)| {
@@ -2062,8 +2071,10 @@ fn planner_body() -> impl IntoView {
                             on_height=set_catalog_height
                             api_key=api_key_val
                             on_api_key=on_api_key
-                            screenshot=screenshot
-                            on_screenshot=on_screenshot
+                            screenshots=screenshots
+                            on_paste_image=on_paste_image
+                            on_remove_image=on_remove_image
+                            on_clear_images=on_clear_images
                             model=model
                             on_model=on_model
                             on_extract=on_extract

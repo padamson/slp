@@ -187,7 +187,9 @@ fn panel_ingest(key: &str, shot: &str) -> String {
                 on_depth=noop_f64()
                 on_height=noop_f64()
                 api_key=Signal::derive(move || key.clone())
-                screenshot=Signal::derive(move || shot.clone())
+                screenshots=Signal::derive(move || {
+                    if shot.is_empty() { Vec::new() } else { vec![shot.clone()] }
+                })
                 on_close=noop()
             />
         }
@@ -261,6 +263,49 @@ fn a_pasted_screenshot_previews_with_a_clear_action() {
     );
 }
 
+#[test]
+fn multiple_pasted_screenshots_list_as_thumbnails_with_per_image_remove() {
+    let shots = vec![
+        "data:image/png;base64,AAA".to_string(),
+        "data:image/png;base64,BBB".to_string(),
+    ];
+    let html = dokime::render(move || {
+        let shots = shots.clone();
+        view! {
+            <CatalogPanel
+                catalog=Signal::derive(Vec::<CatalogItem>::new)
+                selected=Signal::derive(|| None::<String>)
+                on_select=noop_str()
+                on_name=noop_str()
+                on_category=noop_str()
+                on_price=noop_f64()
+                on_price_unit=noop_pu()
+                on_add=noop()
+                on_width=noop_f64()
+                on_depth=noop_f64()
+                on_height=noop_f64()
+                api_key=Signal::derive(|| "sk-ant-abc123".to_string())
+                screenshots=Signal::derive(move || shots.clone())
+                on_close=noop()
+            />
+        }
+    });
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="ingest-screenshot""#),
+        2,
+        "two thumbnails for two pasted screenshots"
+    );
+    assert!(
+        html.contains(r#"data-testid="ingest-remove-0""#)
+            && html.contains(r#"data-testid="ingest-remove-1""#),
+        "each thumbnail has its own remove"
+    );
+    assert!(
+        html.contains(r#"data-testid="ingest-clear""#),
+        "clear-all is offered"
+    );
+}
+
 /// Render the panel with the ingestion `screenshot`/`draft`/`extract_error`
 /// props set (a key is present so the section is enabled).
 fn panel_extract(shot: &str, draft: Option<ExtractedProduct>, error: Option<String>) -> String {
@@ -283,7 +328,9 @@ fn panel_extract(shot: &str, draft: Option<ExtractedProduct>, error: Option<Stri
                 on_depth=noop_f64()
                 on_height=noop_f64()
                 api_key=Signal::derive(|| "sk-ant-abc123".to_string())
-                screenshot=Signal::derive(move || shot.clone())
+                screenshots=Signal::derive(move || {
+                    if shot.is_empty() { Vec::new() } else { vec![shot.clone()] }
+                })
                 draft=Signal::derive(move || draft.clone())
                 extract_error=Signal::derive(move || error.clone())
                 on_close=noop()

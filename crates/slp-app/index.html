@@ -126,10 +126,18 @@
       // Anthropic Messages API with the user's key, browser-direct, and return
       // the model's text. Nothing is stored here; the key is passed per call.
       window.slpVision = {
-        async extract(apiKey, model, dataUri, prompt, schemaJson) {
-          const m = /^data:(.+?);base64,(.*)$/.exec(dataUri || "");
-          if (!m) throw new Error("The pasted image isn't a base64 data URI.");
-          const [, mediaType, data] = m;
+        async extract(apiKey, model, dataUris, prompt, schemaJson) {
+          // Accept a list of screenshots (one product spread across images) —
+          // or a lone string for backwards compatibility. Each becomes an image
+          // content block, in order, so a bbox's `image` index lines up.
+          const uris = Array.isArray(dataUris) ? dataUris : [dataUris];
+          const imageBlocks = uris.map((uri) => {
+            const m = /^data:(.+?);base64,(.*)$/.exec(uri || "");
+            if (!m) throw new Error("The pasted image isn't a base64 data URI.");
+            const [, mediaType, data] = m;
+            return { type: "image", source: { type: "base64", media_type: mediaType, data } };
+          });
+          if (imageBlocks.length === 0) throw new Error("No screenshot to extract.");
           // Force a structured tool call: the model must return `input` matching
           // our JSON Schema, rather than free-form text we'd have to parse.
           const resp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -145,16 +153,13 @@
               max_tokens: 1024,
               tools: [{
                 name: "extract_product",
-                description: "Record the landscaping product shown in the screenshot.",
+                description: "Record the landscaping product shown in the screenshots.",
                 input_schema: JSON.parse(schemaJson),
               }],
               tool_choice: { type: "tool", name: "extract_product" },
               messages: [{
                 role: "user",
-                content: [
-                  { type: "image", source: { type: "base64", media_type: mediaType, data } },
-                  { type: "text", text: prompt },
-                ],
+                content: [...imageBlocks, { type: "text", text: prompt }],
               }],
             }),
           });
@@ -734,17 +739,37 @@
         outline-offset: 1px;
         color: #2b6cb0;
       }
-      .ingest-shot {
+      /* Pasted screenshots list as a wrapping strip of thumbnails, each with a
+         corner remove button; "Clear all" empties the list. */
+      .ingest-shots {
         margin-top: 6px;
         display: flex;
-        align-items: flex-start;
+        flex-wrap: wrap;
         gap: 6px;
       }
+      .ingest-thumb {
+        position: relative;
+        line-height: 0;
+      }
       .ingest-screenshot {
-        max-width: 180px;
-        max-height: 140px;
+        max-width: 120px;
+        max-height: 96px;
         border: 1px solid #e3dccb;
         border-radius: 4px;
+      }
+      .ingest-thumb-remove {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        width: 18px;
+        height: 18px;
+        line-height: 1;
+        padding: 0;
+        border: 1px solid #e3dccb;
+        border-radius: 50%;
+        background: #fff;
+        color: #a94442;
+        cursor: pointer;
       }
       .ingest-clear {
         font: inherit;

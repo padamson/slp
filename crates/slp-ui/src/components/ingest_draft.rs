@@ -32,9 +32,10 @@ pub fn IngestDraft(
     /// Discard the draft without adding anything.
     #[prop(default = Callback::new(|(): ()| {}))]
     on_discard: Callback<()>,
-    /// The pasted screenshot (a `data:` URI), for re-cropping a swatch (B5).
-    #[prop(into, default = Signal::derive(String::new))]
-    screenshot: Signal<String>,
+    /// The pasted screenshots (each a `data:` URI), for re-cropping a swatch
+    /// (B5) against the one its bounding box names.
+    #[prop(into, default = Signal::derive(Vec::new))]
+    screenshots: Signal<Vec<String>>,
 ) -> impl IntoView {
     // Rendering metadata (owned, so the reactive closures don't borrow `product`).
     let name = product.name.clone();
@@ -291,10 +292,14 @@ pub fn IngestDraft(
             {move || {
                 let i = editing.get()?;
                 let bbox = color_bbox.get().get(i).copied().flatten()?;
+                // Adjust the crop against the screenshot this box is on (a
+                // product spans several; fall back to the last if out of range).
+                let shots = screenshots.get();
+                let shot = shots.get(bbox.image).or_else(|| shots.last()).cloned()?;
                 Some(
                     view! {
                         <CropEditor
-                            screenshot=screenshot.get()
+                            screenshot=shot
                             bbox=bbox
                             on_apply=Callback::new(move |(swatch, b): (Option<String>, BBox)| {
                                 if let Some(sw) = swatch {

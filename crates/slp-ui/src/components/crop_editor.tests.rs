@@ -74,6 +74,7 @@ fn render() -> String {
             <CropEditor
                 screenshot="data:image/png;base64,AAA".to_string()
                 bbox=BBox {
+                    image: 0,
                     x: 0.1,
                     y: 0.2,
                     width: 0.15,

@@ -48,9 +48,15 @@ impl PriceUnitHint {
     }
 }
 
-/// A bounding box within the screenshot, as fractions of its size (each 0–1).
+/// A bounding box within a pasted screenshot, as fractions of its size (each
+/// 0–1), plus which screenshot it's on.
 #[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize, JsonSchema)]
 pub struct BBox {
+    /// Which pasted screenshot this box is on: a 0-based index into the images,
+    /// in the order they were pasted. `0` when there is a single screenshot.
+    #[serde(default)]
+    #[schemars(default)]
+    pub image: usize,
     /// Left edge, as a fraction of the image width (0 = left, 1 = right).
     pub x: f64,
     /// Top edge, as a fraction of the image height (0 = top, 1 = bottom).
@@ -270,15 +276,17 @@ fn slug(s: &str) -> String {
 /// The instruction sent with the screenshot. The detailed rules live on the
 /// schema (each field's description); this just points the model at the tool.
 pub const EXTRACTION_PROMPT: &str = "\
-This is a screenshot of a landscaping product page. Extract the product into \
-the material catalog by calling the `extract_product` tool. Follow each field's \
-description exactly — especially: capture EVERY color/texture option (mark \
-greyed-out ones unavailable); for sizes, list each purchasable FORMAT as shown \
-(e.g. '60 MM', '6 × 13', 'Grande') as ONE entry each — do NOT split a \
-multi-piece format into separate pieces; record its included pieces in \
-`includes` and give the format's tile dimensions as the installed pattern's \
-repeat; convert dimensions to the requested units; and NEVER guess a price \
-(return null when none is shown).";
+These are screenshots of ONE landscaping product page (colors, sizes, and/or \
+laying patterns may be split across several images, in the order given). Extract \
+the single product into the material catalog by calling the `extract_product` \
+tool, merging what all the images show. Follow each field's description exactly \
+— especially: capture EVERY color/texture option (mark greyed-out ones \
+unavailable); for sizes, list each purchasable FORMAT as shown (e.g. '60 MM', \
+'6 × 13', 'Grande') as ONE entry each — do NOT split a multi-piece format into \
+separate pieces; record its included pieces in `includes` and give the format's \
+tile dimensions as the installed pattern's repeat; for every bounding box set \
+`image` to the 0-based index of the screenshot it's on; convert dimensions to \
+the requested units; and NEVER guess a price (return null when none is shown).";
 
 /// Crop `bbox` out of `screenshot` (a `data:` URI), returning the region as a
 /// `data:` URI — used to re-crop a swatch when the user adjusts the box (B5).
@@ -314,8 +322,11 @@ fn extract_json(text: &str) -> &str {
     }
 }
 
-/// Extract a draft product from `screenshot` (a `data:` URI) using the user's
-/// `api_key` and `model`, via the `window.slpVision` bridge.
+/// Extract a draft product from one or more `screenshots` (each a `data:` URI —
+/// a product's page is often several screenshots: colors, sizes, laying
+/// patterns) using the user's `api_key` and `model`, via the `window.slpVision`
+/// bridge. All images go in one request, tagged so a bounding box knows which
+/// screenshot it's on.
 ///
 /// # Errors
 /// Returns a human-readable message when the bridge is absent (non-browser /
@@ -323,21 +334,23 @@ fn extract_json(text: &str) -> &str {
 pub async fn extract(
     api_key: &str,
     model: &str,
-    screenshot: &str,
+    screenshots: &[String],
 ) -> Result<ExtractedProduct, String> {
     let json = imp::extract(
         api_key,
         model,
-        screenshot,
+        screenshots,
         EXTRACTION_PROMPT,
         &tool_schema(),
     )
     .await?;
     let mut product = parse_extraction(&json).map(sanitize)?;
-    // Best-effort: crop each color's swatch out of the screenshot for the viz.
+    // Best-effort: crop each color's swatch out of the screenshot its box names.
     for color in &mut product.colors {
-        if let Some(bbox) = color.bbox {
-            color.swatch = imp::crop(screenshot, bbox).await;
+        if let Some(bbox) = color.bbox
+            && let Some(shot) = screenshots.get(bbox.image.min(screenshots.len().saturating_sub(1)))
+        {
+            color.swatch = imp::crop(shot, bbox).await;
         }
     }
     Ok(product)
@@ -354,13 +367,13 @@ mod imp {
         (!v.is_undefined() && !v.is_null()).then_some(v)
     }
 
-    /// Call `window.slpVision.extract(apiKey, model, dataUri, prompt, schema)`,
-    /// await it, and return the tool's structured `input` as a JSON string (or a
-    /// human-readable error).
+    /// Call `window.slpVision.extract(apiKey, model, dataUris, prompt, schema)`
+    /// with the pasted screenshots as an array, await it, and return the tool's
+    /// structured `input` as a JSON string (or a human-readable error).
     pub async fn extract(
         api_key: &str,
         model: &str,
-        screenshot: &str,
+        screenshots: &[String],
         prompt: &str,
         schema: &str,
     ) -> Result<String, String> {
@@ -369,10 +382,14 @@ mod imp {
             .ok()
             .and_then(|f| f.dyn_into::<js_sys::Function>().ok())
             .ok_or("Screenshot extraction isn't available here.")?;
+        let uris = js_sys::Array::new();
+        for s in screenshots {
+            uris.push(&JsValue::from_str(s));
+        }
         let args = js_sys::Array::of5(
             &JsValue::from_str(api_key),
             &JsValue::from_str(model),
-            &JsValue::from_str(screenshot),
+            uris.as_ref(),
             &JsValue::from_str(prompt),
             &JsValue::from_str(schema),
         );
@@ -423,7 +440,7 @@ mod imp {
     pub async fn extract(
         _api_key: &str,
         _model: &str,
-        _screenshot: &str,
+        _screenshots: &[String],
         _prompt: &str,
         _schema: &str,
     ) -> Result<String, String> {
