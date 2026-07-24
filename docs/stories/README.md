@@ -65,6 +65,7 @@ cross-cutting machinery folded into that point in the sequence.
 | E2 | Deck seating / presets | _doc pending_ | backlog |
 | G2 | Print | _doc pending_ | backlog |
 | R1–R3 | 2D / 3D view / 3D designer | _doc pending_ | backlog |
+| R4 | Photorealistic AI preview (impression) | [R4](R4-photorealistic-preview.md) | 🚧 R4.0 done (slp-core scene logic); two modes — overhead (local Z-Image ControlNet) + eye-level (hosted instruction model) |
 
 (Everything the user places — yard, **house**, **deck**, pavers, beds, walls,
 steps, trees, equipment, furniture — is drawn and saved; nothing is hardcoded to
