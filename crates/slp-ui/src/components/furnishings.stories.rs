@@ -206,5 +206,14 @@ pub fn stories() -> Vec<Story> {
             let objects = vec![Object::new("hot-tub".to_string(), 14.0, 15.0)];
             canvas(view! { <Furnishings t=t() objects=objects catalog=catalog /> })
         }),
+        Story::new("Structures/Furnishings/Hot tub on a concrete pad", || {
+            let mut tub = round("hot-tub", "Hot tub", "hot-tub", 7.0);
+            tub.slab_material_ref = Some("concrete".to_string());
+            tub.slab_thickness_in = Some(4.0);
+            tub.slab_overhang_in = Some(12.0); // a 1 ft gray lip around the tub
+            let catalog = vec![tub];
+            let objects = vec![Object::new("hot-tub".to_string(), 14.0, 15.0)];
+            canvas(view! { <Furnishings t=t() objects=objects catalog=catalog /> })
+        }),
     ]
 }

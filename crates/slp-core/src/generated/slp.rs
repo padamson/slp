@@ -217,6 +217,24 @@ pub struct CatalogItem {
     /// ignores `depth_ft`.
     #[serde(default = "default_catalog_item_shape")]
     pub shape: FootprintShape,
+    /// For a unit that sits on a poured pad (a hot tub), the id of the catalog
+    /// material forming its concrete slab. Its volume is costed per placed object
+    /// of this item as a rectangle `(width_ft + 2·overhang) × (depth_ft +
+    /// 2·overhang)` at `slab_thickness_in`. Absent = no pad.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slab_material_ref: Option<String>,
+    /// How far the concrete pad extends beyond the footprint edge, in inches, on
+    /// every side (a hot tub's ~12 in lip). On a catalog item this is the
+    /// default; on a placed object it overrides that default for this particular
+    /// unit. Absent = the catalog default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slab_overhang_in: Option<f64>,
+    /// Thickness of the concrete pad, in inches, for an item with a
+    /// `slab_material_ref` (a hot tub's ~4 in slab) — `yd³ = ft²·in/324`. On a
+    /// catalog item this is the default; on a placed object it overrides that
+    /// default for this particular unit. Absent = the catalog default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slab_thickness_in: Option<f64>,
     /// Short id of the adapter/site the item came from, e.g. "techo-bloc" (M4) —
     /// the manufacturer/retailer, not a full URL. Absent on hand-authored items.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -278,6 +296,9 @@ impl CatalogItem {
             patterns: Vec::new(),
             price_unit: PriceUnit::per_item,
             shape: FootprintShape::rectangle,
+            slab_material_ref: None,
+            slab_overhang_in: None,
+            slab_thickness_in: None,
             source: None,
             source_url: None,
             tile_depth_ft: None,
@@ -532,6 +553,18 @@ pub struct Object {
     /// Rotation in degrees, clockwise from north.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rot: Option<f64>,
+    /// How far the concrete pad extends beyond the footprint edge, in inches, on
+    /// every side (a hot tub's ~12 in lip). On a catalog item this is the
+    /// default; on a placed object it overrides that default for this particular
+    /// unit. Absent = the catalog default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slab_overhang_in: Option<f64>,
+    /// Thickness of the concrete pad, in inches, for an item with a
+    /// `slab_material_ref` (a hot tub's ~4 in slab) — `yd³ = ft²·in/324`. On a
+    /// catalog item this is the default; on a placed object it overrides that
+    /// default for this particular unit. Absent = the catalog default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slab_thickness_in: Option<f64>,
     /// Cost status of a placed item; defaults to planned when absent.
     #[serde(default = "default_object_status")]
     pub status: ItemStatus,
@@ -558,6 +591,8 @@ impl Object {
             catalog_ref,
             is_virtual: false,
             rot: None,
+            slab_overhang_in: None,
+            slab_thickness_in: None,
             status: ItemStatus::planned,
             trunk_diameter_ft: None,
             x,

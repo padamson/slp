@@ -273,7 +273,36 @@ fn material_volume(plan: &Plan, id: &str) -> f64 {
             }
         }
     }
-    volume
+    // Concrete pads beneath placed units (hot tubs) poured from `id`.
+    volume + slab_volume(plan, id)
+}
+
+/// The concrete-pad volume (yd³) of material `id` beneath every placed unit
+/// (a hot tub) whose catalog item pours its slab from `id`. Each **planned**,
+/// non-virtual object contributes a rectangular pad — the footprint grown by
+/// its overhang on every side, `(width + 2·overhang) × (depth + 2·overhang)`,
+/// at `slab_thickness_in` — with thickness and overhang resolving
+/// object-override → catalog default (a round tub with no `depth_ft` uses its
+/// `width_ft` for both, a square pad). Each side is floored at 0 so an overhang
+/// eating past the footprint can't flip the area positive. `yd³ = ft²·in/324`.
+fn slab_volume(plan: &Plan, id: &str) -> f64 {
+    plan.objects
+        .iter()
+        .filter(|o| o.status == ItemStatus::planned && !o.is_virtual)
+        .filter_map(|o| catalog_item(plan, &o.catalog_ref).map(|item| (o, item)))
+        .filter(|(_, item)| item.slab_material_ref.as_deref() == Some(id))
+        .map(|(o, item)| {
+            let overhang_ft = o.slab_overhang_in.or(item.slab_overhang_in).unwrap_or(0.0) / 12.0;
+            let thickness_in = o
+                .slab_thickness_in
+                .or(item.slab_thickness_in)
+                .unwrap_or(0.0);
+            let grow = 2.0 * overhang_ft;
+            let w = (item.width_ft.unwrap_or(0.0) + grow).max(0.0);
+            let d = (item.depth_ft.or(item.width_ft).unwrap_or(0.0) + grow).max(0.0);
+            volume_yd3(w * d, thickness_in)
+        })
+        .sum()
 }
 
 /// The default sub-base courses a drawn area inherits from its surface material:
@@ -850,6 +879,116 @@ mod tests {
             .unwrap();
         let expected = circle_area(5.0) * 4.0 / 324.0;
         assert!((gravel.quantity - expected).abs() < 1e-9);
+    }
+
+    // --- Concrete pad beneath a placed unit (hot tub) (D5) ---
+
+    /// A hot tub whose pad is `slab` concrete, `thickness` in thick with a
+    /// per-side `overhang` in lip, over a `w`×`d` footprint (`d` = `w` when
+    /// `depth` is `None`, a round tub).
+    fn tub_on(
+        w: f64,
+        depth: Option<f64>,
+        slab: &str,
+        thickness: f64,
+        overhang: f64,
+    ) -> CatalogItem {
+        let mut c = item("tub", "Hot tub", Some(6999.0));
+        c.width_ft = Some(w);
+        c.depth_ft = depth;
+        c.slab_material_ref = Some(slab.to_string());
+        c.slab_thickness_in = Some(thickness);
+        c.slab_overhang_in = Some(overhang);
+        c
+    }
+
+    #[test]
+    fn a_placed_hot_tub_pours_a_concrete_pad_by_volume() {
+        // A 7×7 tub with a 12 in (1 ft) overhang → a 9×9 = 81 ft² pad, 4 in
+        // thick: 81·4/324 = 1.0 yd³ × $160 = $160. The tub itself is $6999.
+        let bom = take_off(&plan(
+            vec![
+                tub_on(7.0, Some(7.0), "concrete", 4.0, 12.0),
+                material("concrete", "Concrete", 160.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![placed("tub", ItemStatus::planned)],
+        ));
+        let concrete = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "concrete")
+            .unwrap();
+        assert_eq!(concrete.unit, PriceUnit::per_cubic_yard);
+        assert!((concrete.quantity - 1.0).abs() < 1e-9, "9×9×4/324 = 1 yd³");
+        assert!((concrete.line_total - 160.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn slab_thickness_and_overhang_take_object_overrides_then_catalog_defaults() {
+        // A round tub (width 6, no depth → 6×6). Tub A pours the catalog default
+        // (4 in thick, 12 in overhang) → 8×8 pad @ 4 in. Tub B overrides both
+        // (6 in thick, 6 in = 0.5 ft overhang) → 7×7 pad @ 6 in. A virtual and an
+        // existing tub add nothing.
+        let mut b = placed("tub", ItemStatus::planned);
+        b.slab_thickness_in = Some(6.0);
+        b.slab_overhang_in = Some(6.0);
+        let bom = take_off(&plan(
+            vec![
+                tub_on(6.0, None, "concrete", 4.0, 12.0),
+                material("concrete", "Concrete", 160.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![
+                placed("tub", ItemStatus::planned),
+                b,
+                virtual_placed("tub", ItemStatus::planned),
+                placed("tub", ItemStatus::existing),
+            ],
+        ));
+        let concrete = bom
+            .lines
+            .iter()
+            .find(|l| l.catalog_ref == "concrete")
+            .unwrap();
+        let a = 8.0 * 8.0 * 4.0 / 324.0;
+        let b_vol = 7.0 * 7.0 * 6.0 / 324.0;
+        assert!(
+            (concrete.quantity - (a + b_vol)).abs() < 1e-9,
+            "only the two real placed tubs' pads count"
+        );
+    }
+
+    #[test]
+    fn a_tub_without_a_slab_material_pours_no_concrete() {
+        let mut tub = tub_on(7.0, Some(7.0), "concrete", 4.0, 12.0);
+        tub.slab_material_ref = None;
+        let bom = take_off(&plan(
+            vec![
+                tub,
+                material("concrete", "Concrete", 160.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![placed("tub", ItemStatus::planned)],
+        ));
+        assert!(
+            !bom.lines.iter().any(|l| l.catalog_ref == "concrete"),
+            "no slab material, so no concrete quantity"
+        );
+    }
+
+    #[test]
+    fn a_negative_overhang_cannot_flip_the_pad_area_positive() {
+        // A 4-ft tub with a −36 in (−3 ft) overhang would shrink each side to
+        // 4 − 6 = −2 ft; the per-side floor makes that 0, not a spurious +4 ft².
+        let bom = take_off(&plan(
+            vec![
+                tub_on(4.0, Some(4.0), "concrete", 4.0, -36.0),
+                material("concrete", "Concrete", 160.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![placed("tub", ItemStatus::planned)],
+        ));
+        assert!(
+            !bom.lines.iter().any(|l| l.catalog_ref == "concrete"),
+            "the pad collapses to zero area, not a negative-times-negative pad"
+        );
     }
 
     // --- Per-area composition: an area's own `courses` (B3.1) ---

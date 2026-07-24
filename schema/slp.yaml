@@ -71,6 +71,9 @@ classes:
       - base_depth_in
       - bedding_material_ref
       - bedding_depth_in
+      - slab_material_ref
+      - slab_thickness_in
+      - slab_overhang_in
       - is_aggregate
       - image
       - tile_width_ft
@@ -106,6 +109,8 @@ classes:
       - is_virtual
       - canopy_diameter_ft
       - trunk_diameter_ft
+      - slab_thickness_in
+      - slab_overhang_in
     slot_usage:
       catalog_ref:
         required: true
@@ -414,6 +419,26 @@ slots:
     description: |-
       Thickness of the bedding layer, in inches, for a material with a
       `bedding_material_ref` (e.g. a paver's ~1 in of sand) — `yd³ = ft²·in/324`.
+  slab_material_ref:
+    description: |-
+      For a unit that sits on a poured pad (a hot tub), the id of the catalog
+      material forming its concrete slab. Its volume is costed per placed object
+      of this item as a rectangle `(width_ft + 2·overhang) × (depth_ft +
+      2·overhang)` at `slab_thickness_in`. Absent = no pad.
+  slab_thickness_in:
+    range: double
+    description: |-
+      Thickness of the concrete pad, in inches, for an item with a
+      `slab_material_ref` (a hot tub's ~4 in slab) — `yd³ = ft²·in/324`. On a
+      catalog item this is the default; on a placed object it overrides that
+      default for this particular unit. Absent = the catalog default.
+  slab_overhang_in:
+    range: double
+    description: |-
+      How far the concrete pad extends beyond the footprint edge, in inches, on
+      every side (a hot tub's ~12 in lip). On a catalog item this is the
+      default; on a placed object it overrides that default for this particular
+      unit. Absent = the catalog default.
   is_aggregate:
     range: boolean
     ifabsent: boolean(false)

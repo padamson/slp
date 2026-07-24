@@ -81,6 +81,7 @@ fn an_armed_round_item_previews_a_translucent_circle() {
         clearance_ft: None,
         category: None,
         trunk_ft: None,
+        slab_overhang_ft: None,
     };
     let html = dokime::render(move || {
         view! {
@@ -111,6 +112,7 @@ fn an_armed_rect_item_previews_a_translucent_rect() {
         clearance_ft: None,
         category: None,
         trunk_ft: None,
+        slab_overhang_ft: None,
     };
     let html = dokime::render(move || {
         view! {

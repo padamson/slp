@@ -58,7 +58,7 @@ cross-cutting machinery folded into that point in the sequence.
 | B1 | Draw a paver area by clicking corners | [B1](B1-draw-paver-area.md) | backlog |
 | B2 | See an area's ft² + material cost | [B2](B2-area-cost.md) | backlog |
 | D4 | Grill | _doc pending_ | backlog |
-| D5 | Hot tub | _doc pending_ | backlog |
+| D5 | Hot tub (surface-bound unit on a costed concrete pad) | [D5](D5-hot-tubs.md) | ✅ done (unit + water-blue + ground rule; concrete pad with configurable thickness/overhang, rendered + costed) |
 | M4–M5 | Material ingestion, catalog inspector, swap-&-compare | [M4–M5](M4-M5-material-ingestion.md) | backlog |
 | C1 | Walls / edging / steps | _doc pending_ | backlog |
 | B5 | Soldier-course border | _doc pending_ | backlog |

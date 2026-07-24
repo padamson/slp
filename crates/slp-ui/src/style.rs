@@ -102,6 +102,10 @@ pub const GRILL_STROKE: &str = "#26282b";
 pub const HOT_TUB_FILL: &str = "#6faec5";
 pub const HOT_TUB_STROKE: &str = "#3f7d96";
 
+/// A poured concrete pad (a hot tub's slab) — warm gray, under the unit.
+pub const CONCRETE_FILL: &str = "#cfccc4";
+pub const CONCRETE_STROKE: &str = "#a8a498";
+
 /// Group opacity for the placement preview ghost — faint, so it reads as "not
 /// committed yet" without needing its own status/virtual styling (the armed
 /// item's eventual look isn't known until the modifiers held at the click).

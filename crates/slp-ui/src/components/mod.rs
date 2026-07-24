@@ -142,6 +142,10 @@ pub struct Footprint {
     pub category: Option<String>,
     /// A tree's trunk diameter (ft), if any — `None` for a non-tree item.
     pub trunk_ft: Option<f64>,
+    /// A unit's concrete-pad overhang (ft) beyond the footprint edge, when the
+    /// item pours a slab (a hot tub). `Some(0.0)` = a pad flush with the
+    /// footprint; `None` = no pad. Drives the gray pad drawn under the unit.
+    pub slab_overhang_ft: Option<f64>,
 }
 
 impl Footprint {
@@ -165,6 +169,10 @@ impl Footprint {
             clearance_ft: item.clearance_ft,
             category: item.category.clone(),
             trunk_ft: item.trunk_diameter_ft,
+            slab_overhang_ft: item
+                .slab_material_ref
+                .as_ref()
+                .map(|_| item.slab_overhang_in.unwrap_or(0.0) / 12.0),
         }
     }
 }

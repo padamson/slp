@@ -648,6 +648,61 @@ fn a_hot_tub_fills_water_blue_and_must_sit_on_a_surface() {
     );
 }
 
+fn hot_tub_with_slab(id: &str, diameter: f64, thickness_in: f64, overhang_in: f64) -> CatalogItem {
+    let mut c = hot_tub_round(id, diameter);
+    c.slab_material_ref = Some("concrete".to_string());
+    c.slab_thickness_in = Some(thickness_in);
+    c.slab_overhang_in = Some(overhang_in);
+    c
+}
+
+#[test]
+fn a_hot_tub_pours_a_gray_pad_larger_than_its_footprint() {
+    // A 4 ft tub with a 12 in (1 ft) overhang at 10 px/ft → a 6×6 ft = 60 px
+    // gray pad behind the 40 px footprint.
+    let catalog = vec![hot_tub_with_slab("tub", 4.0, 4.0, 12.0)];
+    let objects = vec![Object::new("tub".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        html.contains(r#"data-testid="hot-tub-pad""#),
+        "the pad renders"
+    );
+    assert!(
+        html.contains(r##"fill="#cfccc4""##),
+        "the pad is concrete gray"
+    );
+    assert!(
+        html.contains(r#"width="60""#),
+        "a 6 ft pad = 60 px, larger than the 40 px tub"
+    );
+}
+
+#[test]
+fn a_per_object_overhang_override_widens_the_pad() {
+    // Overriding the overhang to 24 in (2 ft) grows the 4 ft tub's pad to 8×8 ft
+    // = 80 px, over the catalog's 12 in default.
+    let catalog = vec![hot_tub_with_slab("tub", 4.0, 4.0, 12.0)];
+    let mut o = Object::new("tub".to_string(), 5.0, 5.0);
+    o.slab_overhang_in = Some(24.0);
+    let objects = vec![o];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(
+        html.contains(r#"width="80""#),
+        "the per-object override → an 8 ft pad = 80 px"
+    );
+}
+
+#[test]
+fn a_unit_without_a_slab_pours_no_pad() {
+    let catalog = vec![item("chair", Some(4.0), Some(4.0))];
+    let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
+    let html =
+        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert!(!html.contains("hot-tub-pad"), "no slab material, so no pad");
+}
+
 #[test]
 fn a_hot_tub_fully_on_a_surface_is_quiet() {
     let catalog = vec![hot_tub_round("tub", 4.0)];

@@ -40,6 +40,7 @@ pub fn stories() -> Vec<Story> {
                 clearance_ft: None,
                 category: None,
                 trunk_ft: None,
+                slab_overhang_ft: None,
             };
             view! {
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" width="220">

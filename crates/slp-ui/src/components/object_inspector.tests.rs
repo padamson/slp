@@ -33,6 +33,8 @@ fn shows_metadata_status_and_reset() {
                 on_reset_rotation=Callback::new(|()| {})
                 on_canopy_diameter=Callback::new(|_| {})
                 on_trunk_diameter=Callback::new(|_| {})
+                on_slab_thickness=Callback::new(|_| {})
+                on_slab_overhang=Callback::new(|_| {})
                 on_delete=Callback::new(|()| {})
             />
         }
@@ -84,6 +86,8 @@ fn falls_back_when_the_catalog_item_is_missing() {
                 on_reset_rotation=Callback::new(|()| {})
                 on_canopy_diameter=Callback::new(|_| {})
                 on_trunk_diameter=Callback::new(|_| {})
+                on_slab_thickness=Callback::new(|_| {})
+                on_slab_overhang=Callback::new(|_| {})
                 on_delete=Callback::new(|()| {})
             />
         }
@@ -115,6 +119,8 @@ fn a_round_item_shows_its_diameter() {
                 on_reset_rotation=Callback::new(|()| {})
                 on_canopy_diameter=Callback::new(|_| {})
                 on_trunk_diameter=Callback::new(|_| {})
+                on_slab_thickness=Callback::new(|_| {})
+                on_slab_overhang=Callback::new(|_| {})
                 on_delete=Callback::new(|()| {})
             />
         }
@@ -147,6 +153,8 @@ fn a_tree_shows_canopy_and_trunk_size_inputs() {
                 on_reset_rotation=Callback::new(|()| {})
                 on_canopy_diameter=Callback::new(|_| {})
                 on_trunk_diameter=Callback::new(|_| {})
+                on_slab_thickness=Callback::new(|_| {})
+                on_slab_overhang=Callback::new(|_| {})
                 on_delete=Callback::new(|()| {})
             />
         }
@@ -176,6 +184,8 @@ fn a_non_tree_shows_no_canopy_or_trunk_inputs() {
                 on_reset_rotation=Callback::new(|()| {})
                 on_canopy_diameter=Callback::new(|_| {})
                 on_trunk_diameter=Callback::new(|_| {})
+                on_slab_thickness=Callback::new(|_| {})
+                on_slab_overhang=Callback::new(|_| {})
                 on_delete=Callback::new(|()| {})
             />
         }
@@ -199,6 +209,8 @@ fn a_trees_canopy_override_wins_over_the_catalog_footprint() {
                 on_reset_rotation=Callback::new(|()| {})
                 on_canopy_diameter=Callback::new(|_| {})
                 on_trunk_diameter=Callback::new(|_| {})
+                on_slab_thickness=Callback::new(|_| {})
+                on_slab_overhang=Callback::new(|_| {})
                 on_delete=Callback::new(|()| {})
             />
         }
@@ -206,5 +218,74 @@ fn a_trees_canopy_override_wins_over_the_catalog_footprint() {
     assert!(
         html.contains("⌀ 30 ft"),
         "the object's own canopy override, not the catalog's 20 ft default"
+    );
+}
+
+fn hot_tub() -> CatalogItem {
+    let mut c = CatalogItem::new("hot-tub".to_string());
+    c.name = Some("Hot tub".to_string());
+    c.category = Some("hot-tub".to_string());
+    c.width_ft = Some(7.0);
+    c.depth_ft = Some(7.0);
+    c.unit_price = Some(6999.0);
+    c.slab_material_ref = Some("concrete".to_string());
+    c.slab_thickness_in = Some(4.0);
+    c.slab_overhang_in = Some(12.0);
+    c
+}
+
+#[test]
+fn a_hot_tub_shows_slab_thickness_and_overhang_fields() {
+    let obj = Object::new("hot-tub".to_string(), 5.0, 5.0);
+    let html = dokime::render(move || {
+        view! {
+            <ObjectInspector
+                object=obj
+                item=Some(hot_tub())
+                corner=Corner::Nw
+                on_status=Callback::new(|_| {})
+                on_virtual=Callback::new(|_| {})
+                on_reset_rotation=Callback::new(|()| {})
+                on_canopy_diameter=Callback::new(|_| {})
+                on_trunk_diameter=Callback::new(|_| {})
+                on_slab_thickness=Callback::new(|_| {})
+                on_slab_overhang=Callback::new(|_| {})
+                on_delete=Callback::new(|()| {})
+            />
+        }
+    });
+    assert!(
+        html.contains(r#"data-testid="slab-thickness""#),
+        "the slab thickness field"
+    );
+    assert!(
+        html.contains(r#"data-testid="slab-overhang""#),
+        "the slab overhang field"
+    );
+}
+
+#[test]
+fn a_non_hot_tub_shows_no_slab_fields() {
+    let obj = Object::new("chair".to_string(), 5.0, 5.0);
+    let html = dokime::render(move || {
+        view! {
+            <ObjectInspector
+                object=obj
+                item=Some(chair())
+                corner=Corner::Nw
+                on_status=Callback::new(|_| {})
+                on_virtual=Callback::new(|_| {})
+                on_reset_rotation=Callback::new(|()| {})
+                on_canopy_diameter=Callback::new(|_| {})
+                on_trunk_diameter=Callback::new(|_| {})
+                on_slab_thickness=Callback::new(|_| {})
+                on_slab_overhang=Callback::new(|_| {})
+                on_delete=Callback::new(|()| {})
+            />
+        }
+    });
+    assert!(
+        !html.contains("slab-thickness"),
+        "a chair has no slab, so no slab fields"
     );
 }

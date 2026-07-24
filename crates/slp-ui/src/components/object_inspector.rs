@@ -43,6 +43,10 @@ pub fn ObjectInspector(
     on_canopy_diameter: Callback<f64>,
     /// Set this tree's trunk diameter, overriding its catalog default.
     on_trunk_diameter: Callback<f64>,
+    /// Set this hot tub's slab thickness (in), overriding its catalog default.
+    on_slab_thickness: Callback<f64>,
+    /// Set this hot tub's slab overhang (in), overriding its catalog default.
+    on_slab_overhang: Callback<f64>,
     /// Remove the object from the plan.
     on_delete: Callback<()>,
 ) -> impl IntoView {
@@ -56,6 +60,8 @@ pub fn ObjectInspector(
         y,
         canopy_diameter_ft,
         trunk_diameter_ft,
+        slab_thickness_in,
+        slab_overhang_in,
     } = object;
     let position = format!("({x:.1}, {y:.1}) ft");
     let rotation = format!("{:.0}°", rot.unwrap_or(0.0));
@@ -67,6 +73,9 @@ pub fn ObjectInspector(
         .unwrap_or_else(|| catalog_ref.clone());
     let category = item.as_ref().and_then(|i| i.category.clone());
     let is_tree = category.as_deref() == Some("tree");
+    // A hot tub sits on a poured concrete pad — show its slab controls only when
+    // the item actually declares one.
+    let has_slab = item.as_ref().is_some_and(|i| i.slab_material_ref.is_some());
     // A circle shows its diameter (⌀); a rectangle shows width × depth. A
     // tree's own canopy override (if set) wins over its catalog width.
     let footprint = item
@@ -93,6 +102,15 @@ pub fn ObjectInspector(
         .unwrap_or(canopy_default * DEFAULT_TRUNK_FRACTION);
     let canopy_value = canopy_diameter_ft.unwrap_or(canopy_default);
     let trunk_value = trunk_diameter_ft.unwrap_or(trunk_default);
+    // A hot tub's slab thickness / overhang, editable per-tub: the object's own
+    // override if set, else the item's catalog default, else a sensible starting
+    // value (a 4-in pad with a 12-in lip).
+    let slab_thickness_value = slab_thickness_in
+        .or_else(|| item.as_ref().and_then(|i| i.slab_thickness_in))
+        .unwrap_or(4.0);
+    let slab_overhang_value = slab_overhang_in
+        .or_else(|| item.as_ref().and_then(|i| i.slab_overhang_in))
+        .unwrap_or(12.0);
     let category_display = category.unwrap_or_else(dash);
     let price = item
         .and_then(|i| i.unit_price)
@@ -162,6 +180,29 @@ pub fn ObjectInspector(
                                 step=0.1
                                 min=0.1
                                 on_input=on_trunk_diameter
+                            />
+                        </div>
+                    }
+                })}
+            {has_slab
+                .then(|| {
+                    view! {
+                        <div class="inspector-slab">
+                            <NumberField
+                                label="Slab thickness (in)"
+                                testid="slab-thickness"
+                                value=slab_thickness_value
+                                step=1.0
+                                min=0.0
+                                on_input=on_slab_thickness
+                            />
+                            <NumberField
+                                label="Slab overhang (in)"
+                                testid="slab-overhang"
+                                value=slab_overhang_value
+                                step=1.0
+                                min=0.0
+                                on_input=on_slab_overhang
                             />
                         </div>
                     }

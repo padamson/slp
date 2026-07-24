@@ -45,10 +45,10 @@ use slp_core::{
 use super::{DEFAULT_TRUNK_FRACTION, Footprint, Transform};
 use crate::style::{
     BUSH_FILL, BUSH_FILL_OPACITY, BUSH_STROKE, CANOPY_FILL, CANOPY_FILL_OPACITY, CANOPY_STROKE,
-    CLEARANCE_INTRUDE_STROKE, CLEARANCE_STROKE, CLEARANCE_STROKE_W, DOUBLE_LINE_GAP_PX,
-    DOUBLE_LINE_STROKE_W, FIRE_PIT_FILL, FURNITURE_FILL, FURNITURE_STROKE, GRILL_FILL,
-    GRILL_STROKE, HOT_TUB_FILL, HOT_TUB_STROKE, OVERFLOW_STROKE, SELECTED_FILL, SELECTED_STROKE,
-    TRUNK_FILL, TRUNK_STROKE, furniture_style,
+    CLEARANCE_INTRUDE_STROKE, CLEARANCE_STROKE, CLEARANCE_STROKE_W, CONCRETE_FILL, CONCRETE_STROKE,
+    DOUBLE_LINE_GAP_PX, DOUBLE_LINE_STROKE_W, FIRE_PIT_FILL, FURNITURE_FILL, FURNITURE_STROKE,
+    GRILL_FILL, GRILL_STROKE, HOT_TUB_FILL, HOT_TUB_STROKE, OVERFLOW_STROKE, SELECTED_FILL,
+    SELECTED_STROKE, TRUNK_FILL, TRUNK_STROKE, furniture_style,
 };
 
 /// Rotation-handle geometry (viewBox px): gap from the footprint's north edge to
@@ -139,6 +139,11 @@ pub fn Furnishings(
                 }
                 if obj.trunk_diameter_ft.is_some() {
                     fp.trunk_ft = obj.trunk_diameter_ft;
+                }
+                // A hot tub's pad overhang can be overridden per-object, but
+                // only when its item actually pours a slab in the first place.
+                if let (Some(oh), true) = (obj.slab_overhang_in, fp.slab_overhang_ft.is_some()) {
+                    fp.slab_overhang_ft = Some(oh / 12.0);
                 }
                 (obj, fp)
             })
@@ -324,6 +329,7 @@ fn object_view(
         clearance_ft,
         category,
         trunk_ft,
+        slab_overhang_ft,
     } = fp;
     let is_tree = category.as_deref() == Some("tree");
     let is_fire_pit = category.as_deref() == Some("fire-pit");
@@ -609,6 +615,27 @@ fn object_view(
             .into_any()
         }
     });
+    // The concrete pad (a hot tub's poured slab): a gray rectangle the footprint
+    // grown by the overhang on every side, drawn *first* so it sits beneath the
+    // unit. Always a rectangle — even a round tub pours a rectangular pad. Inside
+    // the rotated group, so it turns with a square tub (a round tub never rotates).
+    let pad = slab_overhang_ft.map(|oh_ft| {
+        let grow_px = oh_ft * t.px_ft;
+        let (pw, ph) = (w_px + 2.0 * grow_px, d_px + 2.0 * grow_px);
+        view! {
+            <rect
+                class="hot-tub-pad"
+                data-testid="hot-tub-pad"
+                x=-pw / 2.0
+                y=-ph / 2.0
+                width=pw
+                height=ph
+                fill=CONCRETE_FILL
+                stroke=CONCRETE_STROKE
+                stroke-width="1"
+            />
+        }
+    });
     view! {
         <g
             class=class
@@ -619,6 +646,7 @@ fn object_view(
                 }
             }
         >
+            {pad}
             {footprint}
             {inner_outline}
             {trunk}

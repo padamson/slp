@@ -1924,6 +1924,26 @@ fn planner_body() -> impl IntoView {
                                             });
                                     }
                                 })
+                                on_slab_thickness=Callback::new(move |t| {
+                                    if let Some(i) = selected.get_untracked() {
+                                        objects
+                                            .update(|v| {
+                                                if let Some(o) = v.get_mut(i) {
+                                                    o.slab_thickness_in = Some(t);
+                                                }
+                                            });
+                                    }
+                                })
+                                on_slab_overhang=Callback::new(move |o_in| {
+                                    if let Some(i) = selected.get_untracked() {
+                                        objects
+                                            .update(|v| {
+                                                if let Some(o) = v.get_mut(i) {
+                                                    o.slab_overhang_in = Some(o_in);
+                                                }
+                                            });
+                                    }
+                                })
                                 on_delete=delete_selected
                             />
                         },
@@ -2608,18 +2628,30 @@ fn starter_catalog() -> Vec<CatalogItem> {
             grill
         },
         // Hot tubs: a heavy round or square unit that belongs on a deck/paver
-        // (the shared containment fit-check flags one that's off a surface).
-        round(
-            "hot-tub-round",
-            "Hot tub (round)",
-            "hot-tub",
-            7.0,
-            3.0,
-            6999.0,
-        ),
+        // (the shared containment fit-check flags one that's off a surface),
+        // poured on a 4 in concrete pad with a 12 in lip by default — the
+        // thickness/overhang adjustable per placed tub. `concrete` (below) is
+        // the per-yd³ material its slab is costed from.
+        {
+            let mut tub = round(
+                "hot-tub-round",
+                "Hot tub (round)",
+                "hot-tub",
+                7.0,
+                3.0,
+                6999.0,
+            );
+            tub.slab_material_ref = Some("concrete".to_string());
+            tub.slab_thickness_in = Some(4.0);
+            tub.slab_overhang_in = Some(12.0);
+            tub
+        },
         {
             let mut tub = furniture("hot-tub-square", "Hot tub (square)", 7.0, 7.0, 3.0, 7499.0);
             tub.category = Some("hot-tub".to_string());
+            tub.slab_material_ref = Some("concrete".to_string());
+            tub.slab_thickness_in = Some(4.0);
+            tub.slab_overhang_in = Some(12.0);
             tub
         },
         // Area materials, costed by measure rather than per item: mulch per
@@ -2670,6 +2702,16 @@ fn starter_catalog() -> Vec<CatalogItem> {
             c.is_aggregate = Some(true);
             c
         },
+        // Concrete for a hot tub's poured pad, per yd³ (typical ready-mix
+        // delivered). Its volume follows every placed hot tub's slab
+        // automatically (see `take_off`), so it lists one line for all pads.
+        material(
+            "concrete",
+            "Concrete",
+            "concrete",
+            PriceUnit::per_cubic_yard,
+            160.0,
+        ),
         // An edging stone (per linear ft) so an area can be edged before any
         // product ingestion; `width_ft` is a piece's laid width, seeding a new
         // border ring's default width.

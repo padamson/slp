@@ -11,7 +11,7 @@
 mod common;
 
 use anyhow::{Context, Result};
-use common::{dist_dir, draw_central_deck, measure_ppf, place_object, serve};
+use common::{click_ft, dist_dir, draw_central_deck, measure_ppf, place_object, serve};
 use playwright_rs::expect;
 use playwright_rs::protocol::Playwright;
 
@@ -113,6 +113,84 @@ async fn a_hot_tub_is_water_blue_and_flags_when_off_a_surface() -> Result<()> {
         .to_have_count(1)
         .await
         .context("a hot tub off a surface flags")?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_hot_tub_pours_a_concrete_pad_costed_and_widened_from_the_inspector() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
+        return Ok(());
+    }
+
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    let yard = page.locator("[data-testid='yard']");
+    let ppf = measure_ppf(&yard).await?;
+
+    // A square hot tub pours a concrete pad — a gray rect beneath it.
+    place_object(&page, &yard, ppf, "hot-tub-square", 20.0, 15.0).await?;
+    let pad = page.locator("[data-testid='hot-tub-pad']");
+    expect(pad.clone())
+        .to_have_count(1)
+        .await
+        .context("the concrete pad renders beneath the tub")?;
+
+    // The pad is costed by volume: the estimate lists a Concrete line.
+    expect(page.locator("[data-testid='estimate'] .estimate-name:has-text('Concrete')"))
+        .to_have_count(1)
+        .await
+        .context("the estimate has a concrete line for the pad")?;
+
+    let width_before: f64 = pad
+        .get_attribute("width")
+        .await?
+        .context("pad width")?
+        .parse()
+        .context("pad width is numeric")?;
+
+    // Select the tub and widen its slab overhang — the pad grows.
+    click_ft(&yard, ppf, 20.0, 15.0).await?;
+    let overhang = page.locator("[data-testid='slab-overhang']");
+    expect(overhang.clone())
+        .to_have_count(1)
+        .await
+        .context("the slab overhang field shows for a hot tub")?;
+    overhang.fill("36", None).await?; // 36 in = 3 ft lip, up from the 12 in default
+
+    // The pad's rendered width grew with the wider overhang.
+    let mut grew = false;
+    for _ in 0..50 {
+        let now: f64 = page
+            .locator("[data-testid='hot-tub-pad']")
+            .get_attribute("width")
+            .await
+            .ok()
+            .flatten()
+            .and_then(|w| w.parse().ok())
+            .unwrap_or(width_before);
+        if now > width_before + 1.0 {
+            grew = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    assert!(
+        grew,
+        "widening the overhang from 12 in to 36 in grows the concrete pad"
+    );
 
     browser.close().await.context("close browser")?;
     Ok(())
