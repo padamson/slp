@@ -11,8 +11,8 @@
 //! The fake keeps openable-file *content* and the permission state in page JS,
 //! which a full reload clears (it survives IndexedDB, not `localStorage`). The
 //! two startup-reopen tests reload and then have the app read the file, so they
-//! re-establish that state with a post-shim init script (`reseed_after_reload`)
-//! that runs before the app mounts.
+//! re-establish that state with `fs.seed_on_navigation(...)`, which runs before
+//! the app mounts on the next navigation.
 //!
 //! Build the app first, then run:
 //!   (cd crates/slp-app && trunk build)
@@ -40,21 +40,6 @@ async fn boot(page: &Page, addr: &std::net::SocketAddr) -> Result<()> {
         .await
         .context("navigate to app")?;
     Ok(())
-}
-
-/// An init script that re-establishes the fake's in-page state that a full
-/// reload clears: the openable content for `name` (so the app's startup reopen
-/// can read it) and the permission the rehydrated handle reports. Registered
-/// before `reload()` so it runs before the app mounts and calls `reopen()`;
-/// `btoa` matches the base64 the fake's `setOpenFile` stores.
-fn reseed_after_reload(name: &str, plan: &str, perm: &str) -> String {
-    format!(
-        "(() => {{ const fs = window.__pwRsFakeFs; if (!fs) return; \
-         fs.setOpenFile({name}, btoa({plan})); fs.setPermission({perm}); }})()",
-        name = js_str(name),
-        plan = js_str(plan),
-        perm = js_str(perm),
-    )
 }
 
 #[tokio::test]
@@ -182,7 +167,8 @@ async fn reopens_the_last_file_silently_on_startup() -> Result<()> {
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
     let page = common::new_page(&browser).await?;
-    page.fake_file_system()
+    let fs = page
+        .fake_file_system()
         .await
         .context("install the fake File System Access API")?;
     boot(&page, &addr).await?;
@@ -206,15 +192,12 @@ async fn reopens_the_last_file_silently_on_startup() -> Result<()> {
         .await
         .context("diverge the autosave to 99")?;
 
-    // The handle survives IndexedDB, but the file content lives in page JS —
-    // re-seed it (permission still granted) so the startup reopen can read it.
-    page.add_init_script(&reseed_after_reload(
-        SAVED_NAME,
-        &plan_json(42.5),
-        "granted",
-    ))
-    .await
-    .context("re-seed the file content for the reload")?;
+    // The handle survives IndexedDB, but the fake's file content lives in page
+    // JS (cleared by reload) — re-seed it (permission still granted) so the
+    // startup reopen reads it before the app mounts.
+    fs.seed_on_navigation(SAVED_NAME, plan_json(42.5).as_bytes(), "granted")
+        .await
+        .context("re-seed the file content for the reload")?;
     page.reload(None).await.context("reload")?;
 
     expect(page.locator("[data-testid='yard-width']"))
@@ -244,7 +227,8 @@ async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
     let page = common::new_page(&browser).await?;
-    page.fake_file_system()
+    let fs = page
+        .fake_file_system()
         .await
         .context("install the fake File System Access API")?;
     boot(&page, &addr).await?;
@@ -267,7 +251,7 @@ async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
     // On reload, re-seed the file content and lapse the read permission — the
     // fake's permission resets to granted otherwise, so a silent load would hide
     // the Reopen affordance we're asserting.
-    page.add_init_script(&reseed_after_reload(SAVED_NAME, &plan_json(42.5), "prompt"))
+    fs.seed_on_navigation(SAVED_NAME, plan_json(42.5).as_bytes(), "prompt")
         .await
         .context("re-seed content + lapsed permission for the reload")?;
     page.reload(None).await.context("reload")?;
@@ -295,20 +279,4 @@ async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
 
     browser.close().await.context("close browser")?;
     Ok(())
-}
-
-/// Minimal JSON string literal encoder for embedding a value inside a JS
-/// expression (escapes `"` and `\`).
-fn js_str(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('"');
-    for ch in s.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            _ => out.push(ch),
-        }
-    }
-    out.push('"');
-    out
 }
