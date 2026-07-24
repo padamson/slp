@@ -2,13 +2,17 @@
 //! Save, Open, and reopen-the-last-file-on-startup (silent when permission
 //! stands, one-click "Reopen" otherwise).
 //!
-//! The native pickers can't be clicked, so we install a deterministic fake
-//! `showSaveFilePicker`/`showOpenFilePicker` + a minimal fake IndexedDB via
-//! `add_init_script` before the app boots (the standard Playwright FSA
-//! pattern). The fake backs files + the remembered handle name in
-//! `localStorage` so they survive a reload, and returns *live* handles (methods
-//! intact) — the app's real `window.slpFs` + `fs_access` code runs unchanged
-//! against it.
+//! The native pickers can't be clicked, so we install playwright-rs's opt-in
+//! `page.fake_file_system()` before the app boots: it fakes
+//! `showSaveFilePicker`/`showOpenFilePicker` and makes a persisted handle
+//! survive IndexedDB, so the app's real `window.slpFs` + `fs_access` code runs
+//! unchanged against it.
+//!
+//! The fake keeps openable-file *content* and the permission state in page JS,
+//! which a full reload clears (it survives IndexedDB, not `localStorage`). The
+//! two startup-reopen tests reload and then have the app read the file, so they
+//! re-establish that state with a post-shim init script (`reseed_after_reload`)
+//! that runs before the app mounts.
 //!
 //! Build the app first, then run:
 //!   (cd crates/slp-app && trunk build)
@@ -23,58 +27,8 @@ use common::{dist_dir, serve};
 use playwright_rs::expect;
 use playwright_rs::protocol::{Page, Playwright};
 
-/// A fake File System Access API + IndexedDB, installed at document start.
-const FAKE_FS: &str = r#"
-(() => {
-  const FK = '__fake_files', HK = '__fake_handle', PK = '__fake_perm', OK = '__fake_open';
-  const files = () => JSON.parse(localStorage.getItem(FK) || '{}');
-  const content = (n) => { const c = files()[n]; return c == null ? null : c; };
-  const write = (n, c) => { const f = files(); f[n] = c; localStorage.setItem(FK, JSON.stringify(f)); };
-
-  const makeHandle = (name) => ({
-    __fakeHandle: true, kind: 'file', name,
-    async createWritable() {
-      let buf = '';
-      return { async write(t) { buf += t; }, async close() { write(name, buf); } };
-    },
-    async getFile() { const c = content(name); return { text: async () => (c == null ? '' : c) }; },
-    async queryPermission() { return localStorage.getItem(PK) || 'granted'; },
-    async requestPermission() { localStorage.setItem(PK, 'granted'); return 'granted'; },
-  });
-
-  window.__saveCalls = 0;
-  window.showSaveFilePicker = async (opts) => {
-    window.__saveCalls++;
-    return makeHandle((opts && opts.suggestedName) || 'untitled.slp.json');
-  };
-  window.showOpenFilePicker = async () => [makeHandle(localStorage.getItem(OK) || 'opened.slp.json')];
-
-  const fire = (req, setup) => Promise.resolve().then(() => {
-    if (setup) setup(req);
-    if (req.onsuccess) req.onsuccess({ target: req });
-  });
-  // window.indexedDB is a read-only accessor — must be replaced via
-  // defineProperty, not assignment (which silently no-ops and leaves the real
-  // IndexedDB, whose structuredClone rejects a method-bearing fake handle).
-  Object.defineProperty(window, 'indexedDB', {
-    configurable: true,
-    value: {
-      open() {
-        const req = {};
-        const store = {
-          put(v) { localStorage.setItem(HK, v.name); const r = {}; fire(r); return r; },
-          get() { const r = {}; fire(r, (x) => { const n = localStorage.getItem(HK); x.result = n ? makeHandle(n) : undefined; }); return r; },
-        };
-        const tx = { objectStore: () => store };
-        Object.defineProperty(tx, 'oncomplete', { set(f) { Promise.resolve().then(() => f && f()); } });
-        const db = { createObjectStore() { return store; }, close() {}, transaction: () => tx };
-        fire(req, (x) => { x.result = db; });
-        return req;
-      },
-    },
-  });
-})();
-"#;
+/// The name the app's Save As suggests (and thus the fake handle's name).
+const SAVED_NAME: &str = "landscape-plan.slp.json";
 
 /// A serialized plan with a distinctive yard width, for seeding an Open target.
 fn plan_json(width: f64) -> String {
@@ -82,13 +36,25 @@ fn plan_json(width: f64) -> String {
 }
 
 async fn boot(page: &Page, addr: &std::net::SocketAddr) -> Result<()> {
-    page.add_init_script(FAKE_FS)
-        .await
-        .context("install the fake File System Access API")?;
     page.goto(&format!("http://{addr}"), None)
         .await
         .context("navigate to app")?;
     Ok(())
+}
+
+/// An init script that re-establishes the fake's in-page state that a full
+/// reload clears: the openable content for `name` (so the app's startup reopen
+/// can read it) and the permission the rehydrated handle reports. Registered
+/// before `reload()` so it runs before the app mounts and calls `reopen()`;
+/// `btoa` matches the base64 the fake's `setOpenFile` stores.
+fn reseed_after_reload(name: &str, plan: &str, perm: &str) -> String {
+    format!(
+        "(() => {{ const fs = window.__pwRsFakeFs; if (!fs) return; \
+         fs.setOpenFile({name}, btoa({plan})); fs.setPermission({perm}); }})()",
+        name = js_str(name),
+        plan = js_str(plan),
+        perm = js_str(perm),
+    )
 }
 
 #[tokio::test]
@@ -105,6 +71,20 @@ async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Re
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
     let page = common::new_page(&browser).await?;
+    let fs = page
+        .fake_file_system()
+        .await
+        .context("install the fake File System Access API")?;
+    // Count save pickers so an in-place Save that wrongly prompts is caught (the
+    // fake returns a handle silently, so a stray picker wouldn't hang). Wraps
+    // the fake's `showSaveFilePicker`, so it must be registered after it.
+    page.add_init_script(
+        "(() => { let n = 0; const orig = window.showSaveFilePicker; \
+         window.showSaveFilePicker = async (o) => { n++; return orig(o); }; \
+         window.__saveCalls = () => n; })()",
+    )
+    .await
+    .context("install the save-picker counter")?;
     boot(&page, &addr).await?;
 
     // Save As → a named file (default stem, since the plan is unnamed).
@@ -117,15 +97,17 @@ async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Re
         .await
         .context("Save As")?;
     expect(page.locator("[data-testid='current-file']"))
-        .to_have_text("landscape-plan.slp.json")
+        .to_have_text(SAVED_NAME)
         .await
         .context("the current file name shows")?;
-    let saved = page
-        .evaluate_value(
-            "JSON.parse(localStorage.getItem('__fake_files'))['landscape-plan.slp.json']",
-        )
+    let saved = fs
+        .last_saved_bytes()
         .await
-        .context("read the written file")?;
+        .context("read the written file")?
+        .map(String::from_utf8)
+        .transpose()
+        .context("saved bytes are utf-8")?
+        .unwrap_or_default();
     assert!(saved.contains("42.5"), "Save As wrote the plan: {saved}");
 
     // In-place Save reuses the handle — no second picker, same file updated.
@@ -139,11 +121,12 @@ async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Re
         .context("Save (in place)")?;
     // Poll the written file until it reflects the new width.
     for _ in 0..50 {
-        let now = page
-            .evaluate_value(
-                "JSON.parse(localStorage.getItem('__fake_files'))['landscape-plan.slp.json']",
-            )
+        let now = fs
+            .last_saved_bytes()
             .await
+            .ok()
+            .flatten()
+            .and_then(|b| String::from_utf8(b).ok())
             .unwrap_or_default();
         if now.contains("50") && !now.contains("42.5") {
             break;
@@ -151,23 +134,23 @@ async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Re
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     let calls = page
-        .evaluate_value("String(window.__saveCalls)")
+        .evaluate_value("String(window.__saveCalls())")
         .await
         .context("read save-picker call count")?;
     assert_eq!(
         calls, "1",
         "Save reused the handle (only Save As showed a picker)"
     );
+    assert_eq!(
+        fs.last_saved_name().await.context("last saved name")?,
+        Some(SAVED_NAME.to_string()),
+        "the in-place Save wrote to the same file"
+    );
 
     // Open a *different* seeded file → its plan loads.
-    page.evaluate_value(&format!(
-        "(() => {{ const f = JSON.parse(localStorage.getItem('__fake_files')||'{{}}'); \
-         f['other.slp.json'] = {plan}; localStorage.setItem('__fake_files', JSON.stringify(f)); \
-         localStorage.setItem('__fake_open','other.slp.json'); return 'ok'; }})()",
-        plan = serde_json_str(&plan_json(77.0)),
-    ))
-    .await
-    .context("seed an Open target")?;
+    fs.set_open_file("other.slp.json", plan_json(77.0).as_bytes())
+        .await
+        .context("seed an Open target")?;
     page.locator("[data-testid='open-plan']")
         .click(None)
         .await
@@ -199,6 +182,9 @@ async fn reopens_the_last_file_silently_on_startup() -> Result<()> {
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
     let page = common::new_page(&browser).await?;
+    page.fake_file_system()
+        .await
+        .context("install the fake File System Access API")?;
     boot(&page, &addr).await?;
 
     // Save As the plan at width 42.5 (file + remembered handle), then change the
@@ -213,13 +199,22 @@ async fn reopens_the_last_file_silently_on_startup() -> Result<()> {
         .await
         .context("Save As")?;
     expect(page.locator("[data-testid='current-file']"))
-        .to_have_text("landscape-plan.slp.json")
+        .to_have_text(SAVED_NAME)
         .await?;
     page.locator("[data-testid='yard-width']")
         .fill("99", None)
         .await
         .context("diverge the autosave to 99")?;
 
+    // The handle survives IndexedDB, but the file content lives in page JS —
+    // re-seed it (permission still granted) so the startup reopen can read it.
+    page.add_init_script(&reseed_after_reload(
+        SAVED_NAME,
+        &plan_json(42.5),
+        "granted",
+    ))
+    .await
+    .context("re-seed the file content for the reload")?;
     page.reload(None).await.context("reload")?;
 
     expect(page.locator("[data-testid='yard-width']"))
@@ -227,7 +222,7 @@ async fn reopens_the_last_file_silently_on_startup() -> Result<()> {
         .await
         .context("startup silently reopened the file (overriding the 99 autosave)")?;
     expect(page.locator("[data-testid='current-file']"))
-        .to_have_text("landscape-plan.slp.json")
+        .to_have_text(SAVED_NAME)
         .await
         .context("the reopened file is current")?;
 
@@ -249,6 +244,9 @@ async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
     let page = common::new_page(&browser).await?;
+    page.fake_file_system()
+        .await
+        .context("install the fake File System Access API")?;
     boot(&page, &addr).await?;
 
     page.locator("[data-testid='yard-width']")
@@ -259,16 +257,19 @@ async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
         .await
         .context("Save As")?;
     expect(page.locator("[data-testid='current-file']"))
-        .to_have_text("landscape-plan.slp.json")
+        .to_have_text(SAVED_NAME)
         .await?;
-    // Permission lapses; diverge the autosave so a silent load would be visible.
-    page.evaluate_value("(() => { localStorage.setItem('__fake_perm','prompt'); return 'ok'; })()")
-        .await
-        .context("lapse the read permission")?;
     page.locator("[data-testid='yard-width']")
         .fill("99", None)
-        .await?;
+        .await
+        .context("diverge the autosave to 99")?;
 
+    // On reload, re-seed the file content and lapse the read permission — the
+    // fake's permission resets to granted otherwise, so a silent load would hide
+    // the Reopen affordance we're asserting.
+    page.add_init_script(&reseed_after_reload(SAVED_NAME, &plan_json(42.5), "prompt"))
+        .await
+        .context("re-seed content + lapsed permission for the reload")?;
     page.reload(None).await.context("reload")?;
 
     // No silent load: the plan stays at the autosave's 99, and a Reopen chip
@@ -296,9 +297,9 @@ async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
     Ok(())
 }
 
-/// Minimal JSON string literal encoder for embedding one JSON doc inside a JS
+/// Minimal JSON string literal encoder for embedding a value inside a JS
 /// expression (escapes `"` and `\`).
-fn serde_json_str(s: &str) -> String {
+fn js_str(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
     for ch in s.chars() {
