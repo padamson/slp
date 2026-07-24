@@ -27,6 +27,7 @@ fn square(elevation: f64) -> Shape {
         curves: Vec::new(),
         material_ref: None,
         depth_in: None,
+        pattern: None,
         courses: Vec::new(),
         borders: Vec::new(),
     }
@@ -262,6 +263,7 @@ fn skips_a_degenerate_shape_with_too_few_corners() {
         curves: Vec::new(),
         material_ref: None,
         depth_in: None,
+        pattern: None,
         courses: Vec::new(),
         borders: Vec::new(),
     };
@@ -577,6 +579,7 @@ fn ell(elevation: f64) -> Shape {
         curves: Vec::new(),
         material_ref: None,
         depth_in: None,
+        pattern: None,
         courses: Vec::new(),
         borders: Vec::new(),
     }

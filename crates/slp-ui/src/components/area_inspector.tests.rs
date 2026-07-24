@@ -243,3 +243,67 @@ fn the_corner_is_exposed_for_positioning() {
     });
     assert!(html.contains(r#"data-corner="sw""#));
 }
+
+#[test]
+fn a_material_with_laying_patterns_offers_the_pattern_select() {
+    // A paver area whose material carries patterns shows the Pattern select
+    // ("—" + one option per pattern); the chosen one's diagram renders as a
+    // thumbnail. Without options the row is absent entirely.
+    let opts = vec![
+        (
+            "Herringbone".to_string(),
+            Some("data:image/png;base64,DIAG".to_string()),
+        ),
+        ("Linear".to_string(), None),
+    ];
+    let html = dokime::render(move || {
+        let opts = opts.clone();
+        view! {
+            <AreaInspector
+                title="Pavers".to_string()
+                category=Some("paver".to_string())
+                area_ft2=80.0
+                elevation=0.0
+                depth=0.0
+                corner=Corner::Ne
+                on_elevation=noop_f64()
+                on_depth=noop_f64()
+                on_delete=noop()
+                pattern_options=opts
+                pattern=Some("Herringbone".to_string())
+            />
+        }
+    });
+    assert!(
+        html.contains(r#"data-testid="area-pattern""#),
+        "the pattern select renders"
+    );
+    assert!(html.contains("Herringbone") && html.contains("Linear"));
+    assert!(
+        html.contains(r#"value="Herringbone" selected"#),
+        "the chosen pattern is selected: {html}"
+    );
+    assert!(
+        html.contains(r#"data-testid="area-pattern-diagram""#),
+        "the chosen pattern's diagram shows"
+    );
+    assert!(html.contains("data:image/png;base64,DIAG"));
+
+    // No patterns on the material → no Pattern row.
+    let plain = dokime::render(move || {
+        view! {
+            <AreaInspector
+                title="Pavers".to_string()
+                category=Some("paver".to_string())
+                area_ft2=80.0
+                elevation=0.0
+                depth=0.0
+                corner=Corner::Ne
+                on_elevation=noop_f64()
+                on_depth=noop_f64()
+                on_delete=noop()
+            />
+        }
+    });
+    assert_eq!(dokime::count(&plain, r#"data-testid="area-pattern""#), 0);
+}

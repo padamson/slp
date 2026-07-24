@@ -22,6 +22,14 @@ type SizeRow = (
     Option<String>,
 );
 
+/// Which cropped image the crop editor is currently adjusting: a color's
+/// swatch or a laying pattern's diagram (both are boxes on a screenshot).
+#[derive(Clone, Copy, PartialEq)]
+enum EditTarget {
+    Color(usize),
+    Pattern(usize),
+}
+
 #[allow(clippy::too_many_lines)]
 #[component]
 pub fn IngestDraft(
@@ -61,7 +69,23 @@ pub fn IngestDraft(
             .map(|c| c.bbox)
             .collect::<Vec<Option<BBox>>>(),
     );
-    let editing = RwSignal::new(None::<usize>);
+    // Laying patterns: names + reactive diagram/bbox, mirroring colors.
+    let patterns: Vec<String> = product.patterns.iter().map(|p| p.name.clone()).collect();
+    let pattern_diagram = RwSignal::new(
+        product
+            .patterns
+            .iter()
+            .map(|p| p.diagram.clone())
+            .collect::<Vec<_>>(),
+    );
+    let pattern_bbox = RwSignal::new(
+        product
+            .patterns
+            .iter()
+            .map(|p| p.bbox)
+            .collect::<Vec<Option<BBox>>>(),
+    );
+    let editing = RwSignal::new(None::<EditTarget>);
     let sizes: Vec<SizeRow> = product
         .sizes
         .iter()
@@ -78,9 +102,12 @@ pub fn IngestDraft(
         .collect();
     let has_colors = !colors.is_empty();
     let has_sizes = !sizes.is_empty();
-    // The extracted price basis, editable here before adding.
-    let init_pu: PriceUnit = product.price_unit.map_or(
-        PriceUnit::per_item,
+    // The extracted price basis, editable here before adding. When the page
+    // showed none (the manufacturer norm), default from the category — a slab
+    // must land per-ft², or it becomes a per-item object hidden from the Area
+    // tool's material picker.
+    let init_pu: PriceUnit = product.price_unit.map_or_else(
+        || crate::vision::default_price_unit(product.category.as_deref()),
         super::super::vision::PriceUnitHint::to_price_unit,
     );
 
@@ -92,6 +119,9 @@ pub fn IngestDraft(
             .map(|(_, a, _, _, _, _)| *a)
             .collect::<Vec<bool>>(),
     );
+    // Patterns all start ticked — they don't multiply items, they just ride
+    // every approved combo (untick one the docs show but you'd never lay).
+    let pattern_checks = RwSignal::new(vec![true; patterns.len()]);
     let category = RwSignal::new(product.category.clone().unwrap_or_default());
     let price = RwSignal::new(0.0_f64);
     let price_unit = RwSignal::new(init_pu);
@@ -127,16 +157,26 @@ pub fn IngestDraft(
         if (has_colors && cols.is_empty()) || (has_sizes && szs.is_empty()) {
             return;
         }
+        let pats: Vec<usize> = pattern_checks
+            .get()
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &b)| b.then_some(i))
+            .collect();
         let unit_price = (price.get() > 0.0).then(|| price.get());
         let pu = price_unit.get();
         let swatches = color_swatch.get();
+        let diagrams = pattern_diagram.get();
         let items = product.with_value(|p| {
-            // Apply the latest (possibly re-cropped) swatches to the colors.
+            // Apply the latest (possibly re-cropped) swatches and diagrams.
             let mut p = p.clone();
             for (i, c) in p.colors.iter_mut().enumerate() {
                 c.swatch = swatches.get(i).cloned().flatten();
             }
-            to_catalog_items(&p, &cols, &szs, &category.get(), unit_price, &pu)
+            for (i, pat) in p.patterns.iter_mut().enumerate() {
+                pat.diagram = diagrams.get(i).cloned().flatten();
+            }
+            to_catalog_items(&p, &cols, &szs, &pats, &category.get(), unit_price, &pu)
         });
         on_add.run(items);
     };
@@ -178,7 +218,7 @@ pub fn IngestDraft(
                                         class="ingest-swatch-btn"
                                         data-testid=format!("ingest-color-swatch-{i}")
                                         title="Adjust crop"
-                                        on:click=move |_| editing.set(Some(i))
+                                        on:click=move |_| editing.set(Some(EditTarget::Color(i)))
                                     >
                                         <img class="ingest-swatch" src=s alt="" />
                                     </button>
@@ -228,6 +268,59 @@ pub fn IngestDraft(
         })
         .collect::<Vec<_>>();
 
+    // Laying-pattern rows: a checkbox + the cropped diagram thumbnail
+    // (click it to adjust the crop, like a color swatch).
+    let pattern_rows = patterns
+        .into_iter()
+        .enumerate()
+        .map(|(i, label)| {
+            view! {
+                <div class="ingest-check">
+                    <label class="ingest-check-label">
+                        <input
+                            type="checkbox"
+                            data-testid=format!("ingest-pattern-{i}")
+                            prop:checked=move || {
+                                pattern_checks.get().get(i).copied().unwrap_or(false)
+                            }
+                            on:change=move |_| {
+                                pattern_checks
+                                    .update(|v| {
+                                        if let Some(b) = v.get_mut(i) {
+                                            *b = !*b;
+                                        }
+                                    });
+                            }
+                        />
+                        {label}
+                    </label>
+                    {move || {
+                        pattern_diagram
+                            .get()
+                            .get(i)
+                            .cloned()
+                            .flatten()
+                            .map(|d| {
+                                view! {
+                                    <button
+                                        type="button"
+                                        class="ingest-swatch-btn"
+                                        data-testid=format!("ingest-pattern-diagram-{i}")
+                                        title="Adjust crop"
+                                        on:click=move |_| {
+                                            editing.set(Some(EditTarget::Pattern(i)));
+                                        }
+                                    >
+                                        <img class="ingest-swatch" src=d alt="" />
+                                    </button>
+                                }
+                            })
+                    }}
+                </div>
+            }
+        })
+        .collect::<Vec<_>>();
+
     view! {
         <div class="ingest-draft" data-testid="ingest-draft">
             <h4 class="ingest-draft-name">{name}</h4>
@@ -271,6 +364,15 @@ pub fn IngestDraft(
                         </div>
                     }
                 })}
+            {(!pattern_rows.is_empty())
+                .then(|| {
+                    view! {
+                        <div class="ingest-draft-group">
+                            <span class="ingest-draft-label">"Laying patterns"</span>
+                            <div class="ingest-checks">{pattern_rows}</div>
+                        </div>
+                    }
+                })}
             <div class="ingest-draft-actions">
                 <button
                     class="ingest-approve"
@@ -288,10 +390,13 @@ pub fn IngestDraft(
                     "Discard"
                 </button>
             </div>
-            // The crop editor for the color currently being adjusted (B5).
+            // The crop editor for the swatch/diagram being adjusted.
             {move || {
-                let i = editing.get()?;
-                let bbox = color_bbox.get().get(i).copied().flatten()?;
+                let target = editing.get()?;
+                let bbox = match target {
+                    EditTarget::Color(i) => color_bbox.get().get(i).copied().flatten()?,
+                    EditTarget::Pattern(i) => pattern_bbox.get().get(i).copied().flatten()?,
+                };
                 // Adjust the crop against the screenshot this box is on (a
                 // product spans several; fall back to the last if out of range).
                 let shots = screenshots.get();
@@ -301,21 +406,27 @@ pub fn IngestDraft(
                         <CropEditor
                             screenshot=shot
                             bbox=bbox
-                            on_apply=Callback::new(move |(swatch, b): (Option<String>, BBox)| {
-                                if let Some(sw) = swatch {
-                                    color_swatch
-                                        .update(|v| {
-                                            if let Some(s) = v.get_mut(i) {
-                                                *s = Some(sw);
-                                            }
-                                        });
+                            on_apply=Callback::new(move |(cropped, b): (Option<String>, BBox)| {
+                                let set_img = |v: &mut Vec<Option<String>>, i: usize| {
+                                    if let (Some(s), Some(c)) = (v.get_mut(i), cropped.clone()) {
+                                        *s = Some(c);
+                                    }
+                                };
+                                let set_box = |v: &mut Vec<Option<BBox>>, i: usize| {
+                                    if let Some(bx) = v.get_mut(i) {
+                                        *bx = Some(b);
+                                    }
+                                };
+                                match target {
+                                    EditTarget::Color(i) => {
+                                        color_swatch.update(|v| set_img(v, i));
+                                        color_bbox.update(|v| set_box(v, i));
+                                    }
+                                    EditTarget::Pattern(i) => {
+                                        pattern_diagram.update(|v| set_img(v, i));
+                                        pattern_bbox.update(|v| set_box(v, i));
+                                    }
                                 }
-                                color_bbox
-                                    .update(|v| {
-                                        if let Some(bx) = v.get_mut(i) {
-                                            *bx = Some(b);
-                                        }
-                                    });
                                 editing.set(None);
                             })
                             on_close=Callback::new(move |()| editing.set(None))

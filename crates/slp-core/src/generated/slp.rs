@@ -202,6 +202,11 @@ pub struct CatalogItem {
     /// Human-readable name for this plan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// The laying patterns this paver/slab format supports, as published in the
+    /// product docs — each a `{name, diagram}`. Empty = none captured; a drawn
+    /// area made of this material may pick one by name (`pattern`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub patterns: Vec<LayingPattern>,
     /// What `unit_price` is charged per — per item (objects) or per measured
     /// quantity of a material (per ft² of pavers, per yd³ of mulch/gravel at a
     /// bed's depth, per linear ft of edging). Defaults to per item.
@@ -270,6 +275,7 @@ impl CatalogItem {
             is_aggregate: None,
             license: None,
             name: None,
+            patterns: Vec::new(),
             price_unit: PriceUnit::per_item,
             shape: FootprintShape::rectangle,
             source: None,
@@ -312,6 +318,13 @@ pub struct Circle {
     /// geometry with no cost.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub material_ref: Option<String>,
+    /// The chosen **laying pattern** for this drawn area — the `name` of one of
+    /// its surface material's `patterns` — recording which layout the piece mix
+    /// will be ordered for. Absent = no pattern chosen (or the material has
+    /// none). Purely a purchase note for now: the field renders its swatch
+    /// tiling regardless of the chosen pattern.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pattern: Option<String>,
     /// A circle's radius, in feet.
     pub radius_ft: f64,
 }
@@ -325,6 +338,7 @@ impl Circle {
             depth_in: None,
             elevation,
             material_ref: None,
+            pattern: None,
             radius_ft,
         }
     }
@@ -465,6 +479,33 @@ pub struct House {
 }
 
 fn default_house_structure_status() -> ItemStatus { ItemStatus::existing }
+
+/// One **laying pattern** a paver/slab format supports — herringbone,
+/// parquet, linear, random … — as published in the product's documentation:
+/// its name plus an optional diagram thumbnail (a `data:` URI cropped from
+/// the ingested screenshot). Held format-level on the catalog item, so every
+/// color combo of a product carries the same list; a drawn area picks one by
+/// name (`Shape.pattern`/`Circle.pattern`) to record the layout choice the
+/// piece mix will be ordered for. Pattern-accurate field rendering is a
+/// later concern — this is capture + association.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+pub struct LayingPattern {
+    /// The pattern's diagram thumbnail as a `data:` URI, cropped from the
+    /// ingested screenshot (like a color's swatch). Absent = name only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagram: Option<String>,
+    /// The pattern's label exactly as published (e.g. "Herringbone").
+    pub name: String,
+}
+
+impl LayingPattern {
+    pub fn new(name: String) -> Self {
+        Self {
+            diagram: None,
+            name,
+        }
+    }
+}
 
 /// An item placed on the plan: a point at (`x`, `y`) in feet, rotated `rot`
 /// degrees clockwise, referencing a catalog item by `catalog_ref`. Two
@@ -641,6 +682,13 @@ pub struct Shape {
     /// geometry with no cost.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub material_ref: Option<String>,
+    /// The chosen **laying pattern** for this drawn area — the `name` of one of
+    /// its surface material's `patterns` — recording which layout the piece mix
+    /// will be ordered for. Absent = no pattern chosen (or the material has
+    /// none). Purely a purchase note for now: the field renders its swatch
+    /// tiling regardless of the chosen pattern.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pattern: Option<String>,
 }
 
 impl Shape {
@@ -654,6 +702,7 @@ impl Shape {
             depth_in: None,
             elevation,
             material_ref: None,
+            pattern: None,
         }
     }
 }

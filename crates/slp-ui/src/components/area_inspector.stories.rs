@@ -51,6 +51,31 @@ pub fn stories() -> Vec<Story> {
                 />
             }
         }),
+        Story::new(
+            "Panels/AreaInspector/Paver area with laying patterns",
+            || {
+                view! {
+                    <AreaInspector
+                        title="Pavers".to_string()
+                        category=Some("paver".to_string())
+                        area_ft2=120.0
+                        elevation=0.0
+                        depth=0.0
+                        show_depth=false
+                        cost=Some(960.0)
+                        corner=Corner::Nw
+                        on_elevation=noop_f64()
+                        on_depth=noop_f64()
+                        on_delete=noop()
+                        pattern_options=vec![
+                            ("Herringbone".to_string(), None),
+                            ("Linear".to_string(), None),
+                        ]
+                        pattern=Some("Herringbone".to_string())
+                    />
+                }
+            },
+        ),
         Story::new("Panels/AreaInspector/Deck level", || {
             view! {
                 <AreaInspector

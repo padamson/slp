@@ -18,6 +18,7 @@ pub fn stories() -> Vec<Story> {
                         unit,
                         unit_price: price,
                         line_total: quantity * price,
+                        patterns: Vec::new(),
                     }
                 };
             let lines = vec![

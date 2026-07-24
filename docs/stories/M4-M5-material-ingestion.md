@@ -231,24 +231,29 @@ so that my estimate reflects things I can actually buy, not placeholder data.
   - [x] e2e: paste two synthetic screenshots → two thumbnails (+ per-image
         remove, Clear all); extract (stub) a color whose box is on image 1 →
         its swatch is cropped from screenshot 1, not 0
-- **M4.7 — laying patterns on pavers/slabs** — *the product docs publish the
+- **M4.7 — laying patterns on pavers/slabs** ✅ — *the product docs publish the
   patterns a format supports (herringbone, parquet, linear …); capturing them
   tells the buyer which piece mix to order. Pattern-accurate field rendering
   is **deferred** — this slice is capture + association + selection.*
-  - [ ] the vision schema gains `patterns` (name + optional bbox), extracted
-        from a laying-patterns screenshot in the multi-paste set
-  - [ ] curation lists patterns as checkboxes with cropped diagram thumbnails
-        (the existing crop editor adjusts a diagram like it adjusts a swatch);
-        approved patterns ride the catalog item (`patterns`: name + diagram
-        data-URI) — format-level, so every color combo of the product carries
-        the same list
-  - [ ] a drawn area whose material has patterns can **pick one** (area
-        inspector select; stored on the Shape/Circle) — shown as the pattern's
-        name + diagram in the inspector and noted on the area's estimate line,
-        so the shopping trip knows the layout choice
-  - [ ] e2e: extract a product with patterns (stub) → curation shows pattern
-        checkboxes → approve → draw an area with it → pick a pattern → the
-        inspector shows the diagram
+  - [x] the vision schema gains `patterns` (name + optional bbox, tagged with
+        its screenshot's index), extracted from a laying-patterns screenshot in
+        the multi-paste set; each diagram is cropped client-side like a swatch
+  - [x] curation lists patterns as checkboxes (all start ticked — they ride
+        items, they don't multiply them) with cropped diagram thumbnails; the
+        existing crop editor adjusts a diagram like it adjusts a swatch;
+        approved patterns ride **every** catalog item (`patterns`: name +
+        diagram data-URI) — format-level, so every color combo of the product
+        carries the same list
+  - [x] a drawn area whose material has patterns can **pick one** (area
+        inspector select; stored on `Shape.pattern`/`Circle.pattern`, schema
+        slot) — shown as the pattern's name + diagram in the inspector, and the
+        material's estimate line notes the chosen layout(s) (`LineItem.
+        patterns`, deduped across its areas), so the shopping trip knows the
+        piece mix to order
+  - [x] e2e: extract a product with patterns (stub) → curation shows ticked
+        pattern checkboxes + the cropped diagram → approve → draw a slab area →
+        pick Herringbone → the inspector shows the diagram and the estimate
+        line reads "(Herringbone)"
 - **M5.0 — swap & compare** — *nice-to-have; deferred. Not on the critical
   path to "decide what to buy": the estimate already reprices live when a
   catalog item is edited (M4.3), so comparing alternatives works today by

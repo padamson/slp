@@ -150,7 +150,11 @@
             },
             body: JSON.stringify({
               model,
-              max_tokens: 1024,
+              // Ample room for the full variant matrix — a product page can
+              // carry many colors, sizes, AND laying patterns, each with a
+              // bounding box; 1024 was too small and silently dropped the tail
+              // (Haiku 4.5 allows up to 64K output).
+              max_tokens: 8192,
               tools: [{
                 name: "extract_product",
                 description: "Record the landscaping product shown in the screenshots.",
@@ -169,6 +173,12 @@
             throw new Error("Anthropic API error " + resp.status + (detail ? ": " + detail : ""));
           }
           const body = await resp.json();
+          // A truncated tool call parses as garbage downstream — fail loudly.
+          if (body.stop_reason === "max_tokens") {
+            throw new Error(
+              "The extraction ran out of output tokens — try fewer screenshots."
+            );
+          }
           const tu = (body.content || []).find(
             (b) => b.type === "tool_use" && b.name === "extract_product"
           );

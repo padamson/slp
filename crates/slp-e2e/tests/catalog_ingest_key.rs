@@ -12,7 +12,7 @@
 mod common;
 
 use anyhow::{Context, Result};
-use common::{dist_dir, serve};
+use common::{click_ft, dist_dir, measure_ppf, serve};
 use playwright_rs::expect;
 use playwright_rs::protocol::{DragToOptions, Page, Playwright, Position};
 
@@ -313,7 +313,10 @@ async fn a_swatch_crop_resolves_against_the_screenshot_its_box_names() -> Result
         )
         .await
         .context("read which screenshot was cropped")?;
-    assert_eq!(r, "match", "the swatch was cropped from the indexed screenshot");
+    assert_eq!(
+        r, "match",
+        "the swatch was cropped from the indexed screenshot"
+    );
 
     // Opening the crop editor for that color shows the screenshot its box names
     // (screenshot 1), not a blank stage.
@@ -672,6 +675,128 @@ async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()>
         .to_have_count(1)
         .await
         .context("the ingested material's category appears in the Area picker")?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+/// End to end: a product extracted **with laying patterns** lists them as
+/// ticked checkboxes with diagram thumbnails in curation; the approved item
+/// carries them; a drawn area of that material can pick one — the inspector
+/// shows the diagram and the estimate line notes the layout.
+#[tokio::test]
+async fn laying_patterns_ride_curation_and_a_drawn_area_picks_one() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!(
+            "skipping: {} not built (run `trunk build`).",
+            dist.display()
+        );
+        return Ok(());
+    }
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    // A canned extraction with a priced slab (so the estimate lines appear)
+    // and two laying patterns, Herringbone carrying a diagram bbox.
+    page.evaluate_value(
+        r#"(() => {
+             window.slpVision = {
+               extract: async () => JSON.stringify({
+                 name: "Blu 60 Slate Slabs", category: "slab",
+                 price_unit: "per_square_foot", unit_price: 9.0,
+                 colors: [{name:"Shale Grey",available:true,bbox:{x:0.1,y:0.2,width:0.1,height:0.1}}],
+                 textures: [],
+                 sizes: [{name:"60 MM",available:true,width_ft:1.083,depth_ft:1.083,thickness_in:2.375}],
+                 patterns: [
+                   {name:"Herringbone",bbox:{image:0,x:0.5,y:0.5,width:0.2,height:0.2}},
+                   {name:"Linear"}
+                 ],
+                 notes: null
+               }),
+               crop: async () => "data:image/png;base64,CROPPED",
+             };
+             return 'ok';
+           })()"#,
+    )
+    .await
+    .context("stub the vision bridge")?;
+
+    open_catalog(&page).await?;
+    page.locator("[data-testid='ingest-api-key']")
+        .fill(KEY, None)
+        .await
+        .context("enter the API key")?;
+    paste_screenshot(&page).await?;
+    page.locator("[data-testid='ingest-extract']")
+        .click(None)
+        .await
+        .context("run extraction")?;
+
+    // Curation lists the patterns, ticked, Herringbone with its cropped diagram.
+    expect(page.locator("[data-testid='ingest-pattern-0']"))
+        .to_be_checked()
+        .await
+        .context("herringbone starts ticked")?;
+    expect(page.locator("[data-testid='ingest-pattern-1']"))
+        .to_be_checked()
+        .await
+        .context("linear starts ticked")?;
+    expect(page.locator("[data-testid='ingest-pattern-diagram-0']"))
+        .to_have_count(1)
+        .await
+        .context("the cropped diagram thumbnail shows")?;
+    page.locator("[data-testid='ingest-approve']")
+        .click(None)
+        .await
+        .context("approve")?;
+    page.locator("[data-testid='catalog-close']")
+        .click(None)
+        .await
+        .context("close the catalog panel")?;
+
+    // Draw a slab area (10×8) with the ingested material and select it.
+    let yard = page.locator("[data-testid='yard']");
+    let ppf = measure_ppf(&yard).await?;
+    page.locator("[data-testid='area-mat-cat-slab']")
+        .click(None)
+        .await
+        .context("arm the ingested slab material")?;
+    page.locator("[data-testid='draw-shape']")
+        .click(None)
+        .await
+        .context("arm the area tool")?;
+    let corners = [(10.0, 10.0), (20.0, 10.0), (20.0, 18.0), (10.0, 18.0)];
+    for (fx, fy) in corners {
+        click_ft(&yard, ppf, fx, fy).await?;
+    }
+    click_ft(&yard, ppf, corners[0].0, corners[0].1).await?; // snap-close
+    click_ft(&yard, ppf, 12.0, 11.0).await?; // select the area
+
+    // The inspector offers the material's patterns; pick Herringbone → its
+    // diagram shows and the estimate line notes the layout.
+    let select = page.locator("[data-testid='area-pattern']");
+    expect(select.clone())
+        .to_have_count(1)
+        .await
+        .context("the pattern select appears for a patterned material")?;
+    select
+        .select_option("Herringbone", None)
+        .await
+        .context("choose herringbone")?;
+    expect(page.locator("[data-testid='area-pattern-diagram']"))
+        .to_have_count(1)
+        .await
+        .context("the chosen pattern's diagram shows in the inspector")?;
+    expect(page.locator("[data-testid='estimate-pattern']"))
+        .to_have_text("(Herringbone)")
+        .await
+        .context("the estimate line notes the chosen layout")?;
 
     browser.close().await.context("close browser")?;
     Ok(())

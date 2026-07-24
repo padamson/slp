@@ -26,9 +26,23 @@ pub fn EstimatePanel(#[prop(into)] bom: Signal<BillOfMaterials>) -> impl IntoVie
                         .into_iter()
                         .map(|line| {
                             let name = line.name.unwrap_or(line.catalog_ref);
+                            // Note the chosen laying pattern(s) on a material
+                            // line, so the shopping trip knows the layout the
+                            // piece mix is ordered for.
+                            let pattern_note = (!line.patterns.is_empty())
+                                .then(|| {
+                                    view! {
+                                        <span
+                                            class="estimate-pattern"
+                                            data-testid="estimate-pattern"
+                                        >
+                                            {format!(" ({})", line.patterns.join(", "))}
+                                        </span>
+                                    }
+                                });
                             view! {
                                 <tr class="estimate-row">
-                                    <td class="estimate-name">{name}</td>
+                                    <td class="estimate-name">{name}{pattern_note}</td>
                                     <td class="estimate-qty">{measure(line.quantity, &line.unit)}</td>
                                     <td class="estimate-unit">{dollars(line.unit_price)}</td>
                                     <td class="estimate-line">{dollars(line.line_total)}</td>

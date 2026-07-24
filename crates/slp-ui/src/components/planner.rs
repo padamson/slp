@@ -797,6 +797,7 @@ fn planner_body() -> impl IntoView {
                         borders: Vec::new(),
                         material_ref: material,
                         depth_in: Some(area_depth.get_untracked()),
+                        pattern: None,
                     };
                     shapes.update(|v| v.push(shape));
                 } else {
@@ -1125,6 +1126,22 @@ fn planner_body() -> impl IntoView {
             circles.update(|list| {
                 if let Some(c) = list.get_mut(i) {
                     c.depth_in = Some(v);
+                }
+            });
+        }
+    });
+    // Set (or clear) the selected area's chosen laying pattern.
+    let set_area_pattern = Callback::new(move |v: Option<String>| {
+        if let Some(i) = selected_shape.get_untracked() {
+            shapes.update(|list| {
+                if let Some(s) = list.get_mut(i) {
+                    s.pattern.clone_from(&v);
+                }
+            });
+        } else if let Some(i) = selected_circle.get_untracked() {
+            circles.update(|list| {
+                if let Some(c) = list.get_mut(i) {
+                    c.pattern.clone_from(&v);
                 }
             });
         }
@@ -1965,6 +1982,9 @@ fn planner_body() -> impl IntoView {
                                 on_elevation=set_area_elevation
                                 on_depth=set_area_depth
                                 on_delete=delete_selected_area
+                                pattern_options=area.pattern_options
+                                pattern=area.pattern
+                                on_pattern=set_area_pattern
                             />
                         },
                     )
@@ -2151,6 +2171,10 @@ struct AreaInfo {
     borders: Vec<Border>,
     /// The boundary's node count (0 for a circle), for border span selects.
     node_count: usize,
+    /// The material's laying patterns (name + diagram), for the pattern picker.
+    pattern_options: Vec<(String, Option<String>)>,
+    /// This area's chosen laying pattern, if any.
+    pattern: Option<String>,
 }
 
 /// Resolve the selected `Shape`/`Circle` (only one can be selected) into the
@@ -2164,7 +2188,7 @@ fn selected_area(
     circles: &[Circle],
     catalog: &[CatalogItem],
 ) -> Option<AreaInfo> {
-    let (material_ref, elevation, depth, area_ft2, courses, borders, node_count) =
+    let (material_ref, elevation, depth, area_ft2, courses, borders, node_count, pattern) =
         if let Some(i) = sel_shape {
             let s = shapes.get(i)?;
             (
@@ -2175,6 +2199,7 @@ fn selected_area(
                 s.courses.clone(),
                 s.borders.clone(),
                 s.corners.len(),
+                s.pattern.clone(),
             )
         } else {
             let i = sel_circle?;
@@ -2187,6 +2212,7 @@ fn selected_area(
                 c.courses.clone(),
                 c.borders.clone(),
                 0,
+                c.pattern.clone(),
             )
         };
     let item = material_ref.and_then(|m| catalog.iter().find(|c| c.id == m));
@@ -2215,6 +2241,14 @@ fn selected_area(
         }
         _ => None,
     };
+    let pattern_options: Vec<(String, Option<String>)> = item
+        .map(|i| {
+            i.patterns
+                .iter()
+                .map(|p| (p.name.clone(), p.diagram.clone()))
+                .collect()
+        })
+        .unwrap_or_default();
     Some(AreaInfo {
         title,
         category,
@@ -2227,6 +2261,8 @@ fn selected_area(
         courses,
         borders,
         node_count,
+        pattern_options,
+        pattern,
     })
 }
 

@@ -35,7 +35,7 @@ pub use dist::{
 };
 pub use generated::slp::{
     Border, CatalogItem, Circle, Coord, Course, CurveEdge, Deck, DeckLevel, FootprintShape, House,
-    ItemStatus, Object, Opening, OpeningKind, Plan, PriceUnit, Shape, StepRun,
+    ItemStatus, LayingPattern, Object, Opening, OpeningKind, Plan, PriceUnit, Shape, StepRun,
 };
 pub use geom::{
     Point, area, circle_area, footprint_corners, heading, point_in_polygon, polyline_length,

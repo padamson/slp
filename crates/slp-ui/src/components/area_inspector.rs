@@ -12,7 +12,7 @@
 use leptos::prelude::*;
 use slp_core::{Border, Corner, Course, ItemStatus};
 
-use super::{BorderEditor, CourseEditor, MaterialSwatch, NumberField};
+use super::{BorderEditor, CourseEditor, MaterialSwatch, NumberField, SelectField};
 
 /// Short name for the corner the window floats in (for `data-corner`).
 fn corner_name(corner: Corner) -> &'static str {
@@ -131,6 +131,16 @@ pub fn AreaInspector(
     on_border_remove: Callback<usize>,
     /// Remove the region from the plan.
     on_delete: Callback<()>,
+    /// The surface material's **laying patterns** (name + optional diagram
+    /// `data:` URI), when it has any — offers the Pattern select.
+    #[prop(default = Vec::new())]
+    pattern_options: Vec<(String, Option<String>)>,
+    /// The area's chosen laying pattern (a `pattern_options` name), if any.
+    #[prop(into, default = Signal::derive(|| None::<String>))]
+    pattern: Signal<Option<String>>,
+    /// Set (or clear, with `None`) the area's chosen laying pattern.
+    #[prop(default = Callback::new(|_: Option<String>| {}))]
+    on_pattern: Callback<Option<String>>,
 ) -> impl IntoView {
     // A surface with a sub-base shows its composition editor.
     let course_editor = (!courses.is_empty()).then(|| {
@@ -184,6 +194,45 @@ pub fn AreaInspector(
             <dd data-testid="area-inspector-cost">{cost_display}</dd>
         }
     });
+    // The laying-pattern picker: only for a drawn area whose material
+    // carries patterns — pick the layout the piece mix will be ordered for.
+    let pattern_row = (!is_structure && !pattern_options.is_empty()).then(|| {
+        let diagrams: Vec<(String, Option<String>)> = pattern_options.clone();
+        let options: Vec<(String, String)> = std::iter::once((String::new(), "—".to_string()))
+            .chain(pattern_options.into_iter().map(|(n, _)| (n.clone(), n)))
+            .collect();
+        view! {
+            <dt>"Pattern"</dt>
+            <dd class="area-inspector-pattern">
+                <SelectField
+                    label=""
+                    testid="area-pattern"
+                    value=Signal::derive(move || pattern.get().unwrap_or_default())
+                    options=options
+                    on_change=Callback::new(move |id: String| {
+                        on_pattern.run((!id.is_empty()).then_some(id));
+                    })
+                />
+                {move || {
+                    let chosen = pattern.get()?;
+                    let diagram = diagrams
+                        .iter()
+                        .find(|(n, _)| *n == chosen)
+                        .and_then(|(_, d)| d.clone())?;
+                    Some(
+                        view! {
+                            <img
+                                class="area-pattern-diagram"
+                                data-testid="area-pattern-diagram"
+                                src=diagram
+                                alt="laying pattern"
+                            />
+                        },
+                    )
+                }}
+            </dd>
+        }
+    });
 
     let selected_status = status.clone();
     let status_btn = move |value: ItemStatus, label: &'static str, testid: &'static str| {
@@ -218,6 +267,7 @@ pub fn AreaInspector(
             <h3 class="inspector-name">{title}</h3>
             <dl class="inspector-meta">
                 {material_row}
+                {pattern_row}
                 <dt>"Area"</dt>
                 <dd data-testid="area-inspector-area">{area_label}</dd>
                 {cost_row}

@@ -31,6 +31,10 @@ pub struct LineItem {
     pub unit_price: f64,
     /// `quantity × unit_price`, in dollars.
     pub line_total: f64,
+    /// The chosen **laying patterns** of the drawn areas this material line
+    /// sums (deduped, in drawn order) — the layout note the shopping trip
+    /// needs. Empty for object lines and pattern-less areas.
+    pub patterns: Vec<String>,
 }
 
 /// A priced bill of materials for a plan: one line per placed catalog item plus
@@ -80,9 +84,33 @@ pub fn take_off(plan: &Plan) -> BillOfMaterials {
             unit: item.price_unit.clone(),
             unit_price,
             line_total,
+            patterns: chosen_patterns(plan, &item.id),
         });
     }
     BillOfMaterials { lines, grand_total }
+}
+
+/// The chosen laying patterns of the drawn areas whose `material_ref` names
+/// catalog item `id`, deduped in drawn order (shapes then circles) — the
+/// layout note a material's estimate line carries.
+fn chosen_patterns(plan: &Plan, id: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let shape_pats = plan
+        .shapes
+        .iter()
+        .filter(|s| s.material_ref.as_deref() == Some(id))
+        .filter_map(|s| s.pattern.clone());
+    let circle_pats = plan
+        .circles
+        .iter()
+        .filter(|c| c.material_ref.as_deref() == Some(id))
+        .filter_map(|c| c.pattern.clone());
+    for p in shape_pats.chain(circle_pats) {
+        if !out.contains(&p) {
+            out.push(p);
+        }
+    }
+    out
 }
 
 /// The number of **planned** and **real** objects placing catalog item `id`.
@@ -582,6 +610,50 @@ mod tests {
         assert!((bom.lines[0].quantity - 100.0).abs() < 1e-9, "100 ft²");
         assert!((bom.lines[0].line_total - 600.0).abs() < 1e-9);
         assert!((bom.grand_total - 600.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_material_line_notes_its_areas_chosen_laying_patterns() {
+        // Two paver areas with patterns (one duplicated), one without, and a
+        // circle with its own — the line lists each chosen pattern once, in
+        // drawn order (shapes then circles); the mulch line (no patterns on
+        // its areas) carries none. An area whose material is *different*
+        // doesn't leak its pattern onto this line.
+        let mut a = bed("paver", 10.0, 8.0, 0.0);
+        a.pattern = Some("Herringbone".to_string());
+        let mut b = bed("paver", 5.0, 4.0, 0.0);
+        b.pattern = Some("Linear".to_string());
+        let mut dup = bed("paver", 2.0, 2.0, 0.0);
+        dup.pattern = Some("Herringbone".to_string());
+        let plain = bed("paver", 1.0, 1.0, 0.0);
+        let mut mulch = bed("mulch", 3.0, 3.0, 3.0);
+        mulch.pattern = Some("Not A Paver Pattern".to_string());
+        let mut circle = Circle {
+            material_ref: Some("paver".to_string()),
+            depth_in: Some(0.0),
+            ..Circle::new(Box::new(Coord::new(20.0, 20.0)), 0.0, 4.0)
+        };
+        circle.pattern = Some("Basket Weave".to_string());
+        let bom = take_off(&plan_with_areas(
+            vec![
+                material("paver", "Pavers", 6.0, PriceUnit::per_square_foot),
+                material("mulch", "Mulch", 40.0, PriceUnit::per_cubic_yard),
+            ],
+            vec![a, b, dup, plain, mulch],
+            vec![circle],
+        ));
+        let paver = bom.lines.iter().find(|l| l.catalog_ref == "paver").unwrap();
+        assert_eq!(
+            paver.patterns,
+            vec!["Herringbone", "Linear", "Basket Weave"],
+            "deduped, drawn order, shapes before circles"
+        );
+        let mulch = bom.lines.iter().find(|l| l.catalog_ref == "mulch").unwrap();
+        assert_eq!(
+            mulch.patterns,
+            vec!["Not A Paver Pattern"],
+            "each line notes only its own areas' patterns"
+        );
     }
 
     #[test]

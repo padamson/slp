@@ -201,7 +201,7 @@ pub fn CatalogPanel(
                                 tabindex="0"
                                 on:paste=move |ev| read_pasted_image(&ev, on_paste_image)
                             >
-                                "Click here, then paste product screenshots (⌘V — one or more)."
+                                "Click here, then paste product screenshots (⌘V, repeat for each — colors, sizes, laying patterns)."
                             </div>
                             {move || {
                                 let shots = screenshots.get();

@@ -389,6 +389,7 @@ fn an_extracted_draft_renders_the_curation_step() {
             thickness_in: Some(2.375),
             includes: Some("A: 6½×13, B: 13×13, C: 19½×13 in".to_string()),
         }],
+        patterns: Vec::new(),
         notes: Some("No price listed.".to_string()),
     };
     let html = panel_extract("data:image/png;base64,AAA", Some(draft), None);

@@ -81,6 +81,7 @@ classes:
       - fetched_at
       - checksum
       - asset
+      - patterns
     slot_usage:
       id:
         required: true
@@ -207,6 +208,7 @@ classes:
       - depth_in
       - courses
       - borders
+      - pattern
     slot_usage:
       elevation:
         required: true
@@ -254,6 +256,24 @@ classes:
         required: true
         description: The band's laid width, in feet.
 
+  LayingPattern:
+    description: |-
+      One **laying pattern** a paver/slab format supports — herringbone,
+      parquet, linear, random … — as published in the product's documentation:
+      its name plus an optional diagram thumbnail (a `data:` URI cropped from
+      the ingested screenshot). Held format-level on the catalog item, so every
+      color combo of a product carries the same list; a drawn area picks one by
+      name (`Shape.pattern`/`Circle.pattern`) to record the layout choice the
+      piece mix will be ordered for. Pattern-accurate field rendering is a
+      later concern — this is capture + association.
+    slots:
+      - name
+      - diagram
+    slot_usage:
+      name:
+        required: true
+        description: The pattern's label exactly as published (e.g. "Herringbone").
+
   CurveEdge:
     description: |-
       A cubic-Bézier boundary edge on a `Shape`: the edge from node `edge` to
@@ -286,6 +306,7 @@ classes:
       - depth_in
       - courses
       - borders
+      - pattern
     slot_usage:
       center:
         required: true
@@ -550,6 +571,25 @@ slots:
       A drawn area's ordered border rings, outermost first — each a
       `{material_ref, width_ft}` band hugging the boundary just inside the
       previous ring. Empty = no border; the surface material runs to the edge.
+  patterns:
+    range: LayingPattern
+    multivalued: true
+    inlined_as_list: true
+    description: |-
+      The laying patterns this paver/slab format supports, as published in the
+      product docs — each a `{name, diagram}`. Empty = none captured; a drawn
+      area made of this material may pick one by name (`pattern`).
+  pattern:
+    description: |-
+      The chosen **laying pattern** for this drawn area — the `name` of one of
+      its surface material's `patterns` — recording which layout the piece mix
+      will be ordered for. Absent = no pattern chosen (or the material has
+      none). Purely a purchase note for now: the field renders its swatch
+      tiling regardless of the chosen pattern.
+  diagram:
+    description: |-
+      The pattern's diagram thumbnail as a `data:` URI, cropped from the
+      ingested screenshot (like a color's swatch). Absent = name only.
   start_node:
     range: double
     description: |-

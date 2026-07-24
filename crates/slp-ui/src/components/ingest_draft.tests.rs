@@ -45,6 +45,7 @@ fn sample() -> ExtractedProduct {
             },
             size("Grande", 2.71, 1.63),
         ],
+        patterns: Vec::new(),
         notes: Some("No price listed.".to_string()),
     }
 }
@@ -137,5 +138,67 @@ fn the_approve_button_counts_the_selected_combos() {
     assert!(
         html.contains(r#"data-testid="ingest-discard""#),
         "a discard action"
+    );
+}
+
+#[test]
+fn laying_patterns_list_as_ticked_checkboxes_with_diagram_thumbnails() {
+    // A draft with patterns shows a "Laying patterns" group: every pattern
+    // starts ticked (they ride items, they don't multiply them — the count
+    // stays colors × sizes), and one with a cropped diagram shows it as a
+    // clickable thumbnail; one without shows no thumbnail.
+    let mut p = sample();
+    p.patterns = vec![
+        crate::vision::Pattern {
+            name: "Herringbone".to_string(),
+            bbox: None,
+            diagram: Some("data:image/png;base64,DIAG".to_string()),
+        },
+        crate::vision::Pattern {
+            name: "Linear".to_string(),
+            bbox: None,
+            diagram: None,
+        },
+    ];
+    let html = render(p);
+    assert!(html.contains("Laying patterns"), "the group renders");
+    assert!(
+        html.contains(r#"data-testid="ingest-pattern-0""#)
+            && html.contains(r#"data-testid="ingest-pattern-1""#),
+        "a checkbox per pattern"
+    );
+    assert!(
+        html.contains(r#"data-testid="ingest-pattern-diagram-0""#),
+        "a diagram thumbnail for the cropped pattern"
+    );
+    assert!(html.contains("data:image/png;base64,DIAG"));
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="ingest-pattern-diagram-1""#),
+        0,
+        "no thumbnail without a diagram"
+    );
+    assert!(
+        html.contains("Add 2 to catalog"),
+        "patterns don't multiply the item count"
+    );
+}
+
+#[test]
+fn a_draft_without_patterns_shows_no_patterns_group() {
+    let html = render(sample());
+    assert!(!html.contains("Laying patterns"));
+    assert_eq!(dokime::count(&html, r#"data-testid="ingest-pattern-0""#), 0);
+}
+
+#[test]
+fn a_slab_with_no_extracted_price_basis_defaults_to_per_square_foot() {
+    // Manufacturer pages usually show no price basis; a slab/paver must still
+    // land per-ft² (a per-item fallback would hide it from the Area picker).
+    let mut p = sample();
+    p.price_unit = None;
+    let html = render(p);
+    assert!(
+        html.contains(r#"value="per_square_foot" selected"#),
+        "the category defaults the price basis: {html}"
     );
 }

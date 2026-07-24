@@ -13,6 +13,7 @@ fn line(catalog_ref: &str, name: Option<&str>, qty: u32, unit: f64) -> LineItem 
         unit: PriceUnit::per_item,
         unit_price: unit,
         line_total: f64::from(qty) * unit,
+        patterns: Vec::new(),
     }
 }
 
@@ -24,6 +25,7 @@ fn material_line(name: &str, quantity: f64, unit: PriceUnit, unit_price: f64) ->
         unit,
         unit_price,
         line_total: quantity * unit_price,
+        patterns: Vec::new(),
     }
 }
 
@@ -90,4 +92,35 @@ fn an_empty_bom_shows_a_placeholder_not_a_table() {
         "a prompt when nothing is placed"
     );
     assert!(!html.contains("<table"), "no table without line items");
+}
+
+#[test]
+fn a_material_line_shows_its_laying_pattern_note() {
+    // A paver line whose areas chose patterns notes them after the name; a
+    // line without patterns shows no note.
+    let mut paver = material_line("Pavers", 100.0, PriceUnit::per_square_foot, 6.0);
+    paver.patterns = vec!["Herringbone".to_string(), "Linear".to_string()];
+    let chair = line("chair", Some("Lounge chair"), 1, 199.0);
+    let html = dokime::render(move || {
+        let lines = vec![paver.clone(), chair.clone()];
+        view! {
+            <EstimatePanel bom=Signal::derive(move || slp_core::BillOfMaterials {
+                lines: lines.clone(),
+                grand_total: 799.0,
+            }) />
+        }
+    });
+    assert!(
+        html.contains(r#"data-testid="estimate-pattern""#),
+        "the pattern note renders"
+    );
+    assert!(
+        html.contains("(Herringbone, Linear)"),
+        "both patterns, comma-joined: {html}"
+    );
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="estimate-pattern""#),
+        1,
+        "only the patterned line carries a note"
+    );
 }

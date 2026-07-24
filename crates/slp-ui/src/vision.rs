@@ -128,6 +128,25 @@ pub struct SizeVariant {
     pub includes: Option<String>,
 }
 
+/// One **laying pattern** the product docs publish for a paver/slab format —
+/// herringbone, parquet, linear, random … — its label plus, when locatable,
+/// the bounding box of its diagram thumbnail so the app can crop it out.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, JsonSchema)]
+pub struct Pattern {
+    /// The pattern's label exactly as shown (e.g. "Herringbone", "Random").
+    pub name: String,
+    /// The bounding box of THIS pattern's diagram within its screenshot (set
+    /// the box's `image` to that screenshot's index). Give the tightest box
+    /// around just the diagram (exclude the text label). Null if not locatable.
+    #[serde(default)]
+    pub bbox: Option<BBox>,
+    /// The diagram cropped from the screenshot as a `data:` URI. Populated
+    /// client-side, never by the model — skipped from the tool schema.
+    #[serde(default, skip)]
+    #[schemars(skip)]
+    pub diagram: Option<String>,
+}
+
 /// A landscaping product read from a screenshot: the shared material fields plus
 /// the full **variant matrix** (every color × texture × size the page offers).
 /// The user multi-selects combos during curation (M4.2), each becoming one
@@ -163,6 +182,11 @@ pub struct ExtractedProduct {
     /// shown, return that one.
     #[serde(default)]
     pub sizes: Vec<SizeVariant>,
+    /// Every **laying pattern** the docs show for this product (herringbone,
+    /// parquet, linear …), typically on a dedicated laying-patterns screenshot.
+    /// Empty if none are shown.
+    #[serde(default)]
+    pub patterns: Vec<Pattern>,
     /// Any caveat worth surfacing to the user (e.g. "no price listed on page").
     #[serde(default)]
     pub notes: Option<String>,
@@ -192,18 +216,30 @@ fn sanitize(mut p: ExtractedProduct) -> ExtractedProduct {
 /// Turn a curated draft into catalog items — the cross product of the selected
 /// colors and sizes (each `(color, size)` becomes one [`CatalogItem`]), sharing
 /// the edited `category`/`unit_price`/`price_unit`. A size carries the tile
-/// geometry; a color carries the swatch image (attached in B4). An empty
-/// color/size selection contributes a single unnamed axis, so a product with no
-/// colors or no sizes still yields items.
+/// geometry; a color carries the swatch image (attached in B4). The selected
+/// laying `patterns` ride **every** item (format-level — each color combo of a
+/// product supports the same layouts). An empty color/size selection
+/// contributes a single unnamed axis, so a product with no colors or no sizes
+/// still yields items.
 #[must_use]
 pub fn to_catalog_items(
     product: &ExtractedProduct,
     colors: &[usize],
     sizes: &[usize],
+    patterns: &[usize],
     category: &str,
     unit_price: Option<f64>,
     price_unit: &PriceUnit,
 ) -> Vec<CatalogItem> {
+    let laying: Vec<slp_core::LayingPattern> = patterns
+        .iter()
+        .filter_map(|&i| product.patterns.get(i))
+        .map(|p| {
+            let mut lp = slp_core::LayingPattern::new(p.name.clone());
+            lp.diagram.clone_from(&p.diagram);
+            lp
+        })
+        .collect();
     let color_opts: Vec<Option<&Variant>> = if colors.is_empty() {
         vec![None]
     } else {
@@ -248,6 +284,7 @@ pub fn to_catalog_items(
             if let Some(c) = color {
                 item.image.clone_from(&c.swatch);
             }
+            item.patterns.clone_from(&laying);
             items.push(item);
         }
     }
@@ -284,15 +321,42 @@ tool, merging what all the images show. Follow each field's description exactly 
 unavailable); for sizes, list each purchasable FORMAT as shown (e.g. '60 MM', \
 '6 × 13', 'Grande') as ONE entry each — do NOT split a multi-piece format into \
 separate pieces; record its included pieces in `includes` and give the format's \
-tile dimensions as the installed pattern's repeat; for every bounding box set \
-`image` to the 0-based index of the screenshot it's on; convert dimensions to \
-the requested units; and NEVER guess a price (return null when none is shown).";
+tile dimensions as the installed pattern's repeat; capture every LAYING PATTERN \
+shown (herringbone, parquet, linear, …) with its diagram's bounding box; for \
+every bounding box set `image` to the 0-based index of the screenshot it's on; \
+convert dimensions to the requested units; and NEVER guess a price (return null \
+when none is shown).";
 
 /// Crop `bbox` out of `screenshot` (a `data:` URI), returning the region as a
 /// `data:` URI — used to re-crop a swatch when the user adjusts the box (B5).
 /// `None` off the browser or on any failure.
 pub async fn crop(screenshot: &str, bbox: BBox) -> Option<String> {
     imp::crop(screenshot, bbox).await
+}
+
+/// The price basis to assume when the page shows none (the manufacturer norm),
+/// from the extracted category: surfaces (pavers, slabs, tile) sell per ft²,
+/// loose material per yd³, edging/coping runs per linear ft, everything else
+/// per item. Keeps a slab from landing in the catalog as a per-item object —
+/// which would hide it from the Area tool's material picker.
+#[must_use]
+pub fn default_price_unit(category: Option<&str>) -> PriceUnit {
+    let cat = category.unwrap_or_default().to_ascii_lowercase();
+    if ["paver", "slab", "tile", "flagstone"]
+        .iter()
+        .any(|k| cat.contains(k))
+    {
+        PriceUnit::per_square_foot
+    } else if ["mulch", "gravel", "sand", "soil", "aggregate"]
+        .iter()
+        .any(|k| cat.contains(k))
+    {
+        PriceUnit::per_cubic_yard
+    } else if ["edg", "coping", "border"].iter().any(|k| cat.contains(k)) {
+        PriceUnit::per_linear_foot
+    } else {
+        PriceUnit::per_item
+    }
 }
 
 /// Parse the model's text output into an [`ExtractedProduct`], tolerating a
@@ -345,12 +409,20 @@ pub async fn extract(
     )
     .await?;
     let mut product = parse_extraction(&json).map(sanitize)?;
-    // Best-effort: crop each color's swatch out of the screenshot its box names.
+    // Best-effort: crop each color's swatch — and each laying pattern's
+    // diagram — out of the screenshot its box names.
     for color in &mut product.colors {
         if let Some(bbox) = color.bbox
             && let Some(shot) = screenshots.get(bbox.image.min(screenshots.len().saturating_sub(1)))
         {
             color.swatch = imp::crop(shot, bbox).await;
+        }
+    }
+    for pat in &mut product.patterns {
+        if let Some(bbox) = pat.bbox
+            && let Some(shot) = screenshots.get(bbox.image.min(screenshots.len().saturating_sub(1)))
+        {
+            pat.diagram = imp::crop(shot, bbox).await;
         }
     }
     Ok(product)
@@ -472,6 +544,11 @@ mod tests {
              "includes": "A: 6½×13, B: 13×13, C: 19½×13 in"},
             {"name": "Grande"}
         ],
+        "patterns": [
+            {"name": "Herringbone",
+             "bbox": {"image": 1, "x": 0.05, "y": 0.1, "width": 0.2, "height": 0.2}},
+            {"name": "Linear"}
+        ],
         "notes": "No price listed."
     }"#;
 
@@ -585,6 +662,7 @@ mod tests {
             &p,
             &[0, 1],
             &[0],
+            &[],
             "slab",
             Some(12.5),
             &PriceUnit::per_square_foot,
@@ -613,7 +691,7 @@ mod tests {
     #[test]
     fn curation_with_no_sizes_yields_one_item_per_color() {
         let p = parse_extraction(SAMPLE).expect("parses");
-        let items = to_catalog_items(&p, &[0], &[], "", None, &PriceUnit::per_item);
+        let items = to_catalog_items(&p, &[0], &[], &[], "", None, &PriceUnit::per_item);
         assert_eq!(items.len(), 1);
         assert_eq!(
             items[0].name.as_deref(),
@@ -621,6 +699,69 @@ mod tests {
         );
         assert_eq!(items[0].category, None, "a blank category stays unset");
         assert_eq!(items[0].tile_width_ft, None, "no size → no tile geometry");
+        assert!(
+            items[0].patterns.is_empty(),
+            "no patterns selected → none ride"
+        );
+    }
+
+    #[test]
+    fn parses_and_attaches_laying_patterns() {
+        // The fixture's patterns parse — Herringbone's diagram box (on image 1)
+        // included — and the selected ones ride EVERY approved item.
+        let mut p = parse_extraction(SAMPLE).expect("parses");
+        assert_eq!(p.patterns.len(), 2);
+        assert_eq!(p.patterns[0].name, "Herringbone");
+        let bb = p.patterns[0]
+            .bbox
+            .expect("herringbone carries a diagram box");
+        assert_eq!(bb.image, 1, "the box names its screenshot");
+        assert_eq!(p.patterns[1].bbox, None, "linear has no box");
+        // A client-side cropped diagram rides through to the catalog items.
+        p.patterns[0].diagram = Some("data:image/png;base64,DIAG".to_string());
+        let items = to_catalog_items(
+            &p,
+            &[0, 1],
+            &[],
+            &[0, 1],
+            "slab",
+            None,
+            &PriceUnit::per_square_foot,
+        );
+        assert_eq!(items.len(), 2, "patterns don't multiply items");
+        for item in &items {
+            assert_eq!(item.patterns.len(), 2, "every combo carries the list");
+            assert_eq!(item.patterns[0].name, "Herringbone");
+            assert_eq!(
+                item.patterns[0].diagram.as_deref(),
+                Some("data:image/png;base64,DIAG")
+            );
+            assert_eq!(item.patterns[1].name, "Linear");
+            assert_eq!(item.patterns[1].diagram, None);
+        }
+        // Selecting only one pattern drops the other.
+        let items = to_catalog_items(&p, &[0], &[], &[1], "", None, &PriceUnit::per_item);
+        assert_eq!(items[0].patterns.len(), 1);
+        assert_eq!(items[0].patterns[0].name, "Linear");
+    }
+
+    #[test]
+    fn a_missing_price_basis_defaults_from_the_category() {
+        // Surfaces sell per ft², loose material per yd³, edging per linear ft;
+        // anything unrecognized (or uncategorized) stays per item.
+        assert_eq!(default_price_unit(Some("slab")), PriceUnit::per_square_foot);
+        assert_eq!(
+            default_price_unit(Some("Paver")),
+            PriceUnit::per_square_foot,
+            "case-insensitive"
+        );
+        assert_eq!(default_price_unit(Some("mulch")), PriceUnit::per_cubic_yard);
+        assert_eq!(
+            default_price_unit(Some("edging")),
+            PriceUnit::per_linear_foot
+        );
+        assert_eq!(default_price_unit(Some("furniture")), PriceUnit::per_item);
+        assert_eq!(default_price_unit(None), PriceUnit::per_item);
     }
 
     #[test]

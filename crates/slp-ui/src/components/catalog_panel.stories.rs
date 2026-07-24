@@ -156,6 +156,7 @@ pub fn stories() -> Vec<Story> {
                         includes: None,
                     },
                 ],
+                patterns: Vec::new(),
                 notes: Some("No price listed — add your dealer quote.".to_string()),
             };
             view! {
