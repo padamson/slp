@@ -96,8 +96,8 @@ the finished space, without it having to be dimensionally exact.
         they're the signal img2img works from. Editing chrome — nodes, handles,
         node numbers, the dashed clearance ring — is stripped; physical things
         (the hot tub's pad, a tree's trunk, borders) stay.
-  - [ ] *moved to R4.7:* feed the **tiled material photos** SLP already supports
-        into the raster instead of flat fills.
+  - [x] *(R4.7)* the **tiled material photos** SLP already supports do reach the
+        raster — verified by pixel-sampling e2e, not assumed.
 
 - **R4.3 — Preview UI: button, mode toggle, result modal** ✅
   - [x] a **Preview** button under the estimate with an **Overhead / Eye-level**
@@ -175,10 +175,15 @@ the finished space, without it having to be dimensionally exact.
         Revisit only if a Z-Image-compatible IP-Adapter appears, or via a hosted
         instruction model that accepts described references.
 
-- **R4.7 — a better raster** *(was R4.2's deferred item)*
-  - [ ] feed SLP's **tiled material photos** (already supported on drawn areas)
-        into the preview raster instead of flat fills — a semi-photographic init
-        image should beat flat color, and it's free.
+- **R4.7 — a better raster** *(was R4.2's deferred item)* 🚧
+  - [x] **already works — verified, not assumed.** SLP tiles material photos onto
+        drawn areas as an SVG `<pattern>` whose `<image>` is a data URI, and
+        those survive the clone → serialize → canvas rasterization. So overhead
+        has been conditioning on real material photography since R4.2, not flat
+        color. This was genuinely uncertain (SVG rendered *as an image* blocks
+        external resources), and a silent failure would have made the raster
+        quietly worse with no visible symptom — so there's now an e2e that gives
+        the pavers a magenta photo, rasterizes, and counts magenta pixels.
   - [ ] texture the lawn: the sweep's renders kept a flat green lawn because the
         input had no grass texture to build on.
   - [ ] does adding `ControlNet` *on top of* img2img fix the fire-pit drift?

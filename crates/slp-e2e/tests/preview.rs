@@ -16,7 +16,7 @@
 mod common;
 
 use anyhow::{Context, Result};
-use common::{dist_dir, draw_central_deck, measure_ppf, place_object, serve};
+use common::{click_ft, dist_dir, draw_central_deck, measure_ppf, place_object, serve};
 use playwright_rs::expect;
 use playwright_rs::protocol::{FilePayload, Page, Playwright};
 
@@ -362,6 +362,95 @@ async fn a_render_can_be_downloaded_and_earlier_ones_stay_in_the_gallery() -> Re
         .to_have_count(1)
         .await
         .context("the earlier render is shown again")?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+/// A solid magenta 8×8 PNG — a color nothing in the plan's palette uses, so
+/// finding it in the raster proves the material photo tiled through.
+const MAGENTA_PNG: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAFElEQVR4nGP8z/CfARtgwio6aCUAkYsCDoRKzmMAAAAASUVORK5CYII=";
+
+#[tokio::test]
+async fn the_raster_carries_material_photos_not_just_flat_color() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!("skipping: {} not built.", dist.display());
+        return Ok(());
+    }
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    page.goto(&format!("http://{addr}"), None)
+        .await
+        .context("navigate to app")?;
+
+    // Give Pavers a distinctly-colored photo, then draw a paver area with it.
+    page.locator("[data-testid='edit-catalog']")
+        .click(None)
+        .await?;
+    page.locator("[data-testid='catalog-row-paver']")
+        .click(None)
+        .await?;
+    page.locator("[data-testid='catalog-image']")
+        .fill(MAGENTA_PNG, None)
+        .await
+        .context("give the paver material a magenta photo")?;
+    page.locator("[data-testid='catalog-close']")
+        .click(None)
+        .await?;
+
+    let yard = page.locator("[data-testid='yard']");
+    let ppf = measure_ppf(&yard).await?;
+    page.locator("[data-testid='area-mat-cat-paver']")
+        .click(None)
+        .await?;
+    page.locator("[data-testid='draw-shape']")
+        .click(None)
+        .await?;
+    // A big area, so it occupies a large share of the raster.
+    let corners = [(6.0, 6.0), (34.0, 6.0), (34.0, 24.0), (6.0, 24.0)];
+    for (fx, fy) in corners {
+        click_ft(&yard, ppf, fx, fy).await?;
+    }
+    click_ft(&yard, ppf, corners[0].0, corners[0].1).await?; // snap-close
+
+    // Rasterize exactly as overhead mode does, then count magenta pixels.
+    let magenta = page
+        .evaluate_value(
+            r##"(async () => {
+                const cfg = JSON.stringify({
+                  palette: [["#eef0e6","#6f9c4a"]], stripTestids: [], background: "#6f9c4a"
+                });
+                const uri = await window.slpRender.planRaster(cfg, 256);
+                const img = await new Promise((res, rej) => {
+                  const i = new Image();
+                  i.onload = () => res(i); i.onerror = rej; i.src = uri;
+                });
+                const c = document.createElement("canvas");
+                c.width = c.height = 256;
+                const x = c.getContext("2d");
+                x.drawImage(img, 0, 0);
+                const d = x.getImageData(0, 0, 256, 256).data;
+                let n = 0;
+                for (let i = 0; i < d.length; i += 4) {
+                  // magenta-ish: strong red + blue, weak green
+                  if (d[i] > 180 && d[i+2] > 180 && d[i+1] < 90) n++;
+                }
+                return String(n);
+            })()"##,
+        )
+        .await
+        .context("rasterize and sample")?;
+
+    let count: usize = magenta.trim().parse().unwrap_or(0);
+    assert!(
+        count > 500,
+        "the material photo should tile through into the raster — found {count} magenta pixels \
+         (0 means SVG-as-image dropped the <pattern>'s data-URI <image>, so overhead mode is \
+         conditioning on flat color instead of the real material)"
+    );
 
     browser.close().await.context("close browser")?;
     Ok(())
