@@ -18,7 +18,7 @@ mod common;
 use anyhow::{Context, Result};
 use common::{dist_dir, draw_central_deck, measure_ppf, place_object, serve};
 use playwright_rs::expect;
-use playwright_rs::protocol::{Page, Playwright};
+use playwright_rs::protocol::{FilePayload, Page, Playwright};
 
 /// Stub `window.slpRender.generate` to record its arguments and return a known
 /// image, leaving the app's real `planRaster` in place.
@@ -215,6 +215,80 @@ async fn an_unreachable_backend_is_reported_not_swallowed() -> Result<()> {
         .to_have_count(0)
         .await
         .context("the modal closes")?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn from_photo_conditions_on_the_uploaded_yard_photo() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!("skipping: {} not built.", dist.display());
+        return Ok(());
+    }
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    boot(&page, &addr, STUB_OK).await?;
+
+    page.locator("[data-testid='preview-mode-from-photo']")
+        .click(None)
+        .await
+        .context("switch to From photo")?;
+
+    // With no photo yet there's nothing to condition on, so it can't generate.
+    let generate = page.locator("[data-testid='preview-generate']");
+    assert!(
+        generate.get_attribute("disabled").await?.is_some(),
+        "generating is blocked until a photo is chosen"
+    );
+
+    // Upload a yard photo (a tiny PNG stands in for a real one).
+    page.locator("[data-testid='preview-photo']")
+        .set_input_files_payload(
+            FilePayload::new("yard.png", "image/png", b"stand-in-yard-photo".to_vec()),
+            None,
+        )
+        .await
+        .context("attach the yard photo")?;
+
+    expect(page.locator("[data-testid='preview-photo-thumb']"))
+        .to_have_count(1)
+        .await
+        .context("the chosen photo is shown back")?;
+
+    page.locator("[data-testid='preview-generate']")
+        .click(None)
+        .await?;
+    expect(page.locator("[data-testid='preview-image']"))
+        .to_have_count(1)
+        .await
+        .context("a render comes back")?;
+
+    // The photo — not the plan raster — is what conditioned it.
+    let mode = page.evaluate_value("window.__preview.mode").await?;
+    assert_eq!(mode, "from-photo");
+    let is_photo = page
+        .evaluate_value(
+            "String((window.__preview.controlImage || '').startsWith('data:image/png'))",
+        )
+        .await?;
+    assert_eq!(is_photo, "true", "the uploaded photo is the init image");
+
+    // Removing it blocks generating again.
+    page.locator("[data-testid='preview-close']")
+        .click(None)
+        .await?;
+    page.locator("[data-testid='preview-photo-clear']")
+        .click(None)
+        .await
+        .context("clear the photo")?;
+    expect(page.locator("[data-testid='preview-photo-thumb']"))
+        .to_have_count(0)
+        .await
+        .context("the thumbnail is gone")?;
 
     browser.close().await.context("close browser")?;
     Ok(())

@@ -229,6 +229,10 @@ fn planner_body() -> impl IntoView {
     // demand and never persists.
     let preview_mode = RwSignal::new(PreviewMode::default());
     let preview_state = RwSignal::new(PreviewState::default());
+    // The yard photo backing "From photo". Session-only on purpose: a photo is
+    // megabytes as a data URI, and the plan already shares the `localStorage`
+    // budget — persisting it would evict the user's actual work.
+    let preview_photo = RwSignal::new(None::<String>);
     // The index (into `objects`) of the selected placed object, if any.
     let selected = RwSignal::new(None::<usize>);
     // The canvas's rendered geometry, measured once per resize (from Yard).
@@ -1656,6 +1660,7 @@ fn planner_body() -> impl IntoView {
     let generate_preview = Callback::new(move |()| {
         let plan = current_plan();
         let mode = preview_mode.get_untracked();
+        let photo = preview_photo.get_untracked();
         preview_state.set(PreviewState::Working);
         leptos::task::spawn_local(async move {
             let prompt = slp_core::scene_prompt(&plan);
@@ -1671,19 +1676,29 @@ fn planner_body() -> impl IntoView {
                     .collect::<Vec<_>>()
                     .join(",")
             );
-            // Overhead needs the plan rasterized first; a failure there is the
-            // user's answer (nothing drawn yet), so surface it rather than
-            // silently falling back to a prompt-only render.
-            let control = if mode == PreviewMode::Overhead {
-                match crate::render::plan_raster(PREVIEW_PX).await {
+            // Where the init image comes from depends on the mode: overhead
+            // rasterizes the plan, from-photo uses the uploaded yard photo,
+            // eye-level uses none. A missing image is the user's answer
+            // (nothing drawn / no photo), so surface it rather than silently
+            // falling back to a prompt-only render.
+            let control = match mode {
+                PreviewMode::Overhead => match crate::render::plan_raster(PREVIEW_PX).await {
                     Ok(uri) => Some(uri),
                     Err(e) => {
                         preview_state.set(PreviewState::Failed(e));
                         return;
                     }
+                },
+                PreviewMode::FromPhoto => {
+                    let Some(uri) = photo else {
+                        preview_state.set(PreviewState::Failed(
+                            "Choose a photo of your yard first.".to_string(),
+                        ));
+                        return;
+                    };
+                    Some(uri)
                 }
-            } else {
-                None
+                PreviewMode::EyeLevel => None,
             };
             let cfg = render_config::render_config();
             match crate::render::generate(
@@ -2178,6 +2193,8 @@ fn planner_body() -> impl IntoView {
                 state=preview_state
                 mode=preview_mode
                 on_mode=Callback::new(move |m| preview_mode.set(m))
+                photo=preview_photo
+                on_photo=Callback::new(move |p| preview_photo.set(p))
                 on_generate=generate_preview
                 on_close=Callback::new(move |()| preview_state.set(PreviewState::Idle))
             />

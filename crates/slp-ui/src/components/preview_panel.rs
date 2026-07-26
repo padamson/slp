@@ -13,6 +13,8 @@
 
 use leptos::prelude::*;
 
+use super::FileInput;
+
 /// Which view the preview renders.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum PreviewMode {
@@ -21,6 +23,9 @@ pub enum PreviewMode {
     Overhead,
     /// Eye-level, prompt-only — plausible but layout-approximate.
     EyeLevel,
+    /// Conditioned on a **photo of the real yard**: re-render *that* yard with
+    /// the planned materials. Needs a photo; the plan supplies the prompt.
+    FromPhoto,
 }
 
 impl PreviewMode {
@@ -30,6 +35,7 @@ impl PreviewMode {
         match self {
             Self::Overhead => "overhead",
             Self::EyeLevel => "eye-level",
+            Self::FromPhoto => "from-photo",
         }
     }
 }
@@ -59,6 +65,13 @@ pub fn PreviewPanel(
     mode: Signal<PreviewMode>,
     /// Pick a mode.
     on_mode: Callback<PreviewMode>,
+    /// The yard photo backing `FromPhoto`, as a `data:` URI. Session-only — a
+    /// photo is megabytes, and the plan shares a `localStorage` budget with it.
+    #[prop(into, default = Signal::derive(|| None))]
+    photo: Signal<Option<String>>,
+    /// A photo was chosen (a `data:` URI), or cleared with `None`.
+    #[prop(default = Callback::new(|_| {}))]
+    on_photo: Callback<Option<String>>,
     /// Generate (or regenerate) with the current mode.
     on_generate: Callback<()>,
     /// Dismiss the modal.
@@ -75,6 +88,12 @@ pub fn PreviewPanel(
                 {label}
             </button>
         }
+    };
+
+    // Blocked while working, or in photo mode with no photo yet.
+    let cant_generate = move || {
+        state.get() == PreviewState::Working
+            || (mode.get() == PreviewMode::FromPhoto && photo.get().is_none())
     };
 
     // The modal only exists once something's been asked for, so the button sits
@@ -115,7 +134,7 @@ pub fn PreviewPanel(
                         <button
                             class="preview-regenerate"
                             data-testid="preview-regenerate"
-                            disabled=move || state.get() == PreviewState::Working
+                            disabled=cant_generate
                             on:click=move |_| on_generate.run(())
                         >
                             "Regenerate"
@@ -141,16 +160,57 @@ pub fn PreviewPanel(
     #[cfg(not(feature = "csr"))]
     let modal_out = modal().into_any();
 
+    // The photo slot only appears for the mode that uses one. With a photo
+    // chosen it shows a thumbnail and a clear button; without one it prompts,
+    // and generating is blocked (there'd be nothing to condition on).
+    let photo_slot = move || {
+        (mode.get() == PreviewMode::FromPhoto).then(|| {
+            photo.get().map_or_else(
+                || {
+                    view! {
+                        <span class="preview-photo-pick">
+                            <FileInput
+                                label="Yard photo"
+                                testid="preview-photo"
+                                accept="image/*"
+                                on_file=Callback::new(move |uri: String| on_photo.run(Some(uri)))
+                            />
+                        </span>
+                    }
+                    .into_any()
+                },
+                |uri| {
+                    view! {
+                        <span class="preview-photo-has">
+                            <img class="preview-photo-thumb" data-testid="preview-photo-thumb" src=uri alt="The yard photo the render is based on" />
+                            <button
+                                class="preview-photo-clear"
+                                data-testid="preview-photo-clear"
+                                title="Remove the photo"
+                                on:click=move |_| on_photo.run(None)
+                            >
+                                "×"
+                            </button>
+                        </span>
+                    }
+                    .into_any()
+                },
+            )
+        })
+    };
+
     view! {
         <div class="preview-panel" data-testid="preview-panel">
             <div class="preview-modes">
                 {mode_btn(PreviewMode::Overhead, "Overhead", "preview-mode-overhead")}
                 {mode_btn(PreviewMode::EyeLevel, "Eye-level", "preview-mode-eye-level")}
+                {mode_btn(PreviewMode::FromPhoto, "From photo", "preview-mode-from-photo")}
             </div>
+            {photo_slot}
             <button
                 class="preview-generate"
                 data-testid="preview-generate"
-                disabled=move || state.get() == PreviewState::Working
+                disabled=cant_generate
                 on:click=move |_| on_generate.run(())
             >
                 "Preview"

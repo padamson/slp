@@ -65,7 +65,7 @@ cross-cutting machinery folded into that point in the sequence.
 | E2 | Deck seating / presets | _doc pending_ | backlog |
 | G2 | Print | _doc pending_ | backlog |
 | R1–R3 | 2D / 3D view / 3D designer | _doc pending_ | backlog |
-| R4 | Photorealistic AI preview (impression) | [R4](R4-photorealistic-preview.md) | 🚧 R4.0–R4.4 done (Preview button, Overhead img2img + Eye-level, local Z-Image via SwarmUI); next: keep/export renders (R4.5), seed from real photos (R4.6) |
+| R4 | Photorealistic AI preview (impression) | [R4](R4-photorealistic-preview.md) | 🚧 R4.0–R4.4 done (Preview button, Overhead img2img + Eye-level, local Z-Image via SwarmUI); + From-photo mode (R4.6); next: keep/export renders (R4.5) |
 
 (Everything the user places — yard, **house**, **deck**, pavers, beds, walls,
 steps, trees, equipment, furniture — is drawn and saved; nothing is hardcoded to

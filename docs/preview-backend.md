@@ -72,7 +72,8 @@ localStorage.setItem("slp.renderConfig", JSON.stringify({
   endpoint: "/swarm",            // dev-server proxy; use "http://localhost:7801" without trunk serve
   model: "z_image_turbo_bf16.safetensors",
   width: 768, height: 768, steps: 20, cfgscale: 1.0,
-  creativity: 0.85,   // lower = follows the plan more literally; below ~0.8 it stays a flat diagram
+  creativity: 0.85,      // Overhead: the plan raster. Below ~0.8 it stays a flat diagram
+  photoCreativity: 0.55, // From photo: a real photo needs far less — 0.85 would discard your yard
 }));
 ```
 
@@ -84,7 +85,9 @@ stays resident and a render is roughly 20–70 seconds.
 **Overhead** conditions on a render of your plan, so the layout comes back close
 to what you drew. **Eye-level** goes on the scene description alone — plausible,
 and it honors the materials and rough arrangement, but it isn't your yard's
-geometry.
+geometry. **From photo** takes a photo of your real backyard and re-renders
+*that* with the planned materials; the photo stays in the browser session and is
+never saved to the plan.
 
 Either way it's an impression, not a measurement. The 2D plan and the estimate
 remain the source of truth for what to buy.

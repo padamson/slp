@@ -140,18 +140,25 @@ the finished space, without it having to be dimensionally exact.
         SwarmUI's output dir for full size. Decide before building; do **not**
         put renders in the plan file.
 
-- **R4.6 — seed from real photos of the actual yard**
+- **R4.6 — seed from real photos of the actual yard** 🚧
   - *Explored 2026-07-26; findings in
     [the notebook](../notebooks/2026-07-26-preview-conditioning.md) §2–3. The
     key result: img2img conditions on a **whole scene**, not a component, and
     IP-Adapter is unavailable for Z-Image (`useipadapter` offers only `None`).
     So "here's a photo of my house, put that house in a new layout" is not
     reachable locally — which splits this into two different features.*
-  - [ ] **"My actual yard, finished"** — upload one photo of the real backyard,
-        send it as the `initimage` instead of the plan raster, and let the model
-        re-render *that* yard with the planned materials. Works with what's
-        already built; the creativity dial is the "how much change" control.
-        Probably the single most compelling thing in R4.
+  - [x] **"My actual yard, finished"** — a third **From photo** mode: upload a
+        photo of the real backyard and it becomes the `initimage` instead of the
+        plan raster, so the model re-renders *that* yard with the planned
+        materials. The photo is **session-only** (never persisted — see the
+        storage note in R4.5), and generating is blocked until one is chosen
+        rather than silently falling back to a prompt-only render.
+  - [x] **a separate creativity for photos** (`photoCreativity`, default 0.55 vs
+        overhead's 0.85). The gap is the whole point: 0.85 is high because a
+        *flat vector plan* needs that much noise before the model paints texture
+        over it — a photograph is already photographic, and the same setting
+        would throw the yard away. 0.55 is the notebook's run-3 value, which
+        kept the house, deck and layout while re-surfacing materials.
   - [ ] **Per-item photos → text, via the vision bridge we already have.** A
         photo of the house through `slpVision` yields "cream stucco ranch, dark
         shingle roof, white trim"; fold that into `scene_prompt` so both modes

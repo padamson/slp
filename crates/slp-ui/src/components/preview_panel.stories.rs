@@ -6,11 +6,18 @@ use theoria::Story;
 use super::preview_panel::{PreviewMode, PreviewPanel, PreviewState};
 
 fn panel(state: PreviewState, mode: PreviewMode) -> impl IntoView {
+    photo_panel(state, mode, None)
+}
+
+fn photo_panel(state: PreviewState, mode: PreviewMode, photo: Option<&str>) -> impl IntoView {
+    let photo = photo.map(str::to_string);
     view! {
         <PreviewPanel
             state=Signal::derive(move || state.clone())
             mode=Signal::derive(move || mode)
             on_mode=Callback::new(|_| {})
+            photo=Signal::derive(move || photo.clone())
+            on_photo=Callback::new(|_| {})
             on_generate=Callback::new(|()| {})
             on_close=Callback::new(|()| {})
         />
@@ -37,6 +44,12 @@ pub fn stories() -> Vec<Story> {
                 PreviewState::Done(SAMPLE.to_string()),
                 PreviewMode::Overhead,
             )
+        }),
+        Story::new("Panels/Preview/From photo (none chosen yet)", || {
+            photo_panel(PreviewState::Idle, PreviewMode::FromPhoto, None)
+        }),
+        Story::new("Panels/Preview/From photo (chosen)", || {
+            photo_panel(PreviewState::Idle, PreviewMode::FromPhoto, Some(SAMPLE))
         }),
         Story::new("Panels/Preview/Backend unreachable", || {
             panel(

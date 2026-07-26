@@ -349,14 +349,17 @@
             cfgscale: cfg.cfgscale != null ? cfg.cfgscale : 1.0,
             seed: -1,
           };
-          // Overhead: the plan raster becomes the init image. `creativity` is
-          // the fraction of denoising steps actually run — LOWER follows the
-          // plan more literally, and below ~0.8 the output stays a flat diagram
-          // rather than a photo (see the conditioning notebook).
-          if (mode === "overhead" && controlImage) {
+          // Any mode that supplied an image conditions on it (img2img).
+          // `creativity` is the fraction of denoising steps actually run, so
+          // LOWER follows the input more literally. The two defaults differ for
+          // a real reason: a flat vector plan needs ~0.85 before the model will
+          // paint texture over it, while a photograph is already photographic
+          // and would be thrown away at that setting (see the notebook).
+          if (controlImage) {
+            const dial = mode === "from-photo" ? cfg.photoCreativity : cfg.creativity;
+            const fallback = mode === "from-photo" ? 0.55 : 0.85;
             params.initimage = controlImage;
-            params.initimagecreativity =
-              cfg.creativity != null ? cfg.creativity : 0.85;
+            params.initimagecreativity = dial != null ? dial : fallback;
           }
 
           const gres = await fetch(base + "/API/GenerateText2Image", {
@@ -1070,6 +1073,28 @@
       .preview-mode.active {
         background: #6f9c4a;
         color: #fff;
+      }
+      .preview-photo-pick,
+      .preview-photo-has {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.82rem;
+      }
+      .preview-photo-thumb {
+        height: 30px;
+        width: 40px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #cfc6ad;
+      }
+      .preview-photo-clear {
+        border: 1px solid #cfc6ad;
+        border-radius: 4px;
+        background: #fbf9f4;
+        line-height: 1;
+        padding: 2px 6px;
+        cursor: pointer;
       }
       .preview-generate {
         padding: 5px 14px;

@@ -6,12 +6,20 @@ use leptos::prelude::*;
 use super::preview_panel::{PreviewMode, PreviewPanel, PreviewState};
 
 fn render(state: PreviewState, mode: PreviewMode) -> String {
+    render_with_photo(state, mode, None)
+}
+
+fn render_with_photo(state: PreviewState, mode: PreviewMode, photo: Option<&str>) -> String {
+    let photo = photo.map(str::to_string);
     dokime::render(move || {
+        let photo = photo.clone();
         view! {
             <PreviewPanel
                 state=Signal::derive(move || state.clone())
                 mode=Signal::derive(move || mode)
                 on_mode=Callback::new(|_| {})
+                photo=Signal::derive(move || photo.clone())
+                on_photo=Callback::new(|_| {})
                 on_generate=Callback::new(|()| {})
                 on_close=Callback::new(|()| {})
             />
@@ -103,5 +111,55 @@ fn the_mode_wire_values_match_the_bridge() {
     // The bridge dispatches on these exact strings.
     assert_eq!(PreviewMode::Overhead.as_str(), "overhead");
     assert_eq!(PreviewMode::EyeLevel.as_str(), "eye-level");
+    assert_eq!(PreviewMode::FromPhoto.as_str(), "from-photo");
     assert_eq!(PreviewMode::default(), PreviewMode::Overhead);
+}
+
+#[test]
+fn the_photo_slot_appears_only_for_the_photo_mode() {
+    for m in [PreviewMode::Overhead, PreviewMode::EyeLevel] {
+        let html = render(PreviewState::Idle, m);
+        assert!(
+            !html.contains(r#"data-testid="preview-photo""#),
+            "{m:?} needs no yard photo"
+        );
+    }
+    let html = render(PreviewState::Idle, PreviewMode::FromPhoto);
+    assert!(
+        html.contains(r#"data-testid="preview-photo""#),
+        "the photo picker shows"
+    );
+}
+
+#[test]
+fn photo_mode_cannot_generate_until_a_photo_is_chosen() {
+    // Nothing to condition on yet, so the button is blocked...
+    let empty = render(PreviewState::Idle, PreviewMode::FromPhoto);
+    assert!(empty.contains("disabled"), "blocked without a photo");
+    // ...and once chosen, the thumbnail replaces the picker and it unblocks.
+    let chosen = render_with_photo(
+        PreviewState::Idle,
+        PreviewMode::FromPhoto,
+        Some("data:image/png;base64,YARD"),
+    );
+    assert!(
+        chosen.contains(r#"data-testid="preview-photo-thumb""#),
+        "the chosen photo is shown back"
+    );
+    assert!(
+        chosen.contains(r#"data-testid="preview-photo-clear""#),
+        "and can be removed"
+    );
+    assert!(!chosen.contains("disabled"), "ready to generate");
+}
+
+#[test]
+fn the_other_modes_never_block_on_a_missing_photo() {
+    for m in [PreviewMode::Overhead, PreviewMode::EyeLevel] {
+        let html = render(PreviewState::Idle, m);
+        assert!(
+            !html.contains("disabled"),
+            "{m:?} generates without a photo"
+        );
+    }
 }

@@ -25,6 +25,13 @@ pub const RENDER_CONFIG_STORAGE: &str = "slp.renderConfig";
 /// stays a flat diagram, 0.85 with 20 steps produces a photograph, and steps
 /// alone can't substitute for creativity. **Eye-level** mode sends no init
 /// image — plain text-to-image on the scene prompt.
+///
+/// **From-photo** mode uses the lower `photoCreativity`, and the difference is
+/// the point: 0.85 is high because a *flat vector plan* needs that much noise
+/// before the model will paint texture over it. A real photograph starts out
+/// photographic, so the same setting would throw the yard away — around 0.55 it
+/// keeps the house, deck and layout while re-surfacing the materials (the
+/// notebook's run 3).
 pub const DEFAULT_RENDER_CONFIG: &str = r#"{
   "endpoint": "/swarm",
   "model": "z_image_turbo_bf16.safetensors",
@@ -32,7 +39,8 @@ pub const DEFAULT_RENDER_CONFIG: &str = r#"{
   "height": 768,
   "steps": 20,
   "cfgscale": 1.0,
-  "creativity": 0.85
+  "creativity": 0.85,
+  "photoCreativity": 0.55
 }"#;
 
 /// The effective preview config JSON: the user's stored config, or
