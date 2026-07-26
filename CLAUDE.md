@@ -20,6 +20,7 @@ crates/slp-e2e    # playwright-rust dogfood tests (excluded; standalone)
 schema/           # LinkML schema -> panschema-generated serde types (Milestone 1+)
 materials/        # manifest.toml (committed) + cache/ (GITIGNORED — never commit assets)
 docs/PLAN.md      # overview;  docs/stories/ = one detailed doc per story (sliced)
+docs/notebooks/   # lab notebooks: WHY a design choice was made, with evidence
 ```
 
 The wasm app (`slp-app`) and native-test crate (`slp-e2e`) are **excluded from

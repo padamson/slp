@@ -22,14 +22,41 @@ use slp_core::delete_node;
 
 use super::{
     AreaInspector, CanvasMetrics, CatalogPanel, EstimatePanel, Footprint, MaterialPicker,
-    Modifiers, NumberField, ObjectInspector, ObjectPalette, Toggle, ToolButton, ToolGroup, Yard,
-    YardControls,
+    Modifiers, NumberField, ObjectInspector, ObjectPalette, PreviewMode, PreviewPanel,
+    PreviewState, Toggle, ToolButton, ToolGroup, Yard, YardControls,
 };
 use crate::api_key;
 use crate::fs_access;
+use crate::render_config;
 
 /// Pixels per foot in the SVG user space.
 const PX_FT: f64 = 12.0;
+/// Square size (px) the plan is rasterized to for the preview's init image —
+/// matches the render size the backend generates at.
+const PREVIEW_PX: u32 = 768;
+
+/// Escape a string into a JSON string literal (quotes, backslashes, and the
+/// control characters a label or `data:` URI could carry).
+fn json_str(s: &str) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for ch in s.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
 /// How close (screen px) a dragged border seam may come to an edge end before
 /// it snaps to the node — a 1 ft zone (at `PX_FT`).
 const SEAM_SNAP_PX: f64 = PX_FT;
@@ -197,6 +224,11 @@ fn planner_body() -> impl IntoView {
     // catalog item (by id) is being edited.
     let catalog_open = RwSignal::new(false);
     let catalog_selected = RwSignal::new(None::<String>);
+    // The photorealistic preview: which view to render, and where the current
+    // request has got to. Deliberately not part of the plan — it regenerates on
+    // demand and never persists.
+    let preview_mode = RwSignal::new(PreviewMode::default());
+    let preview_state = RwSignal::new(PreviewState::default());
     // The index (into `objects`) of the selected placed object, if any.
     let selected = RwSignal::new(None::<usize>);
     // The canvas's rendered geometry, measured once per resize (from Yard).
@@ -1617,6 +1649,58 @@ fn planner_body() -> impl IntoView {
         })
     });
 
+    // Render a photorealistic preview of the plan. Overhead conditions on the
+    // plan's derived raster so the layout survives; eye-level goes on the scene
+    // prompt alone. The whole round trip lives in the `slpRender` bridge — off
+    // the browser it reports that and stops, so this is inert in tests.
+    let generate_preview = Callback::new(move |()| {
+        let plan = current_plan();
+        let mode = preview_mode.get_untracked();
+        preview_state.set(PreviewState::Working);
+        leptos::task::spawn_local(async move {
+            let prompt = slp_core::scene_prompt(&plan);
+            let refs = slp_core::reference_images(&plan);
+            let refs_json = format!(
+                "[{}]",
+                refs.iter()
+                    .map(|r| format!(
+                        "{{\"label\":{},\"image\":{}}}",
+                        json_str(&r.label),
+                        json_str(&r.image)
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            );
+            // Overhead needs the plan rasterized first; a failure there is the
+            // user's answer (nothing drawn yet), so surface it rather than
+            // silently falling back to a prompt-only render.
+            let control = if mode == PreviewMode::Overhead {
+                match crate::render::plan_raster(PREVIEW_PX).await {
+                    Ok(uri) => Some(uri),
+                    Err(e) => {
+                        preview_state.set(PreviewState::Failed(e));
+                        return;
+                    }
+                }
+            } else {
+                None
+            };
+            let cfg = render_config::render_config();
+            match crate::render::generate(
+                mode.as_str(),
+                &prompt,
+                control.as_deref(),
+                &refs_json,
+                &cfg,
+            )
+            .await
+            {
+                Ok(uri) => preview_state.set(PreviewState::Done(uri)),
+                Err(e) => preview_state.set(PreviewState::Failed(e)),
+            }
+        });
+    });
+
     view! {
         <header>
             <h1>"Simple Landscape Planner"</h1>
@@ -2089,6 +2173,14 @@ fn planner_body() -> impl IntoView {
             </div>
             // The estimate appears alongside the canvas once there's a catalog.
             {move || { (!catalog.get().is_empty()).then(|| view! { <EstimatePanel bom=bom /> }) }}
+            // The photorealistic preview — generate-on-demand, nothing stored.
+            <PreviewPanel
+                state=preview_state
+                mode=preview_mode
+                on_mode=Callback::new(move |m| preview_mode.set(m))
+                on_generate=generate_preview
+                on_close=Callback::new(move |()| preview_state.set(PreviewState::Idle))
+            />
             // The catalog inspector, when opened from the toolbar.
             {move || {
                 catalog_open.get().then(|| {

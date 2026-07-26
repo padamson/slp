@@ -23,6 +23,7 @@ mod object_inspector;
 mod object_palette;
 mod placement;
 mod planner;
+mod preview_panel;
 mod scale_bar;
 mod select_field;
 mod shapes;
@@ -58,6 +59,7 @@ pub use object_inspector::ObjectInspector;
 pub use object_palette::ObjectPalette;
 pub use placement::Placement;
 pub use planner::Planner;
+pub use preview_panel::{PreviewMode, PreviewPanel, PreviewState};
 pub use scale_bar::{DEFAULT_LENGTH_FT, ScaleBar};
 pub use select_field::SelectField;
 pub use shapes::Shapes;
@@ -264,6 +266,9 @@ mod placement_stories;
 #[path = "planner.stories.rs"]
 mod planner_stories;
 #[cfg(feature = "stories")]
+#[path = "preview_panel.stories.rs"]
+mod preview_panel_stories;
+#[cfg(feature = "stories")]
 #[path = "scale_bar.stories.rs"]
 mod scale_bar_stories;
 #[cfg(feature = "stories")]
@@ -326,6 +331,7 @@ pub fn stories() -> Vec<theoria::Story> {
     s.extend(border_editor_stories::stories());
     s.extend(course_editor_stories::stories());
     s.extend(crop_editor_stories::stories());
+    s.extend(preview_panel_stories::stories());
     // The composition ladder, smallest first: Door/Window → Wall → House.
     s.extend(door_stories::stories());
     s.extend(window_stories::stories());
@@ -408,6 +414,9 @@ mod placement_tests;
 #[cfg(test)]
 #[path = "planner.tests.rs"]
 mod planner_tests;
+#[cfg(test)]
+#[path = "preview_panel.tests.rs"]
+mod preview_panel_tests;
 #[cfg(test)]
 #[path = "scale_bar.tests.rs"]
 mod scale_bar_tests;

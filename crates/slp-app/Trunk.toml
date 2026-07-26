@@ -3,6 +3,19 @@ dist = "dist"
 
 [serve]
 # Stable local URL for manual testing during development: http://localhost:8080
+# (dev.sh picks the next free port if this one's taken).
 addresses = ["127.0.0.1"]
 port = 8080
 open = false
+
+# Photorealistic preview (R4): proxy the local image backend through the dev
+# server so the browser only ever makes a **same-origin** request. Without this
+# the app would need SwarmUI's `AccessControlAllowOrigin` set to the exact port
+# it happens to be served from — which breaks whenever the port floats.
+#
+# Covers both routes the bridge uses: `/API/...` to generate, and `/View/...` to
+# fetch the result. A built (non-`trunk serve`) app has no proxy, so point
+# `slp.renderConfig.endpoint` straight at the backend there and set CORS.
+[[proxy]]
+rewrite = "/swarm/"
+backend = "http://localhost:7801/"

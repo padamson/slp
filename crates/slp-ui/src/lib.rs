@@ -25,6 +25,9 @@ mod api_key;
 mod components;
 mod fs_access;
 mod plan_file;
+mod preview_render;
+mod render;
+mod render_config;
 mod style;
 mod vision;
 

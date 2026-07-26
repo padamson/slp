@@ -248,6 +248,143 @@
           }
         },
       };
+
+      // Photorealistic preview (R4): drive a local SwarmUI (ComfyUI engine,
+      // Z-Image) to render the plan. `overhead` faithful mode passes the plan
+      // raster as an **init image** (img2img) — no ControlNet needed, the layout
+      // survives on its own; `eye-level` is plain text-to-image on the scene
+      // prompt. Config (endpoint, model, creativity) comes from slp-ui
+      // `render_config`. Returns a data: URI (or throws a human-readable error
+      // the UI surfaces).
+      window.slpRender = {
+        // Rasterize the live plan into the init image for overhead mode. This is
+        // a DERIVED render, not a screenshot: the on-screen SVG is an editing
+        // surface (grid, drag handles, node numbers, selection tint) and paints
+        // the lawn near-white, which photorealizes as concrete. `rulesJson` comes
+        // from slp-ui `preview_render` — the palette and strip list live in Rust
+        // where they're unit-tested.
+        async planRaster(rulesJson, size) {
+          const rules = JSON.parse(rulesJson || "{}");
+          const src = document.querySelector("[data-testid='yard']");
+          if (!src) throw new Error("There's no plan on screen to preview yet.");
+
+          const svg = src.cloneNode(true);
+          // Drop editing affordances and advisory overlays.
+          for (const id of rules.stripTestids || []) {
+            svg.querySelectorAll(`[data-testid='${id}']`).forEach((n) => n.remove());
+          }
+          // Remap UI colors to the real colors of what they represent. Done on
+          // the serialized string so it catches both attributes and inline
+          // styles, however deeply nested.
+          let markup = new XMLSerializer().serializeToString(svg);
+          for (const [from, to] of rules.palette || []) {
+            markup = markup.split(from).join(to);
+          }
+
+          const px = size || 768;
+          const canvas = document.createElement("canvas");
+          canvas.width = px;
+          canvas.height = px;
+          const ctx = canvas.getContext("2d");
+          // Paint the background first: a transparent PNG flattens to black on
+          // a canvas, and black ground photorealizes as asphalt.
+          ctx.fillStyle = rules.background || "#6f9c4a";
+          ctx.fillRect(0, 0, px, px);
+
+          const blob = new Blob([markup], { type: "image/svg+xml;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          try {
+            const img = await new Promise((res, rej) => {
+              const i = new Image();
+              i.onload = () => res(i);
+              i.onerror = () => rej(new Error("Couldn't rasterize the plan."));
+              i.src = url;
+            });
+            // Fit the plan into the square, centered, preserving aspect.
+            const scale = Math.min(px / img.width, px / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            ctx.drawImage(img, (px - w) / 2, (px - h) / 2, w, h);
+          } finally {
+            URL.revokeObjectURL(url);
+          }
+          return canvas.toDataURL("image/png");
+        },
+
+        async generate(mode, prompt, controlImage, referencesJson, configJson) {
+          const cfg = JSON.parse(configJson || "{}");
+          const base = (cfg.endpoint || "http://localhost:7801").replace(/\/+$/, "");
+
+          // SwarmUI is session-based: get a session id, then generate.
+          let session;
+          try {
+            const sres = await fetch(base + "/API/GetNewSession", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: "{}",
+            });
+            if (!sres.ok) throw new Error(String(sres.status));
+            session = (await sres.json()).session_id;
+          } catch (e) {
+            // `base` is normally the dev server's `/swarm` proxy, so naming it
+            // alone would be baffling ("can't reach /swarm"). Say what's
+            // actually behind it.
+            const where = base.startsWith("/")
+              ? "the image backend (proxied at " + base + " to localhost:7801)"
+              : "the image backend at " + base;
+            throw new Error(
+              "Can't reach " + where + " — is SwarmUI running? (" +
+                (e && e.message ? e.message : e) + ")"
+            );
+          }
+
+          const params = {
+            session_id: session,
+            prompt,
+            images: 1,
+            model: cfg.model || "",
+            width: cfg.width || 1024,
+            height: cfg.height || 1024,
+            steps: cfg.steps || 8,
+            cfgscale: cfg.cfgscale != null ? cfg.cfgscale : 1.0,
+            seed: -1,
+          };
+          // Overhead: the plan raster becomes the init image. `creativity` is
+          // the fraction of denoising steps actually run — LOWER follows the
+          // plan more literally, and below ~0.8 the output stays a flat diagram
+          // rather than a photo (see the conditioning notebook).
+          if (mode === "overhead" && controlImage) {
+            params.initimage = controlImage;
+            params.initimagecreativity =
+              cfg.creativity != null ? cfg.creativity : 0.85;
+          }
+
+          const gres = await fetch(base + "/API/GenerateText2Image", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(params),
+          });
+          if (!gres.ok) throw new Error("Preview backend error " + gres.status);
+          const data = await gres.json();
+          if (data.error || data.error_id) {
+            throw new Error("Preview failed: " + (data.error || data.error_id));
+          }
+          const img = data.images && data.images[0];
+          if (!img) throw new Error("The preview backend returned no image.");
+          if (img.startsWith("data:")) return img;
+
+          // Otherwise it's a /View/ path (or absolute URL) — fetch and inline it
+          // as a data: URI so the app can show it without another round trip.
+          const url = /^https?:/.test(img) ? img : base + "/" + img.replace(/^\/+/, "");
+          const blob = await (await fetch(url)).blob();
+          return await new Promise((res, rej) => {
+            const fr = new FileReader();
+            fr.onload = () => res(fr.result);
+            fr.onerror = () => rej(new Error("Couldn't read the generated image."));
+            fr.readAsDataURL(blob);
+          });
+        },
+      };
     </script>
     <style>
       body {
@@ -904,6 +1041,101 @@
         align-items: center;
         justify-content: center;
         z-index: 100;
+      }
+      /* Photorealistic preview (R4): the trigger sits with the estimate; the
+         result opens in a portaled modal like the crop editor. */
+      .preview-panel {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+        /* Own row. As a third item in the wrapping canvas/estimate flex row it
+           would take width from the canvas, changing pixels-per-foot and moving
+           every drawn coordinate. */
+        flex: 0 0 100%;
+      }
+      .preview-modes {
+        display: inline-flex;
+        border: 1px solid #cfc6ad;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .preview-mode {
+        border: 0;
+        background: #fbf9f4;
+        padding: 4px 10px;
+        font-size: 0.82rem;
+        cursor: pointer;
+      }
+      .preview-mode.active {
+        background: #6f9c4a;
+        color: #fff;
+      }
+      .preview-generate {
+        padding: 5px 14px;
+        border: 1px solid #8a7f6a;
+        border-radius: 6px;
+        background: #fbf9f4;
+        cursor: pointer;
+      }
+      .preview-generate[disabled] {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .preview-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 110;
+      }
+      .preview-dialog {
+        padding: 14px;
+        border: 1px solid #cfc6ad;
+        border-radius: 8px;
+        background: #fbf9f4;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+        max-width: min(92vw, 860px);
+        max-height: 92vh;
+        overflow: auto;
+      }
+      .preview-image {
+        display: block;
+        max-width: min(84vw, 768px);
+        max-height: 76vh;
+        border-radius: 6px;
+      }
+      .preview-working,
+      .preview-failed {
+        min-width: 320px;
+        padding: 28px 20px;
+        text-align: center;
+      }
+      .preview-hint {
+        font-size: 0.85rem;
+        color: #6f6a5f;
+      }
+      .preview-spinner {
+        width: 28px;
+        height: 28px;
+        margin: 0 auto 12px;
+        border: 3px solid #ddd6c8;
+        border-top-color: #6f9c4a;
+        border-radius: 50%;
+        animation: preview-spin 0.9s linear infinite;
+      }
+      @keyframes preview-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .preview-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 12px;
       }
       .crop-editor {
         padding: 14px;
