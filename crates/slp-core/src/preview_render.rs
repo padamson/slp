@@ -7,7 +7,9 @@
 //!
 //! The rules live here (pure data, unit-tested); `window.slpRender` in the app
 //! shell applies them to a clone of the live SVG before rasterizing. Colors are
-//! matched as literal `#rrggbb` strings, exactly as [`crate::style`] emits them.
+//! matched as literal `#rrggbb` strings, exactly as slp-ui's `style` module
+//! emits them. This lives in slp-core because it's pure data + string building
+//! with no renderer dependency — which also puts it under the mutation gate.
 //!
 //! Why it matters: at img2img the model photorealizes what it's given, so a
 //! near-white lawn comes back as pale concrete rather than grass. See

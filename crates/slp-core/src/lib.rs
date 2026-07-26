@@ -17,6 +17,7 @@ pub mod geom;
 pub mod pick;
 pub mod place;
 pub mod plan_io;
+pub mod preview_render;
 pub mod scene;
 pub mod snap;
 pub mod takeoff;
@@ -45,6 +46,7 @@ pub use geom::{
 pub use pick::object_at;
 pub use place::{Commit, Tool, commit_kind, opening_from_nodes, snap_node, step_outward, step_run};
 pub use plan_io::{DEFAULT_PLAN_STEM, PLAN_EXT, plan_filename};
+pub use preview_render::{LAWN, PREVIEW_PALETTE, PREVIEW_STRIP_TESTIDS, preview_raster_config};
 pub use scene::{MAX_REFERENCES, Reference, describe_position, reference_images, scene_prompt};
 pub use snap::{dragged_center, snap_ortho, snap_to_grid};
 pub use takeoff::{

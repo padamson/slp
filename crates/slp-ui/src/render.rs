@@ -7,12 +7,12 @@
 
 /// Rasterize the on-screen plan into the init image for overhead mode: a
 /// derived render with the editing chrome stripped and UI colors remapped to
-/// material-true ones (see [`crate::preview_render`]).
+/// material-true ones (see `slp_core::preview_render`).
 ///
 /// # Errors
 /// Returns a message when the bridge is absent or there's no plan on screen.
 pub async fn plan_raster(size: u32) -> Result<String, String> {
-    imp::plan_raster(&crate::preview_render::preview_raster_config(), size).await
+    imp::plan_raster(&slp_core::preview_raster_config(), size).await
 }
 
 /// One finished render: the image to show, and where the backend keeps its own

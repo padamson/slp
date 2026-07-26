@@ -93,14 +93,17 @@ trap 'rm -f "$DIFF"' EXIT
 
 # --working: uncommitted edits to tracked files (`git diff HEAD`), so the
 # gate works before you commit. Otherwise: the committed range BASE..HEAD.
+# `--no-renames` matters: git renders a move as a compact rename with NO content
+# lines, so `--in-diff` would find nothing to mutate and report success on code
+# it never tested. Disabling rename detection emits the file as a full addition.
 if [[ "$WORKING" -eq 1 ]]; then
   RANGE="the working tree vs HEAD"
   EMPTY_TIP="tip: --working mutates uncommitted edits to tracked files; 'git add -N <file>' a brand-new file to include it."
-  git diff HEAD > "$DIFF"
+  git diff HEAD --no-renames > "$DIFF"
 else
   RANGE="${BASE}..HEAD"
   EMPTY_TIP="tip: commit your changes locally first, then re-run (or use --working for uncommitted edits)."
-  git diff "${BASE}..HEAD" > "$DIFF"
+  git diff "${BASE}..HEAD" --no-renames > "$DIFF"
 fi
 
 if [[ ! -s "$DIFF" ]]; then

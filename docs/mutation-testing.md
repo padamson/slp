@@ -54,13 +54,18 @@ Every surviving mutant must be resolved one of two ways:
    how backlog silently accumulates. Bounded by `examine_globs`, so it runs
    within the CI per-job timeout.
 3. **Local pre-push** — before pushing changes to an in-scope crate, run
-   `./scripts/mutants.sh <base>` (diff-scoped, seconds-to-minutes) rather than
-   `cargo mutants -f <changed-file>`, which mutates the whole file (all ~1000
-   mutants) even for a few changed lines. If your changes aren't committed yet
-   (e.g. a pause-before-commit review), use `./scripts/mutants.sh --working` to
-   scope to the uncommitted working-tree diff. The diff gate is CI-only and not
-   in the pre-commit hooks, so this is the developer's responsibility on logic
-   changes.
+   `./scripts/mutants.sh <base>` (diff-scoped, seconds-to-minutes). If your
+   changes aren't committed yet (e.g. a pause-before-commit review), use
+   `./scripts/mutants.sh --working` to scope to the uncommitted working-tree
+   diff. The diff gate is CI-only and not in the pre-commit hooks, so this is
+   the developer's responsibility on logic changes.
+
+   **Do not reach for `cargo mutants -f <file>`.** With `examine_globs` set in
+   `.cargo/mutants.toml`, cargo-mutants (27.1.0) **silently ignores `-f`** and
+   sweeps everything in scope — verified: `-f` naming a file that doesn't exist
+   lists the same 1165 mutants as no flag at all. A run you believe is scoped to
+   one file is really the full ~45-minute sweep. `--in-diff` (what
+   `scripts/mutants.sh` uses) filters correctly.
 
 ## Spin-out alignment
 
@@ -78,7 +83,6 @@ so this policy survives the move. Spin-out units:
 
 ```bash
 cargo mutants                              # full in-scope sweep (slow; matches weekly CI)
-cargo mutants -f crates/slp-core/src/geom.rs   # one whole file (all its mutants)
 ./scripts/mutants.sh main                  # only what changed vs. main (diff; matches per-push CI)
 ./scripts/mutants.sh --working             # only uncommitted changes (diff, before you commit)
 ```
