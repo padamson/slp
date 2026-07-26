@@ -15,29 +15,42 @@ pub async fn plan_raster(size: u32) -> Result<String, String> {
     imp::plan_raster(&crate::preview_render::preview_raster_config(), size).await
 }
 
-/// Generate a preview image for the plan, returning a `data:` URI (or a
-/// human-readable error). `mode` is `"overhead"` or `"eye-level"`;
-/// `control_image` is the rasterized plan for overhead (`None` for eye-level);
-/// `references_json` and `config_json` pass through to the bridge.
+/// One finished render: the image to show, and where the backend keeps its own
+/// full-resolution copy (when it has one).
+#[derive(Clone, PartialEq, Debug, serde::Deserialize)]
+pub struct Render {
+    /// The image as a `data:` URI.
+    pub image: String,
+    /// The backend's own path for this render — `SwarmUI` writes every generation
+    /// to `Output/…` before we fetch it, so the file outlives the browser
+    /// session. `None` for a backend that hands back bytes and keeps nothing.
+    #[serde(default)]
+    pub source: Option<String>,
+}
+
+/// Generate a preview for the plan. `mode` is `"overhead"`, `"eye-level"` or
+/// `"from-photo"`; `control_image` is the init image for the modes that
+/// condition on one; `references_json` and `config_json` pass through.
 ///
 /// # Errors
 /// Returns a message when the bridge is absent (non-browser), the backend is
-/// unreachable, or generation fails.
+/// unreachable, generation fails, or the reply doesn't parse.
 pub async fn generate(
     mode: &str,
     prompt: &str,
     control_image: Option<&str>,
     references_json: &str,
     config_json: &str,
-) -> Result<String, String> {
-    imp::generate(
+) -> Result<Render, String> {
+    let json = imp::generate(
         mode,
         prompt,
         control_image.unwrap_or(""),
         references_json,
         config_json,
     )
-    .await
+    .await?;
+    serde_json::from_str(&json).map_err(|e| format!("The preview reply didn't parse: {e}"))
 }
 
 #[cfg(feature = "csr")]

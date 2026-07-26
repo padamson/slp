@@ -28,7 +28,11 @@ const STUB_OK: &str = r#"(() => {
     planRaster: (...a) => real.planRaster(...a),
     generate: async (mode, prompt, controlImage, refsJson, configJson) => {
       window.__preview = { mode, prompt, controlImage, refsJson, configJson };
-      return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      window.__gen = (window.__gen || 0) + 1;
+      return JSON.stringify({
+        image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        source: "View/local/raw/2026-07-26/render-" + window.__gen + ".png",
+      });
     },
   };
   return "ok";
@@ -289,6 +293,75 @@ async fn from_photo_conditions_on_the_uploaded_yard_photo() -> Result<()> {
         .to_have_count(0)
         .await
         .context("the thumbnail is gone")?;
+
+    browser.close().await.context("close browser")?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_render_can_be_downloaded_and_earlier_ones_stay_in_the_gallery() -> Result<()> {
+    let dist = dist_dir();
+    if !dist.join("index.html").exists() {
+        eprintln!("skipping: {} not built.", dist.display());
+        return Ok(());
+    }
+    let (addr, _server) = serve(&dist).await?;
+    let pw = Playwright::launch().await.context("launch playwright")?;
+    let browser = pw.chromium().launch().await.context("launch chromium")?;
+    let page = common::new_page(&browser).await?;
+    boot(&page, &addr, STUB_OK).await?;
+
+    // Eye-level needs nothing drawn, so it's the quickest path to a render.
+    page.locator("[data-testid='preview-mode-eye-level']")
+        .click(None)
+        .await?;
+    page.locator("[data-testid='preview-generate']")
+        .click(None)
+        .await?;
+    expect(page.locator("[data-testid='preview-image']"))
+        .to_have_count(1)
+        .await?;
+
+    // It can be saved, named for the plan and the mode.
+    let dl = page.locator("[data-testid='preview-download']");
+    expect(dl.clone())
+        .to_have_count(1)
+        .await
+        .context("a download")?;
+    let name = dl.get_attribute("download").await?.unwrap_or_default();
+    assert!(
+        name.ends_with("-eye-level.png"),
+        "named for the mode, got {name}"
+    );
+
+    // And the backend's own copy is surfaced rather than implied away.
+    expect(page.locator("[data-testid='preview-source']"))
+        .to_contain_text("View/local/raw")
+        .await
+        .context("where the full-res copy lives")?;
+
+    // Regenerating keeps the earlier render instead of discarding it.
+    page.locator("[data-testid='preview-regenerate']")
+        .click(None)
+        .await?;
+    page.locator("[data-testid='preview-close']")
+        .click(None)
+        .await?;
+    expect(page.locator("[data-testid='preview-thumb']"))
+        .to_have_count(2)
+        .await
+        .context("both renders are in the gallery")?;
+
+    // Clicking a thumbnail reopens it.
+    page.locator("[data-testid='preview-thumb']")
+        .first()
+        .click(None)
+        .await
+        .context("reopen the first render")?;
+    expect(page.locator("[data-testid='preview-image']"))
+        .to_have_count(1)
+        .await
+        .context("the earlier render is shown again")?;
 
     browser.close().await.context("close browser")?;
     Ok(())

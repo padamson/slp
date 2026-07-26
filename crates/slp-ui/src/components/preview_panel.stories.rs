@@ -3,13 +3,22 @@
 use leptos::prelude::*;
 use theoria::Story;
 
-use super::preview_panel::{PreviewMode, PreviewPanel, PreviewState};
+use super::preview_panel::{PreviewMode, PreviewPanel, PreviewState, Shot};
 
 fn panel(state: PreviewState, mode: PreviewMode) -> impl IntoView {
     photo_panel(state, mode, None)
 }
 
 fn photo_panel(state: PreviewState, mode: PreviewMode, photo: Option<&str>) -> impl IntoView {
+    full_panel(state, mode, photo, Vec::new())
+}
+
+fn full_panel(
+    state: PreviewState,
+    mode: PreviewMode,
+    photo: Option<&str>,
+    gallery: Vec<Shot>,
+) -> impl IntoView {
     let photo = photo.map(str::to_string);
     view! {
         <PreviewPanel
@@ -18,9 +27,21 @@ fn photo_panel(state: PreviewState, mode: PreviewMode, photo: Option<&str>) -> i
             on_mode=Callback::new(|_| {})
             photo=Signal::derive(move || photo.clone())
             on_photo=Callback::new(|_| {})
+            gallery=Signal::derive(move || gallery.clone())
+            on_select=Callback::new(|_| {})
+            download_stem=Signal::derive(|| "my-yard".to_string())
             on_generate=Callback::new(|()| {})
             on_close=Callback::new(|()| {})
         />
+    }
+}
+
+/// A finished render for the stories that show one.
+fn shot(mode: PreviewMode, source: Option<&str>) -> Shot {
+    Shot {
+        image: SAMPLE.to_string(),
+        mode,
+        source: source.map(str::to_string),
     }
 }
 
@@ -41,8 +62,23 @@ pub fn stories() -> Vec<Story> {
         }),
         Story::new("Panels/Preview/Done", || {
             panel(
-                PreviewState::Done(SAMPLE.to_string()),
+                PreviewState::Done(shot(
+                    PreviewMode::Overhead,
+                    Some("View/local/raw/2026-07-26/render.png"),
+                )),
                 PreviewMode::Overhead,
+            )
+        }),
+        Story::new("Panels/Preview/Gallery of this session", || {
+            full_panel(
+                PreviewState::Idle,
+                PreviewMode::Overhead,
+                None,
+                vec![
+                    shot(PreviewMode::Overhead, None),
+                    shot(PreviewMode::EyeLevel, None),
+                    shot(PreviewMode::FromPhoto, None),
+                ],
             )
         }),
         Story::new("Panels/Preview/From photo (none chosen yet)", || {

@@ -3,16 +3,26 @@
 
 use leptos::prelude::*;
 
-use super::preview_panel::{PreviewMode, PreviewPanel, PreviewState};
+use super::preview_panel::{PreviewMode, PreviewPanel, PreviewState, Shot};
 
 fn render(state: PreviewState, mode: PreviewMode) -> String {
     render_with_photo(state, mode, None)
 }
 
 fn render_with_photo(state: PreviewState, mode: PreviewMode, photo: Option<&str>) -> String {
+    render_full(state, mode, photo, Vec::new())
+}
+
+fn render_full(
+    state: PreviewState,
+    mode: PreviewMode,
+    photo: Option<&str>,
+    gallery: Vec<Shot>,
+) -> String {
     let photo = photo.map(str::to_string);
     dokime::render(move || {
         let photo = photo.clone();
+        let gallery = gallery.clone();
         view! {
             <PreviewPanel
                 state=Signal::derive(move || state.clone())
@@ -20,11 +30,23 @@ fn render_with_photo(state: PreviewState, mode: PreviewMode, photo: Option<&str>
                 on_mode=Callback::new(|_| {})
                 photo=Signal::derive(move || photo.clone())
                 on_photo=Callback::new(|_| {})
+                gallery=Signal::derive(move || gallery.clone())
+                on_select=Callback::new(|_| {})
+                download_stem=Signal::derive(|| "my-yard".to_string())
                 on_generate=Callback::new(|()| {})
                 on_close=Callback::new(|()| {})
             />
         }
     })
+}
+
+/// A finished render for the states that need one.
+fn shot(mode: PreviewMode, source: Option<&str>) -> Shot {
+    Shot {
+        image: "data:image/png;base64,AAAA".to_string(),
+        mode,
+        source: source.map(str::to_string),
+    }
 }
 
 #[test]
@@ -77,8 +99,10 @@ fn working_shows_a_spinner_and_disables_generating_again() {
 
 #[test]
 fn done_shows_the_image() {
-    let uri = "data:image/png;base64,AAAA".to_string();
-    let html = render(PreviewState::Done(uri), PreviewMode::Overhead);
+    let html = render(
+        PreviewState::Done(shot(PreviewMode::Overhead, None)),
+        PreviewMode::Overhead,
+    );
     assert!(html.contains(r#"data-testid="preview-image""#));
     assert!(html.contains("data:image/png;base64,AAAA"), "the result");
     assert!(
@@ -160,6 +184,82 @@ fn the_other_modes_never_block_on_a_missing_photo() {
         assert!(
             !html.contains("disabled"),
             "{m:?} generates without a photo"
+        );
+    }
+}
+
+#[test]
+fn a_finished_render_can_be_downloaded_named_for_the_plan_and_mode() {
+    let html = render(
+        PreviewState::Done(shot(PreviewMode::EyeLevel, None)),
+        PreviewMode::EyeLevel,
+    );
+    assert!(
+        html.contains(r#"data-testid="preview-download""#),
+        "a download"
+    );
+    assert!(
+        html.contains(r#"download="my-yard-eye-level.png""#),
+        "named from the plan stem and the mode, so a folder of these reads: {html}"
+    );
+}
+
+#[test]
+fn the_backends_own_copy_is_surfaced_when_there_is_one() {
+    // SwarmUI writes full-res to disk before we fetch it — say where, rather
+    // than implying the modal is the only copy.
+    let with_path = render(
+        PreviewState::Done(shot(
+            PreviewMode::Overhead,
+            Some("View/local/raw/2026-07-26/0909001-x.png"),
+        )),
+        PreviewMode::Overhead,
+    );
+    assert!(with_path.contains(r#"data-testid="preview-source""#));
+    assert!(with_path.contains("View/local/raw/2026-07-26/0909001-x.png"));
+
+    // A backend that keeps nothing says nothing.
+    let without = render(
+        PreviewState::Done(shot(PreviewMode::Overhead, None)),
+        PreviewMode::Overhead,
+    );
+    assert!(!without.contains(r#"data-testid="preview-source""#));
+}
+
+#[test]
+fn the_gallery_holds_this_sessions_renders() {
+    // Empty until something's been generated...
+    let none = render(PreviewState::Idle, PreviewMode::Overhead);
+    assert!(!none.contains(r#"data-testid="preview-gallery""#));
+
+    // ...then one thumbnail per render, so Regenerate doesn't lose the last one.
+    let html = render_full(
+        PreviewState::Idle,
+        PreviewMode::Overhead,
+        None,
+        vec![
+            shot(PreviewMode::Overhead, None),
+            shot(PreviewMode::EyeLevel, None),
+        ],
+    );
+    assert!(
+        html.contains(r#"data-testid="preview-gallery""#),
+        "the strip"
+    );
+    assert_eq!(
+        dokime::count(&html, r#"data-testid="preview-thumb""#),
+        2,
+        "one thumbnail per render"
+    );
+}
+
+#[test]
+fn nothing_is_downloadable_before_a_render_finishes() {
+    for st in [PreviewState::Idle, PreviewState::Working] {
+        let html = render(st, PreviewMode::Overhead);
+        assert!(
+            !html.contains(r#"data-testid="preview-download""#),
+            "there's no image to download yet"
         );
     }
 }

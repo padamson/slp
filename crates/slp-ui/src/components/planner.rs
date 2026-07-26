@@ -23,7 +23,7 @@ use slp_core::delete_node;
 use super::{
     AreaInspector, CanvasMetrics, CatalogPanel, EstimatePanel, Footprint, MaterialPicker,
     Modifiers, NumberField, ObjectInspector, ObjectPalette, PreviewMode, PreviewPanel,
-    PreviewState, Toggle, ToolButton, ToolGroup, Yard, YardControls,
+    PreviewState, Shot, Toggle, ToolButton, ToolGroup, Yard, YardControls,
 };
 use crate::api_key;
 use crate::fs_access;
@@ -233,6 +233,9 @@ fn planner_body() -> impl IntoView {
     // megabytes as a data URI, and the plan already shares the `localStorage`
     // budget — persisting it would evict the user's actual work.
     let preview_photo = RwSignal::new(None::<String>);
+    // This session's renders. In memory only — the backend keeps the full-res
+    // copies on disk, so there's nothing to persist and nothing to evict.
+    let preview_gallery = RwSignal::new(Vec::<Shot>::new());
     // The index (into `objects`) of the selected placed object, if any.
     let selected = RwSignal::new(None::<usize>);
     // The canvas's rendered geometry, measured once per resize (from Yard).
@@ -1710,7 +1713,15 @@ fn planner_body() -> impl IntoView {
             )
             .await
             {
-                Ok(uri) => preview_state.set(PreviewState::Done(uri)),
+                Ok(r) => {
+                    let shot = Shot {
+                        image: r.image,
+                        mode,
+                        source: r.source,
+                    };
+                    preview_gallery.update(|g| g.push(shot.clone()));
+                    preview_state.set(PreviewState::Done(shot));
+                }
                 Err(e) => preview_state.set(PreviewState::Failed(e)),
             }
         });
@@ -2195,6 +2206,19 @@ fn planner_body() -> impl IntoView {
                 on_mode=Callback::new(move |m| preview_mode.set(m))
                 photo=preview_photo
                 on_photo=Callback::new(move |p| preview_photo.set(p))
+                gallery=preview_gallery
+                on_select=Callback::new(move |i: usize| {
+                    if let Some(shot) = preview_gallery.get_untracked().get(i) {
+                        preview_state.set(PreviewState::Done(shot.clone()));
+                    }
+                })
+                download_stem=Signal::derive(move || {
+                    // Same stem the plan file uses, so a render sits next to the
+                    // plan it came from in a downloads folder.
+                    slp_core::plan_filename(&current_plan())
+                        .trim_end_matches(slp_core::PLAN_EXT)
+                        .to_string()
+                })
                 on_generate=generate_preview
                 on_close=Callback::new(move |()| preview_state.set(PreviewState::Idle))
             />

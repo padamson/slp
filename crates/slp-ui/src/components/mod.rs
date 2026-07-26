@@ -59,7 +59,7 @@ pub use object_inspector::ObjectInspector;
 pub use object_palette::ObjectPalette;
 pub use placement::Placement;
 pub use planner::Planner;
-pub use preview_panel::{PreviewMode, PreviewPanel, PreviewState};
+pub use preview_panel::{PreviewMode, PreviewPanel, PreviewState, Shot};
 pub use scale_bar::{DEFAULT_LENGTH_FT, ScaleBar};
 pub use select_field::SelectField;
 pub use shapes::Shapes;

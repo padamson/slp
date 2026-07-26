@@ -69,11 +69,14 @@ the finished space, without it having to be dimensionally exact.
 
 - **R4.1 — the render bridge + SwarmUI adapter (browser)** ✅
   - [x] `window.slpRender` in `index.html`, shaped like `slpVision`:
-        `generate(mode, prompt, controlImage, refsJson, configJson) -> dataUri`,
-        where `mode` is `"overhead"` or `"eye-level"`.
+        `generate(mode, prompt, controlImage, refsJson, configJson)` →
+        `{image, source}` (R4.5 added `source`: where the backend keeps its own
+        full-res copy). `mode` is `"overhead"`, `"eye-level"` or `"from-photo"`.
   - [x] SwarmUI flow: `GetNewSession` → `GenerateText2Image` → fetch the returned
         `/View/…` path and inline it as a `data:` URI. Overhead attaches the plan
-        raster as `initimage` at `creativity`; eye-level sends no image.
+        raster as `initimage` at `creativity`; eye-level sends no image. The bridge
+        attaches an init image whenever one is *supplied*, so the app decides
+        what to condition on rather than the bridge switching on the mode name.
   - [x] `render_config.rs` — `localStorage` config (endpoint, model, size, steps,
         creativity), reusing the `api_key.rs` storage approach; `render.rs` — the
         `wasm-bindgen` glue, csr-gated with an inert non-browser stub.
@@ -119,26 +122,26 @@ the finished space, without it having to be dimensionally exact.
         the parameter evidence live in
         [the conditioning notebook](../notebooks/2026-07-26-preview-conditioning.md).
 
-- **R4.5 — keep what you generate**
-  - [ ] **Download** the render (an `<a download>` on the data URI, named from
-        the plan + mode + timestamp). Today a good result dies with the modal.
-  - [ ] **Say where it already is on disk.** SwarmUI writes every generation to
-        `Output/local/raw/<date>/…` before we ever fetch it, so the file exists
-        whether or not the user downloads it — surface the path (and note it in
-        `docs/preview-backend.md`) rather than pretending the modal is the only
-        copy. A browser can't open Finder, so a copyable path is the honest
-        affordance.
-  - [ ] **A gallery of recent renders** — thumbnails of this session's
-        generations, click to reopen full size, so Regenerate doesn't discard the
-        one you liked. Compare-two would fall out of this naturally.
-  - [ ] *Storage decision required first.* A 768×768 PNG is ~1 MB as a data URI
-        and `localStorage` caps around 5 MB — the plan itself already lives
-        there (`slp:plan`), so stashing renders inline would evict the user's
-        actual work. Options: keep the gallery **session-only** (in memory, lost
-        on reload — cheapest and safest), move it to **IndexedDB** (survives,
-        needs new plumbing), or store **downscaled thumbnails** and rely on
-        SwarmUI's output dir for full size. Decide before building; do **not**
-        put renders in the plan file.
+- **R4.5 — keep what you generate** ✅
+  - [x] **Download** the render — an `<a download>` on the data URI, named
+        `<plan-stem>-<mode>.png` so a folder of them stays legible. No JS, no
+        bridge round trip.
+  - [x] **Say where it already is on disk.** SwarmUI writes every generation to
+        `Output/local/raw/<date>/…` before we ever fetch it, so the modal shows
+        that path rather than implying it holds the only copy. A browser can't
+        open Finder, so a selectable path is the honest affordance — not a button
+        that pretends to. (The bridge returns it as `source`; `None` for a
+        backend that hands back bytes and keeps nothing.)
+  - [x] **A gallery of recent renders** — a thumbnail per render, click to
+        reopen, so Regenerate no longer discards the one you liked. Compare-two
+        would fall out of this naturally (still open).
+  - [x] *Storage decision: **session-only**, in memory.* A 768×768 PNG is ~1 MB
+        as a data URI and `localStorage` caps around 5 MB, with the plan itself
+        living there (`slp:plan`) — persisting renders would evict the user's
+        actual work. Session-only is the right call precisely *because* the
+        backend keeps the full-res copies on disk: there's nothing to persist and
+        nothing to evict. IndexedDB stays available if the gallery ever needs to
+        survive a reload.
 
 - **R4.6 — seed from real photos of the actual yard** 🚧
   - *Explored 2026-07-26; findings in

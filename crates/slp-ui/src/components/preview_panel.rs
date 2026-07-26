@@ -40,6 +40,18 @@ impl PreviewMode {
     }
 }
 
+/// One finished render, kept for the session so Regenerate doesn't throw away
+/// the one you liked.
+#[derive(Clone, PartialEq, Debug)]
+pub struct Shot {
+    /// The image as a `data:` URI.
+    pub image: String,
+    /// Which mode produced it.
+    pub mode: PreviewMode,
+    /// Where the backend keeps its own full-resolution copy, if it does.
+    pub source: Option<String>,
+}
+
 /// The preview's current state — one enum so the modal can't show a spinner and
 /// an image at once.
 #[derive(Clone, PartialEq, Debug, Default)]
@@ -49,10 +61,57 @@ pub enum PreviewState {
     Idle,
     /// A generation is in flight.
     Working,
-    /// Finished: a `data:` URI to show.
-    Done(String),
+    /// Finished — the render to show.
+    Done(Shot),
     /// Failed: a human-readable message (backend unreachable, no plan, …).
     Failed(String),
+}
+
+/// What the modal shows for a given state. Free-standing because it's a pure
+/// state → view mapping, and it keeps `PreviewPanel` readable.
+fn modal_body(state: PreviewState) -> AnyView {
+    match state {
+        PreviewState::Working => view! {
+            <div class="preview-working" data-testid="preview-working">
+                <div class="preview-spinner"></div>
+                <p>"Rendering your plan…"</p>
+            </div>
+        }
+        .into_any(),
+        PreviewState::Done(shot) => {
+            // The backend's own copy outlives this session, so say where it is.
+            // A browser can't open Finder, so the honest affordance is a
+            // selectable path, not a button that pretends to.
+            let source = shot.source.clone().map(|s| {
+                view! {
+                    <p class="preview-source" data-testid="preview-source">
+                        "Full resolution saved by the backend at " <code>{s}</code>
+                    </p>
+                }
+            });
+            view! {
+                <img
+                    class="preview-image"
+                    data-testid="preview-image"
+                    src=shot.image
+                    alt="Photorealistic preview of the plan"
+                />
+                {source}
+            }
+            .into_any()
+        }
+        PreviewState::Failed(msg) => view! {
+            <div class="preview-failed" data-testid="preview-failed">
+                <p>{msg}</p>
+                <p class="preview-hint">
+                    "The preview needs a local image backend — start SwarmUI, or check the endpoint in your preview settings."
+                </p>
+            </div>
+        }
+        .into_any(),
+        // The caller returns early on Idle; nothing to show.
+        PreviewState::Idle => ().into_any(),
+    }
 }
 
 #[component]
@@ -72,6 +131,16 @@ pub fn PreviewPanel(
     /// A photo was chosen (a `data:` URI), or cleared with `None`.
     #[prop(default = Callback::new(|_| {}))]
     on_photo: Callback<Option<String>>,
+    /// This session's renders, newest last — so Regenerate doesn't discard the
+    /// one you liked. In memory only; the backend keeps the full-res copies.
+    #[prop(into, default = Signal::derive(Vec::new))]
+    gallery: Signal<Vec<Shot>>,
+    /// Reopen a gallery entry (by index).
+    #[prop(default = Callback::new(|_| {}))]
+    on_select: Callback<usize>,
+    /// A filename stem for downloads, e.g. the plan's name.
+    #[prop(into, default = Signal::derive(|| "landscape-plan".to_string()))]
+    download_stem: Signal<String>,
     /// Generate (or regenerate) with the current mode.
     on_generate: Callback<()>,
     /// Dismiss the modal.
@@ -90,6 +159,25 @@ pub fn PreviewPanel(
         }
     };
 
+    // Downloading a data: URI is just an anchor — no JS, no bridge. Named so a
+    // folder of these stays legible: <plan>-<mode>.png.
+    let download = move || {
+        let PreviewState::Done(shot) = state.get() else {
+            return None;
+        };
+        let name = format!("{}-{}.png", download_stem.get(), shot.mode.as_str());
+        Some(view! {
+            <a
+                class="preview-download"
+                data-testid="preview-download"
+                href=shot.image
+                download=name
+            >
+                "Download"
+            </a>
+        })
+    };
+
     // Blocked while working, or in photo mode with no photo yet.
     let cant_generate = move || {
         state.get() == PreviewState::Working
@@ -103,34 +191,13 @@ pub fn PreviewPanel(
         if st == PreviewState::Idle {
             return None;
         }
-        let body = match st {
-            PreviewState::Working => view! {
-                <div class="preview-working" data-testid="preview-working">
-                    <div class="preview-spinner"></div>
-                    <p>"Rendering your plan…"</p>
-                </div>
-            }
-            .into_any(),
-            PreviewState::Done(uri) => view! {
-                <img class="preview-image" data-testid="preview-image" src=uri alt="Photorealistic preview of the plan" />
-            }
-            .into_any(),
-            PreviewState::Failed(msg) => view! {
-                <div class="preview-failed" data-testid="preview-failed">
-                    <p>{msg}</p>
-                    <p class="preview-hint">
-                        "The preview needs a local image backend — start SwarmUI, or check the endpoint in your preview settings."
-                    </p>
-                </div>
-            }
-            .into_any(),
-            PreviewState::Idle => return None,
-        };
+        let body = modal_body(st);
         Some(view! {
             <div class="preview-backdrop" data-testid="preview-modal">
                 <div class="preview-dialog">
                     <div class="preview-body">{body}</div>
                     <div class="preview-actions">
+                        {download}
                         <button
                             class="preview-regenerate"
                             data-testid="preview-regenerate"
@@ -215,6 +282,33 @@ pub fn PreviewPanel(
             >
                 "Preview"
             </button>
+            {move || {
+                let shots = gallery.get();
+                (!shots.is_empty())
+                    .then(|| {
+                        let thumbs = shots
+                            .into_iter()
+                            .enumerate()
+                            .map(|(i, shot)| {
+                                view! {
+                                    <img
+                                        class="preview-thumb"
+                                        data-testid="preview-thumb"
+                                        src=shot.image
+                                        title=shot.mode.as_str()
+                                        alt="An earlier render"
+                                        on:click=move |_| on_select.run(i)
+                                    />
+                                }
+                            })
+                            .collect::<Vec<_>>();
+                        view! {
+                            <span class="preview-gallery" data-testid="preview-gallery">
+                                {thumbs}
+                            </span>
+                        }
+                    })
+            }}
             {modal_out}
         </div>
     }

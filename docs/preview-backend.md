@@ -89,6 +89,12 @@ geometry. **From photo** takes a photo of your real backyard and re-renders
 *that* with the planned materials; the photo stays in the browser session and is
 never saved to the plan.
 
+Every render is **saved by SwarmUI** to `Output/local/raw/<date>/` before the app
+even fetches it, and the modal shows you that path — so a result you like is on
+disk whether or not you hit **Download**. The in-app gallery keeps this session's
+renders for quick comparison; it's deliberately not persisted, since the real
+copies are already on disk.
+
 Either way it's an impression, not a measurement. The 2D plan and the estimate
 remain the source of truth for what to buy.
 

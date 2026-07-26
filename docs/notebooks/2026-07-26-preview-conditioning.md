@@ -149,6 +149,7 @@ stayed flat green, because the input gave it no texture to build on.
 | **Defaults: creativity 0.85, steps 20.** | The only combination in the sweep that produced a photograph. |
 | **Expose creativity as a user control.** | It is precisely the "how closely should this follow my plan" dial — 0.7 for a clean illustration, 0.85 for a photo. |
 | **Overhead and eye-level both run on the same local model.** | No hosted API needed for either; eye-level is the same call without an init image. |
+| **A photo needs a *lower* creativity than the plan (0.55 vs 0.85).** | Added when From-photo mode was built (R4.6). The gap follows directly from run 3 vs the sweep: 0.85 is high because a *flat vector plan* needs that much noise before the model paints texture over it, while a photograph is already photographic and the same setting throws the yard away. Shipped as a separate `photoCreativity` dial. |
 
 ## Still open
 

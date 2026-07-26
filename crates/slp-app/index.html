@@ -374,18 +374,26 @@
           }
           const img = data.images && data.images[0];
           if (!img) throw new Error("The preview backend returned no image.");
-          if (img.startsWith("data:")) return img;
+          // Returns {image, source}: the inlined image to show, plus where the
+          // backend already keeps its own full-resolution copy. SwarmUI writes
+          // every generation to Output/… before we ever fetch it, so telling the
+          // user that path is more useful than pretending the modal is the only
+          // copy. `source` is null for a backend that returns bytes directly.
+          if (img.startsWith("data:")) {
+            return JSON.stringify({ image: img, source: null });
+          }
 
           // Otherwise it's a /View/ path (or absolute URL) — fetch and inline it
           // as a data: URI so the app can show it without another round trip.
           const url = /^https?:/.test(img) ? img : base + "/" + img.replace(/^\/+/, "");
           const blob = await (await fetch(url)).blob();
-          return await new Promise((res, rej) => {
+          const image = await new Promise((res, rej) => {
             const fr = new FileReader();
             fr.onload = () => res(fr.result);
             fr.onerror = () => rej(new Error("Couldn't read the generated image."));
             fr.readAsDataURL(blob);
           });
+          return JSON.stringify({ image, source: img });
         },
       };
     </script>
@@ -1106,6 +1114,37 @@
       .preview-generate[disabled] {
         opacity: 0.55;
         cursor: default;
+      }
+      .preview-gallery {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .preview-thumb {
+        width: 40px;
+        height: 30px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #cfc6ad;
+        cursor: pointer;
+      }
+      .preview-thumb:hover {
+        border-color: #6f9c4a;
+      }
+      .preview-download {
+        padding: 5px 12px;
+        border: 1px solid #8a7f6a;
+        border-radius: 6px;
+        background: #fbf9f4;
+        text-decoration: none;
+        color: inherit;
+        font-size: 0.9rem;
+      }
+      .preview-source {
+        margin: 8px 0 0;
+        font-size: 0.78rem;
+        color: #6f6a5f;
+        word-break: break-all;
       }
       .preview-backdrop {
         position: fixed;
