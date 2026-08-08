@@ -115,7 +115,7 @@ jobs:
       # overwrite without --force); the action handles the
       # already-installed case correctly and is ~10x faster anyway.
       - name: Install cargo-mutants
-        uses: taiki-e/install-action@v2.85.4
+        uses: taiki-e/install-action@v2.85.8
         with:
           tool: cargo-mutants
 
@@ -161,7 +161,7 @@ jobs:
       # overwrite without --force); the action handles the
       # already-installed case correctly and is ~10x faster anyway.
       - name: Install cargo-mutants
-        uses: taiki-e/install-action@v2.85.4
+        uses: taiki-e/install-action@v2.85.8
         with:
           tool: cargo-mutants
 
