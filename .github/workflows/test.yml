@@ -70,7 +70,7 @@ jobs:
         with:
           shared-key: test
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2.86.3
+        uses: taiki-e/install-action@v2.86.8
         with:
           tool: cargo-nextest
       - name: Run tests
@@ -90,7 +90,7 @@ jobs:
         with:
           shared-key: e2e
       - name: Install Trunk
-        uses: taiki-e/install-action@v2.86.3
+        uses: taiki-e/install-action@v2.86.8
         with:
           tool: trunk
       # Build at the root path (public-url "/") so the e2e's ServeDir serves it
