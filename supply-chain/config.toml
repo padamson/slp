@@ -528,6 +528,14 @@ criteria = "safe-to-deploy"
 version = "0.4.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.ref-cast]]
+version = "1.0.27"
+criteria = "safe-to-deploy"
+
+[[exemptions.ref-cast-impl]]
+version = "1.0.27"
+criteria = "safe-to-deploy"
+
 [[exemptions.regex]]
 version = "1.12.4"
 criteria = "safe-to-deploy"
@@ -565,11 +573,11 @@ version = "1.0.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.schemars]]
-version = "0.8.22"
+version = "1.2.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.schemars_derive]]
-version = "0.8.22"
+version = "1.2.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.semver]]
@@ -593,7 +601,7 @@ version = "1.0.229"
 criteria = "safe-to-deploy"
 
 [[exemptions.serde_derive_internals]]
-version = "0.29.1"
+version = "0.30.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.serde_json]]
