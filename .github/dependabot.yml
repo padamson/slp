@@ -1,7 +1,16 @@
 version: 2
 updates:
   - package-ecosystem: "cargo"
-    directory: "/"
+    # Every Cargo.lock, not just the workspace's. slp-app and the two e2e
+    # crates are excluded from the workspace (so `cargo --workspace` stays
+    # native) and each resolves its own lock; a manifest bump that only
+    # touched the root lock left those three stale until the next local
+    # build silently re-resolved them. One PR per group spans all four.
+    directories:
+      - "/"
+      - "/crates/slp-app"
+      - "/crates/slp-e2e"
+      - "/crates/theoria-e2e"
     schedule:
       interval: "weekly"
       day: "saturday"
