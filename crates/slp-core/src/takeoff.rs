@@ -466,7 +466,7 @@ mod tests {
     #[test]
     fn empty_plan_has_no_lines_and_zero_total() {
         let bom = take_off(&plan(vec![], vec![]));
-        assert!(bom.lines.is_empty());
+        assert_eq!(bom.lines, []);
         assert!(bom.grand_total.abs() < 1e-9);
     }
 
@@ -749,7 +749,7 @@ mod tests {
             vec![],
             vec![],
         ));
-        assert!(bom.lines.is_empty());
+        assert_eq!(bom.lines, []);
     }
 
     #[test]
@@ -760,7 +760,7 @@ mod tests {
             vec![bed("gravel", 10.0, 8.0, 3.0)],
             vec![],
         ));
-        assert!(bom.lines.is_empty(), "no mulch bed, so no mulch line");
+        assert_eq!(bom.lines, [], "no mulch bed, so no mulch line");
     }
 
     // --- Paver sub-base (gravel + bedding) driven off the paver assembly ---
@@ -1015,7 +1015,7 @@ mod tests {
     fn a_material_with_no_sub_base_has_no_default_courses() {
         // Mulch (no base/bedding refs) yields an empty course list.
         let mulch = material("mulch", "Mulch", 40.0, PriceUnit::per_cubic_yard);
-        assert!(default_courses(&mulch).is_empty());
+        assert_eq!(default_courses(&mulch), []);
     }
 
     // --- Effective photo-tile size (material images) ---

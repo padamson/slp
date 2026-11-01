@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn no_content_yields_no_points() {
-        assert!(content_points(&[], &[], &[], &[], &[]).is_empty());
+        assert_eq!(content_points(&[], &[], &[], &[], &[]), []);
     }
 
     #[test]
