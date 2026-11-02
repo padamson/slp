@@ -85,7 +85,7 @@ preview theoria inside theoria).
 
 - `rustup target add wasm32-unknown-unknown`
 - `cargo install trunk`
-- E2E browsers: `npx playwright@1.63.0 install chromium`
+- E2E browsers: `npx playwright@1.64.1 install chromium`
 - Pre-commit hooks: `cargo install prek && prek install`
 
 ## How to test as you develop
