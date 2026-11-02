@@ -9,7 +9,7 @@
 //!   cargo test --manifest-path crates/slp-e2e/Cargo.toml
 //!
 //! Skips gracefully when `crates/slp-app/dist` is absent. Requires browsers:
-//!   npx playwright@1.60.0 install chromium
+//!   npx playwright@1.63.0 install chromium
 
 mod common;
 

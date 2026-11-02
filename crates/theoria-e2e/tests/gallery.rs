@@ -12,7 +12,7 @@
 //!   cargo test --manifest-path crates/theoria-e2e/Cargo.toml
 //!
 //! Skips gracefully when the gallery dist is absent. Requires browsers:
-//!   npx playwright@1.60.0 install chromium
+//!   npx playwright@1.63.0 install chromium
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
