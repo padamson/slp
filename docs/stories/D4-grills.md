@@ -41,7 +41,7 @@ around it before I buy.
   - [x] placing/costing/move/delete/select/status are the existing machinery;
         a grill places anywhere (no on-ground rule — it's fine on a patio, a
         deck, or the yard)
-  - [x] dokime: a grill renders a rounded-rect clearance zone (an `rx`-rounded
+  - [x] leptotes: a grill renders a rounded-rect clearance zone (an `rx`-rounded
         rect, not a `<circle>`); it's quiet when isolated and red when an object
         sits inside the zone. e2e: place a grill → rectangular footprint + a
         clearance rect; drop another object inside the zone → it flags red

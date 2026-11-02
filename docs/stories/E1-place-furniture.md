@@ -59,7 +59,7 @@ product, since the catalog and placements are saved in the plan, not hardcoded.
         no regression for the common case
   - [x] the selection tint and overflow (red) outline still take precedence, so
         a selected or overflowing existing/virtual object stays legible
-  - [x] dokime tests per status; e2e: toggle an object's status in the
+  - [x] leptotes tests per status; e2e: toggle an object's status in the
         inspector and assert its canvas markup changes accordingly
 - **E1.5 — a legend for the plan's visual conventions** ✅ *done (icon set later
   redrawn by E1.6 under the real/virtual × planned/existing model; the
@@ -75,7 +75,7 @@ product, since the catalog and placements are saved in the plan, not hardcoded.
         so color, fill (solid vs. ghost), outline (solid vs. dashed), and
         corner style (square footprint vs. node-marked outline) are all
         readable at a glance without selecting anything
-  - [x] dokime tests assert each entry's icon matches its live canvas styling
+  - [x] leptotes tests assert each entry's icon matches its live canvas styling
         (same source, so this mostly guards the wiring, not the values)
   - [x] e2e: the legend renders, one entry per convention, and sits to the
         right of the scale bar's rendered end
@@ -102,7 +102,7 @@ product, since the catalog and placements are saved in the plan, not hardcoded.
   - [x] inspector UI: the single 3-way planned/existing/virtual button row
         becomes two independent controls — an existing/planned button pair and
         a real/virtual (`Virtual (what-if ghost)`) checkbox
-  - [x] dokime + e2e updated for the new controls and line styles; mutation
+  - [x] leptotes + e2e updated for the new controls and line styles; mutation
         tests re-run over the changed `slp-core` take-off logic (0 missed)
   - [ ] *follow-up (own slice):* `structure_status` is carried and defaulted but
         not yet **rendered** (a planned house/deck should read differently from

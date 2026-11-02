@@ -1,4 +1,4 @@
-//! dokime component tests for `EstimatePanel`.
+//! leptotes component tests for `EstimatePanel`.
 
 use leptos::prelude::*;
 use slp_core::{BillOfMaterials, LineItem, PriceUnit};
@@ -38,14 +38,15 @@ fn renders_line_items_and_grand_total() {
         ],
         grand_total: 1297.0,
     };
-    let html =
-        dokime::render(move || view! { <EstimatePanel bom=Signal::derive(move || bom.clone()) /> });
+    let html = leptotes::render(
+        move || view! { <EstimatePanel bom=Signal::derive(move || bom.clone()) /> },
+    );
     assert!(
         html.contains("Lounge chair") && html.contains("Outdoor sofa"),
         "item names"
     );
     assert_eq!(
-        dokime::count(&html, r#"class="estimate-row""#),
+        leptotes::count(&html, r#"class="estimate-row""#),
         2,
         "a row per line item"
     );
@@ -59,8 +60,9 @@ fn a_line_falls_back_to_its_id_when_unnamed() {
         lines: vec![line("side-table", None, 1, 89.0)],
         grand_total: 89.0,
     };
-    let html =
-        dokime::render(move || view! { <EstimatePanel bom=Signal::derive(move || bom.clone()) /> });
+    let html = leptotes::render(
+        move || view! { <EstimatePanel bom=Signal::derive(move || bom.clone()) /> },
+    );
     assert!(
         html.contains("side-table"),
         "the catalog id labels the row when there's no name"
@@ -77,16 +79,18 @@ fn a_material_line_reads_its_quantity_in_its_own_measure() {
         ],
         grand_total: 629.6,
     };
-    let html =
-        dokime::render(move || view! { <EstimatePanel bom=Signal::derive(move || bom.clone()) /> });
+    let html = leptotes::render(
+        move || view! { <EstimatePanel bom=Signal::derive(move || bom.clone()) /> },
+    );
     assert!(html.contains("0.7 yd³"), "mulch quantity in yd³");
     assert!(html.contains("100 ft²"), "paver quantity in ft²");
 }
 
 #[test]
 fn an_empty_bom_shows_a_placeholder_not_a_table() {
-    let html =
-        dokime::render(|| view! { <EstimatePanel bom=Signal::derive(BillOfMaterials::default) /> });
+    let html = leptotes::render(
+        || view! { <EstimatePanel bom=Signal::derive(BillOfMaterials::default) /> },
+    );
     assert!(
         html.contains("Place furniture"),
         "a prompt when nothing is placed"
@@ -101,7 +105,7 @@ fn a_material_line_shows_its_laying_pattern_note() {
     let mut paver = material_line("Pavers", 100.0, PriceUnit::per_square_foot, 6.0);
     paver.patterns = vec!["Herringbone".to_string(), "Linear".to_string()];
     let chair = line("chair", Some("Lounge chair"), 1, 199.0);
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         let lines = vec![paver.clone(), chair.clone()];
         view! {
             <EstimatePanel bom=Signal::derive(move || slp_core::BillOfMaterials {
@@ -119,7 +123,7 @@ fn a_material_line_shows_its_laying_pattern_note() {
         "both patterns, comma-joined: {html}"
     );
     assert_eq!(
-        dokime::count(&html, r#"data-testid="estimate-pattern""#),
+        leptotes::count(&html, r#"data-testid="estimate-pattern""#),
         1,
         "only the patterned line carries a note"
     );

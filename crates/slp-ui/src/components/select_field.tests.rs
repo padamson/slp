@@ -1,4 +1,4 @@
-//! dokime component tests for `SelectField`.
+//! leptotes component tests for `SelectField`.
 
 use leptos::prelude::*;
 
@@ -14,7 +14,7 @@ fn opts() -> Vec<(String, String)> {
 
 #[test]
 fn renders_a_labeled_dropdown_with_every_option() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <SelectField
                 label="Price unit"
@@ -40,7 +40,7 @@ fn renders_a_labeled_dropdown_with_every_option() {
 
 #[test]
 fn marks_the_current_value_selected() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <SelectField
                 label="Price unit"
@@ -52,7 +52,7 @@ fn marks_the_current_value_selected() {
         }
     });
     // Exactly one option is marked selected — the current value.
-    assert_eq!(dokime::count(&html, "selected"), 1, "one selected option");
+    assert_eq!(leptotes::count(&html, "selected"), 1, "one selected option");
     assert!(
         html.contains(r#"value="per_cubic_yard" selected"#),
         "the current value is the selected option"

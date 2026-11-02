@@ -1,4 +1,4 @@
-//! dokime component tests for the `Placement` overlay.
+//! leptotes component tests for the `Placement` overlay.
 
 use leptos::prelude::*;
 use slp_core::Coord;
@@ -15,18 +15,18 @@ fn t() -> Transform {
 
 #[test]
 fn nothing_placed_and_no_preview_renders_nothing() {
-    let html = dokime::render(move || view! { <Placement t=t() placed=Vec::new() /> });
+    let html = leptotes::render(move || view! { <Placement t=t() placed=Vec::new() /> });
     assert!(!html.contains(r#"class="placement""#));
 }
 
 #[test]
 fn shows_nodes_a_chain_and_a_rubber_band_to_the_preview() {
     let placed = vec![Coord::new(0.0, 0.0), Coord::new(4.0, 0.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Placement t=t() placed=placed preview=Some(Coord::new(4.0, 3.0)) /> }
     });
     assert_eq!(
-        dokime::count(&html, r#"class="placement-node""#),
+        leptotes::count(&html, r#"class="placement-node""#),
         2,
         "a marker per node"
     );
@@ -40,11 +40,11 @@ fn shows_nodes_a_chain_and_a_rubber_band_to_the_preview() {
 #[test]
 fn one_placed_node_shows_the_marker_and_band_but_no_chain() {
     let placed = vec![Coord::new(0.0, 0.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Placement t=t() placed=placed preview=Some(Coord::new(4.0, 3.0)) /> }
     });
     assert_eq!(
-        dokime::count(&html, r#"class="placement-node""#),
+        leptotes::count(&html, r#"class="placement-node""#),
         1,
         "a marker for the one placed node"
     );
@@ -60,7 +60,7 @@ fn one_placed_node_shows_the_marker_and_band_but_no_chain() {
 
 #[test]
 fn no_object_footprint_shows_the_plain_hollow_node_marker() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Placement t=t() placed=Vec::new() preview=Some(Coord::new(4.0, 3.0)) /> }
     });
     assert!(
@@ -83,7 +83,7 @@ fn an_armed_round_item_previews_a_translucent_circle() {
         trunk_ft: None,
         slab_overhang_ft: None,
     };
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <Placement
                 t=t()
@@ -114,7 +114,7 @@ fn an_armed_rect_item_previews_a_translucent_rect() {
         trunk_ft: None,
         slab_overhang_ft: None,
     };
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <Placement
                 t=t()

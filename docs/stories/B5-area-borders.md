@@ -40,7 +40,7 @@ designing and the estimate prices the border pieces separately from the field.
         algorithm with cumulative stroke widths (innermost ring drawn first,
         outermost last) so ring *i* shows as a band `width_ft` wide just inside
         the previous one. Works identically for polygons, arcs, curves, and
-        circles because it reuses the boundary path. dokime: an area with two
+        circles because it reuses the boundary path. leptotes: an area with two
         borders renders two clipped ring strokes in order; the field pattern
         still fills beneath.
 - **B5.3 — ui: borders editor + starter edging + estimate lines** ✅
@@ -135,7 +135,7 @@ designing and the estimate prices the border pieces separately from the field.
         corner's interior **bisector** (diagonally inside), not one edge's normal
         — which would land the dot on the *adjacent* edge. The core functions are
         unit- + mutation-tested.
-  - [x] e2e: (covered by the existing border e2e + dokime seam-handle/render
+  - [x] e2e: (covered by the existing border e2e + leptotes seam-handle/render
         tests; a drag e2e is deferred — the gesture reuses the mouse-drag
         machinery already exercised by node/edge/control-handle e2e paths)
 

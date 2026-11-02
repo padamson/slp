@@ -1,4 +1,4 @@
-//! dokime component tests for `ObjectPalette`.
+//! leptotes component tests for `ObjectPalette`.
 
 use leptos::prelude::*;
 use slp_core::{CatalogItem, FootprintShape, PriceUnit};
@@ -26,7 +26,7 @@ fn catalog() -> Vec<CatalogItem> {
 
 #[test]
 fn renders_a_tile_per_item_grouped_by_category() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <ObjectPalette catalog=catalog() armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }
     });
     // One tile per catalog item.
@@ -37,7 +37,7 @@ fn renders_a_tile_per_item_grouped_by_category() {
     assert!(html.contains("Furniture"), "furniture group label");
     assert!(html.contains("Fire pit"), "humanized fire-pit group label");
     assert_eq!(
-        dokime::count(&html, r#"class="palette-group""#),
+        leptotes::count(&html, r#"class="palette-group""#),
         2,
         "two category groups"
     );
@@ -63,7 +63,7 @@ fn area_materials_are_not_placeable_tiles() {
         mulch,
         paver,
     ];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <ObjectPalette catalog=catalog armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }
     });
     assert!(
@@ -71,17 +71,17 @@ fn area_materials_are_not_placeable_tiles() {
         "the chair is a tile"
     );
     assert_eq!(
-        dokime::count(&html, r#"data-testid="palette-mulch""#),
+        leptotes::count(&html, r#"data-testid="palette-mulch""#),
         0,
         "no mulch tile"
     );
     assert_eq!(
-        dokime::count(&html, r#"data-testid="palette-paver""#),
+        leptotes::count(&html, r#"data-testid="palette-paver""#),
         0,
         "no paver tile"
     );
     assert_eq!(
-        dokime::count(&html, r#"class="palette-group""#),
+        leptotes::count(&html, r#"class="palette-group""#),
         1,
         "only the furniture group"
     );
@@ -89,7 +89,7 @@ fn area_materials_are_not_placeable_tiles() {
 
 #[test]
 fn the_armed_item_is_flagged() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <ObjectPalette
                 catalog=catalog()
@@ -98,22 +98,22 @@ fn the_armed_item_is_flagged() {
             />
         }
     });
-    assert_eq!(dokime::count(&html, "armed"), 1, "exactly one armed tile");
+    assert_eq!(leptotes::count(&html, "armed"), 1, "exactly one armed tile");
 }
 
 #[test]
 fn nothing_is_flagged_when_nothing_is_armed() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <ObjectPalette catalog=catalog() armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }
     });
-    assert_eq!(dokime::count(&html, "armed"), 0, "no armed tile");
+    assert_eq!(leptotes::count(&html, "armed"), 0, "no armed tile");
 }
 
 #[test]
 fn an_item_with_no_category_falls_back_to_the_other_group() {
     let mut c = CatalogItem::new("mystery".to_string());
     c.name = Some("Mystery".to_string());
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <ObjectPalette catalog=vec![c] armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }
     });
     assert!(
@@ -128,7 +128,7 @@ fn an_empty_category_string_humanizes_to_an_empty_label() {
     let mut c = CatalogItem::new("blank".to_string());
     c.name = Some("Blank".to_string());
     c.category = Some(String::new());
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <ObjectPalette catalog=vec![c] armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }
     });
     assert!(
@@ -146,7 +146,7 @@ fn a_tile_with_no_unit_price_shows_an_empty_price() {
     let mut c = CatalogItem::new("mystery-price".to_string());
     c.name = Some("Mystery price".to_string());
     c.category = Some("furniture".to_string());
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <ObjectPalette catalog=vec![c] armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }
     });
     assert!(
@@ -157,14 +157,18 @@ fn a_tile_with_no_unit_price_shows_an_empty_price() {
 
 #[test]
 fn a_round_item_gets_a_circle_icon() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <ObjectPalette catalog=catalog() armed=Signal::derive(|| None::<String>) on_pick=Callback::new(|_| {}) /> }
     });
     // Two rectangular furniture icons + one round fire-pit icon.
     assert_eq!(
-        dokime::count(&html, "<circle"),
+        leptotes::count(&html, "<circle"),
         1,
         "the fire pit's round icon"
     );
-    assert_eq!(dokime::count(&html, "<rect"), 2, "the two furniture icons");
+    assert_eq!(
+        leptotes::count(&html, "<rect"),
+        2,
+        "the two furniture icons"
+    );
 }

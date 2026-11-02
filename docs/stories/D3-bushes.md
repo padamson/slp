@@ -40,7 +40,7 @@ and put them in the beds/ground where they belong before I buy.
   - [x] placing/costing is the existing machinery: click a palette tile to arm,
         click the yard to place; the estimate gains a per-item line;
         move/delete/select/status all work as for any placed object
-  - [x] dokime: a bush renders a green canopy and **no trunk** (a tree renders a
+  - [x] leptotes: a bush renders a green canopy and **no trunk** (a tree renders a
         trunk, a bush does not); the whole footprint is flagged when on a
         surface. e2e: place a bush from the palette → a round green footprint +
         the estimate updates; dragged onto the deck it goes red; back on bare

@@ -1,6 +1,6 @@
 //! A1.1 persistence e2e: the yard size is saved to localStorage and restored on
 //! reload. This is browser-only behavior (localStorage + a full reload), so it
-//! can't be a dokime test — under ssr the save/restore are no-ops.
+//! can't be a leptotes test — under ssr the save/restore are no-ops.
 //!
 //! Build the app first, then run:
 //!   (cd crates/slp-app && trunk build)

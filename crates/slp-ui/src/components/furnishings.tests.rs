@@ -1,4 +1,4 @@
-//! dokime component tests for `Furnishings` (placed-object footprints).
+//! leptotes component tests for `Furnishings` (placed-object footprints).
 
 use leptos::prelude::*;
 use slp_core::{CatalogItem, Coord, FootprintShape, ItemStatus, Object};
@@ -66,7 +66,7 @@ fn renders_a_footprint_to_scale() {
     let catalog = vec![item("chair", Some(3.0), Some(1.5))];
     let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         html.contains(r#"class="furnishings""#),
         "tagged for queries"
@@ -87,7 +87,7 @@ fn a_round_item_renders_a_circle_not_a_rect() {
     let catalog = vec![round_item("fire-pit", 4.0)];
     let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(html.contains("<circle"), "the footprint is a circle");
     assert!(!html.contains("<rect"), "no rectangle for a round item");
     assert!(html.contains(r#"r="20""#), "4 ft diameter → 20 px radius");
@@ -104,9 +104,9 @@ fn an_existing_round_item_is_a_double_ring() {
     obj.status = ItemStatus::existing;
     let objects = vec![obj];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     // Existing → a second, inset ring; still circles, never rects.
-    assert_eq!(dokime::count(&html, "<circle"), 2, "a double ring");
+    assert_eq!(leptotes::count(&html, "<circle"), 2, "a double ring");
     assert!(!html.contains("<rect"));
 }
 
@@ -115,7 +115,7 @@ fn a_round_item_with_no_clearance_shows_no_ring() {
     let catalog = vec![round_item("fire-pit", 4.0)]; // no clearance_ft
     let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         !html.contains(r#"data-testid="clearance-ring""#),
         "no ring without a clearance guideline"
@@ -128,7 +128,7 @@ fn an_isolated_fire_pit_shows_a_quiet_dashed_ring() {
     let catalog = vec![fire_pit(4.0, 3.0)];
     let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         html.contains(r#"data-testid="clearance-ring""#),
         "the ring renders"
@@ -152,7 +152,7 @@ fn a_nearby_object_turns_the_ring_red() {
         Object::new("chair".to_string(), 7.0, 5.0), // 2 ft away — inside the 5 ft ring
     ];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         html.contains("furniture-item--intrudes"),
         "the fire pit is flagged as intruded"
@@ -171,7 +171,7 @@ fn a_distant_object_does_not_turn_the_ring_red() {
         Object::new("chair".to_string(), 20.0, 5.0), // far outside the ring
     ];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(!html.contains("furniture-item--intrudes"));
     assert!(html.contains(r##"stroke="#8a8275""##));
 }
@@ -188,7 +188,7 @@ fn a_nearby_structure_edge_turns_the_ring_red() {
         Coord::new(15.0, 20.0),
         Coord::new(15.0, 0.0),
     ];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <Furnishings
                 t=t()
@@ -212,11 +212,11 @@ fn renders_one_group_per_object() {
         Object::new("chair".to_string(), 8.0, 8.0),
     ];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     // Prefix match: every object also carries a status class (e.g.
     // `furniture-item--planned`) alongside the base "furniture-item".
     assert_eq!(
-        dokime::count(&html, r#"class="furniture-item"#),
+        leptotes::count(&html, r#"class="furniture-item"#),
         2,
         "one group per placed object"
     );
@@ -229,7 +229,7 @@ fn rotation_is_applied_clockwise() {
     obj.rot = Some(90.0);
     let objects = vec![obj];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         html.contains("rotate(90)"),
         "clockwise-from-north maps to SVG rotate(+rot)"
@@ -243,7 +243,7 @@ fn unresolved_catalog_ref_is_not_drawn() {
     let catalog = vec![item("chair", Some(2.0), Some(2.0))];
     let objects = vec![Object::new("ghost-id".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(!html.contains(r#"class="furnishings""#));
 }
 
@@ -258,11 +258,11 @@ fn existing_and_virtual_objects_still_render() {
     ghost.is_virtual = true;
     let objects = vec![existing, ghost];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     // Prefix match (not the exact class attribute): every object carries a
     // status class alongside "furniture-item".
     assert_eq!(
-        dokime::count(&html, r#"class="furniture-item"#),
+        leptotes::count(&html, r#"class="furniture-item"#),
         2,
         "existing + virtual both render"
     );
@@ -273,7 +273,7 @@ fn planned_real_is_a_single_solid_full_opacity_outline() {
     let catalog = vec![item("chair", Some(2.0), Some(2.0))];
     let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)]; // default: planned, real
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         html.contains("furniture-item--planned"),
         "planned status class"
@@ -285,7 +285,7 @@ fn planned_real_is_a_single_solid_full_opacity_outline() {
     );
     assert!(html.contains(r#"fill-opacity="0.7""#), "full opacity");
     // Single outline: no second, inset stroke rect.
-    assert_eq!(dokime::count(&html, "<rect"), 1, "no double-outline rect");
+    assert_eq!(leptotes::count(&html, "<rect"), 1, "no double-outline rect");
 }
 
 #[test]
@@ -295,7 +295,7 @@ fn existing_real_is_a_double_solid_outline() {
     obj.status = ItemStatus::existing;
     let objects = vec![obj];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         html.contains("furniture-item--existing"),
         "existing status class"
@@ -310,7 +310,7 @@ fn existing_real_is_a_double_solid_outline() {
     );
     // Double outline: an outer rect plus a second, inset stroke rect.
     assert_eq!(
-        dokime::count(&html, "<rect"),
+        leptotes::count(&html, "<rect"),
         2,
         "a double-outline rect pair"
     );
@@ -323,12 +323,16 @@ fn planned_virtual_is_a_single_dashed_ghost() {
     obj.is_virtual = true;
     let objects = vec![obj];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(html.contains("furniture-item--planned"));
     assert!(html.contains("furniture-item--virtual"));
     assert!(html.contains(r#"stroke-dasharray="4,3""#), "dashed outline");
     assert!(html.contains(r#"fill-opacity="0.35""#), "ghosted opacity");
-    assert_eq!(dokime::count(&html, "<rect"), 1, "single outline — planned");
+    assert_eq!(
+        leptotes::count(&html, "<rect"),
+        1,
+        "single outline — planned"
+    );
 }
 
 #[test]
@@ -339,13 +343,13 @@ fn existing_virtual_is_a_double_dashed_ghost() {
     obj.is_virtual = true;
     let objects = vec![obj];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(html.contains("furniture-item--existing"));
     assert!(html.contains("furniture-item--virtual"));
     assert!(html.contains(r#"stroke-dasharray="4,3""#), "dashed outline");
     assert!(html.contains(r#"fill-opacity="0.35""#), "ghosted opacity");
     assert_eq!(
-        dokime::count(&html, "<rect"),
+        leptotes::count(&html, "<rect"),
         2,
         "double outline — existing"
     );
@@ -357,7 +361,7 @@ fn a_selected_existing_object_keeps_its_double_outline_under_the_selection_tint(
     let mut obj = Object::new("chair".to_string(), 5.0, 5.0);
     obj.status = ItemStatus::existing;
     let objects = vec![obj];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(0) /> }
     });
     assert!(
@@ -365,7 +369,7 @@ fn a_selected_existing_object_keeps_its_double_outline_under_the_selection_tint(
         "the selection tint still wins the fill color"
     );
     assert_eq!(
-        dokime::count(&html, "<rect"),
+        leptotes::count(&html, "<rect"),
         2,
         "the double outline still reads through a selection"
     );
@@ -378,7 +382,7 @@ fn missing_dimensions_fall_back_to_a_default_footprint() {
     let catalog = vec![item("mystery", None, None)];
     let objects = vec![Object::new("mystery".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(html.contains(r#"width="10""#), "1 ft default → 10 px");
 }
 
@@ -397,7 +401,7 @@ fn an_object_overhanging_its_surface_is_highlighted() {
     // x=7, y=7) — it does not fit on a single surface.
     let catalog = vec![item("chair", Some(4.0), Some(4.0))];
     let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(6.0, 6.0)] /> }
     });
     assert!(
@@ -411,7 +415,7 @@ fn an_object_fully_on_a_surface_is_not_highlighted() {
     // A 2×2 ft chair well inside a 10×10 ft deck fits.
     let catalog = vec![item("chair", Some(2.0), Some(2.0))];
     let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(10.0, 10.0)] /> }
     });
     assert!(
@@ -427,11 +431,11 @@ fn the_selected_object_is_highlighted() {
         Object::new("chair".to_string(), 2.0, 2.0),
         Object::new("chair".to_string(), 8.0, 8.0),
     ];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(1) /> }
     });
     assert_eq!(
-        dokime::count(&html, "furniture-item--selected"),
+        leptotes::count(&html, "furniture-item--selected"),
         1,
         "only the selected object carries the selection class"
     );
@@ -441,7 +445,7 @@ fn the_selected_object_is_highlighted() {
 fn the_selected_object_shows_a_rotation_handle() {
     let catalog = vec![item("chair", Some(2.0), Some(2.0))];
     let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(0) /> }
     });
     assert!(
@@ -454,7 +458,7 @@ fn the_selected_object_shows_a_rotation_handle() {
 fn unselected_objects_have_no_rotation_handle() {
     let catalog = vec![item("chair", Some(2.0), Some(2.0))];
     let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog /> }
     });
     assert!(
@@ -469,7 +473,7 @@ fn a_selected_round_item_shows_no_rotation_handle() {
     // affordance — unlike a rectangular item, which still gets one.
     let catalog = vec![round_item("oak-tree", 20.0)];
     let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(0) /> }
     });
     assert!(
@@ -482,7 +486,7 @@ fn a_selected_round_item_shows_no_rotation_handle() {
 fn a_selected_tree_shows_canopy_and_trunk_resize_handles() {
     let catalog = vec![tree("oak-tree", 8.0, 2.0)];
     let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(0) /> }
     });
     assert!(
@@ -500,7 +504,7 @@ fn an_unselected_tree_shows_no_resize_handles() {
     let catalog = vec![tree("oak-tree", 8.0, 2.0)];
     let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(!html.contains("canopy-handle"));
     assert!(!html.contains("trunk-handle"));
 }
@@ -511,7 +515,7 @@ fn a_selected_fire_pit_shows_no_resize_handles() {
     // has neither, so it gets none.
     let catalog = vec![fire_pit(3.0, 1.5)];
     let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog selected=Some(0) /> }
     });
     assert!(!html.contains("canopy-handle"));
@@ -528,13 +532,13 @@ fn a_grill_renders_a_rounded_rect_clearance_zone_not_a_circle() {
     let catalog = vec![grill("gas-grill", 4.0, 2.0, 1.5)];
     let objects = vec![Object::new("gas-grill".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         html.contains(r#"data-testid="clearance-ring""#),
         "the clearance zone renders"
     );
     assert_eq!(
-        dokime::count(&html, "<circle"),
+        leptotes::count(&html, "<circle"),
         0,
         "a grill has no circles — rectangular footprint + rectangular zone"
     );
@@ -557,7 +561,7 @@ fn an_isolated_grill_zone_is_quiet() {
     let catalog = vec![grill("gas-grill", 4.0, 2.0, 1.5)];
     let objects = vec![Object::new("gas-grill".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         !html.contains("furniture-item--intrudes"),
         "nothing intrudes"
@@ -581,7 +585,7 @@ fn a_grill_zone_flags_an_object_within_its_clearance() {
         Object::new("chair".to_string(), 9.0, 5.0),
     ];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         html.contains("furniture-item--intrudes"),
         "the grill flags a too-close object"
@@ -603,7 +607,7 @@ fn a_distant_object_leaves_the_grill_zone_quiet() {
         Object::new("chair".to_string(), 15.0, 5.0), // far outside the zone
     ];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(!html.contains("furniture-item--intrudes"));
 }
 
@@ -619,7 +623,7 @@ fn a_grill_zone_flags_a_nearby_structure_edge() {
         Coord::new(15.0, 20.0),
         Coord::new(15.0, 0.0),
     ];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog structure_outlines=vec![wall] /> }
     });
     assert!(
@@ -635,7 +639,7 @@ fn a_hot_tub_fills_water_blue_and_must_sit_on_a_surface() {
     let catalog = vec![hot_tub_round("tub", 4.0)];
     let objects = vec![Object::new("tub".to_string(), 5.0, 5.0)];
     // A deck at (0,0)-(3,3) that does NOT contain the tub at (5,5).
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(3.0, 3.0)] /> }
     });
     assert!(
@@ -663,7 +667,7 @@ fn a_hot_tub_pours_a_gray_pad_larger_than_its_footprint() {
     let catalog = vec![hot_tub_with_slab("tub", 4.0, 4.0, 12.0)];
     let objects = vec![Object::new("tub".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         html.contains(r#"data-testid="hot-tub-pad""#),
         "the pad renders"
@@ -687,7 +691,7 @@ fn a_per_object_overhang_override_widens_the_pad() {
     o.slab_overhang_in = Some(24.0);
     let objects = vec![o];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         html.contains(r#"width="80""#),
         "the per-object override → an 8 ft pad = 80 px"
@@ -699,7 +703,7 @@ fn a_unit_without_a_slab_pours_no_pad() {
     let catalog = vec![item("chair", Some(4.0), Some(4.0))];
     let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(!html.contains("hot-tub-pad"), "no slab material, so no pad");
 }
 
@@ -707,7 +711,7 @@ fn a_unit_without_a_slab_pours_no_pad() {
 fn a_hot_tub_fully_on_a_surface_is_quiet() {
     let catalog = vec![hot_tub_round("tub", 4.0)];
     let objects = vec![Object::new("tub".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(10.0, 10.0)] /> }
     });
     assert!(
@@ -721,7 +725,7 @@ fn no_surfaces_means_no_fit_check() {
     // Without surfaces there is nothing to fit within, so nothing is highlighted.
     let catalog = vec![item("chair", Some(4.0), Some(4.0))];
     let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog /> }
     });
     assert!(!html.contains("furniture-item--overflows"));
@@ -733,9 +737,9 @@ fn a_tree_renders_a_canopy_and_a_trunk() {
     let catalog = vec![tree("oak-tree", 8.0, 2.0)];
     let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert_eq!(
-        dokime::count(&html, "<circle"),
+        leptotes::count(&html, "<circle"),
         2,
         "a canopy circle and a trunk circle"
     );
@@ -758,8 +762,8 @@ fn a_bush_renders_one_green_canopy_and_no_trunk() {
     let catalog = vec![bush("boxwood", 6.0)];
     let objects = vec![Object::new("boxwood".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
-    assert_eq!(dokime::count(&html, "<circle"), 1, "one canopy, no trunk");
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+    assert_eq!(leptotes::count(&html, "<circle"), 1, "one canopy, no trunk");
     assert!(html.contains(r#"r="30""#), "the spread radius");
     assert!(html.contains(r##"fill="#7cae83""##), "the bush's green");
     assert!(
@@ -773,7 +777,7 @@ fn a_bush_is_fine_on_bare_yard() {
     let catalog = vec![bush("boxwood", 6.0)];
     let objects = vec![Object::new("boxwood".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         !html.contains("furniture-item--overflows"),
         "quiet on the yard"
@@ -785,7 +789,7 @@ fn a_bush_flags_its_whole_footprint_on_the_house() {
     let catalog = vec![bush("boxwood", 6.0)];
     let objects = vec![Object::new("boxwood".to_string(), 5.0, 5.0)];
     let house = deck(10.0, 10.0); // any polygon containing (5,5)
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog house_outline=house /> }
     });
     assert!(
@@ -802,7 +806,7 @@ fn a_bush_flags_its_whole_footprint_on_the_house() {
 fn a_bush_flags_on_a_deck_or_paver_surface() {
     let catalog = vec![bush("boxwood", 6.0)];
     let objects = vec![Object::new("boxwood".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(10.0, 10.0)] /> }
     });
     assert!(
@@ -816,7 +820,7 @@ fn a_fire_pit_fills_silver() {
     let catalog = vec![fire_pit(3.0, 1.5)];
     let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(
         html.contains(r##"fill="#b8b8bc""##),
         "a fire pit fills silver, not the shared furniture brown"
@@ -828,7 +832,7 @@ fn a_tree_trunk_is_fine_on_bare_yard() {
     let catalog = vec![tree("oak-tree", 8.0, 2.0)];
     let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(!html.contains("furniture-item--trunk-invalid"));
     assert!(
         html.contains(r##"fill="#5a3a22""##),
@@ -841,7 +845,7 @@ fn a_tree_trunk_flags_on_the_house() {
     let catalog = vec![tree("oak-tree", 8.0, 2.0)];
     let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
     let house = deck(10.0, 10.0); // any polygon containing (5,5)
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog house_outline=house /> }
     });
     assert!(html.contains("furniture-item--trunk-invalid"));
@@ -859,7 +863,7 @@ fn a_tree_trunk_flags_when_its_disk_straddles_the_house_edge() {
     let catalog = vec![tree("oak-tree", 8.0, 2.0)];
     let objects = vec![Object::new("oak-tree".to_string(), 5.5, 5.0)];
     let house = deck(5.0, 10.0); // spans x:[0,5] — the tree's center (5.5) is outside
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog house_outline=house /> }
     });
     assert!(
@@ -874,7 +878,7 @@ fn a_tree_trunk_flags_on_the_deck_too() {
     // shouldn't be standing on it.
     let catalog = vec![tree("oak-tree", 8.0, 2.0)];
     let objects = vec![Object::new("oak-tree".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![deck(10.0, 10.0)] />
         }
@@ -891,7 +895,7 @@ fn a_fire_pit_is_fine_off_a_deck_but_flags_on_the_house() {
     let catalog = vec![fire_pit(3.0, 1.5)];
     let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
     let far_deck = deck(2.0, 2.0); // doesn't contain (5,5)
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <Furnishings t=t() objects=objects catalog=catalog surfaces=vec![far_deck] />
         }
@@ -904,7 +908,7 @@ fn a_fire_pit_is_fine_off_a_deck_but_flags_on_the_house() {
     let catalog = vec![fire_pit(3.0, 1.5)];
     let objects = vec![Object::new("fire-pit".to_string(), 5.0, 5.0)];
     let house = deck(10.0, 10.0); // contains (5,5)
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Furnishings t=t() objects=objects catalog=catalog house_outline=house /> }
     });
     assert!(
@@ -921,13 +925,13 @@ fn a_per_object_canopy_and_trunk_override_wins_over_the_catalog_default() {
     obj.trunk_diameter_ft = Some(4.0); // → r=20 px
     let objects = vec![obj];
     let html =
-        dokime::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
+        leptotes::render(move || view! { <Furnishings t=t() objects=objects catalog=catalog /> });
     assert!(html.contains(r#"r="100""#), "the overridden canopy radius");
     assert!(html.contains(r#"r="20""#), "the overridden trunk radius");
 }
 
 #[test]
 fn no_objects_renders_nothing() {
-    let html = dokime::render(move || view! { <Furnishings t=t() objects=Vec::new() /> });
+    let html = leptotes::render(move || view! { <Furnishings t=t() objects=Vec::new() /> });
     assert!(!html.contains(r#"class="furnishings""#));
 }

@@ -1,6 +1,6 @@
 //! theoria components, colocated Storybook-style: each `<name>.rs` sits beside
 //! its `<name>.stories.rs` (theoria stories, `stories` feature) and
-//! `<name>.tests.rs` (dokime component tests, `cfg(test)`). The dotted file
+//! `<name>.tests.rs` (leptotes component tests, `cfg(test)`). The dotted file
 //! names need `#[path]` since they aren't valid Rust module identifiers.
 
 mod controls;

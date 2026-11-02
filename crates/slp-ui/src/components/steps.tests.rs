@@ -1,4 +1,4 @@
-//! dokime component tests for `Steps`.
+//! leptotes component tests for `Steps`.
 
 use leptos::prelude::*;
 use slp_core::{Coord, StepRun};
@@ -24,11 +24,11 @@ fn renders_a_footprint_and_treads_from_the_elevation() {
         elevation: 2.0,
     };
     let html =
-        dokime::render(move || view! { <Steps t=t() run=run away_from=Coord::new(2.0, 5.0) /> });
+        leptotes::render(move || view! { <Steps t=t() run=run away_from=Coord::new(2.0, 5.0) /> });
     assert!(html.contains(r#"class="steps""#), "the run renders");
     assert!(html.contains("<polygon"), "the footprint polygon");
     assert_eq!(
-        dokime::count(&html, r#"class="step-tread""#),
+        leptotes::count(&html, r#"class="step-tread""#),
         3,
         "steps-1 interior treads"
     );
@@ -45,8 +45,8 @@ fn one_step_run_has_no_interior_treads() {
         elevation: 0.4,
     };
     let html =
-        dokime::render(move || view! { <Steps t=t() run=run away_from=Coord::new(2.0, 5.0) /> });
-    assert_eq!(dokime::count(&html, r#"class="step-tread""#), 0);
+        leptotes::render(move || view! { <Steps t=t() run=run away_from=Coord::new(2.0, 5.0) /> });
+    assert_eq!(leptotes::count(&html, r#"class="step-tread""#), 0);
 }
 
 #[test]
@@ -72,10 +72,10 @@ fn footprint_extends_away_from_the_given_point_on_either_side() {
         by: 0.0,
         elevation: 2.0,
     };
-    let away_above = dokime::render(
+    let away_above = leptotes::render(
         move || view! { <Steps t=t run=run_above away_from=Coord::new(2.0, 5.0) /> },
     );
-    let away_below = dokime::render(move || {
+    let away_below = leptotes::render(move || {
         view! { <Steps t=t run=run_below away_from=Coord::new(2.0, -5.0) /> }
     });
     assert!(

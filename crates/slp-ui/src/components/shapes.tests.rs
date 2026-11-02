@@ -1,4 +1,4 @@
-//! dokime component tests for `Shapes` (drawn paver/mulch/… areas).
+//! leptotes component tests for `Shapes` (drawn paver/mulch/… areas).
 
 use leptos::prelude::*;
 use slp_core::{CatalogItem, Coord, CurveEdge, Shape};
@@ -35,11 +35,11 @@ fn square(elevation: f64) -> Shape {
 
 #[test]
 fn renders_a_shape_with_markers_and_area_label() {
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
     assert!(html.contains(r#"class="shapes""#), "tagged for queries");
     assert!(html.contains("<polygon"), "the area is a polygon");
     assert_eq!(
-        dokime::count(&html, r#"class="shape-corner""#),
+        leptotes::count(&html, r#"class="shape-corner""#),
         4,
         "a marker per corner"
     );
@@ -49,7 +49,7 @@ fn renders_a_shape_with_markers_and_area_label() {
 
 #[test]
 fn a_nonzero_elevation_appends_to_the_label() {
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![square(1.5)] /> });
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(1.5)] /> });
     assert!(html.contains("12 ft² · +1.5 ft"), "area + elevation label");
 }
 
@@ -57,7 +57,7 @@ fn a_nonzero_elevation_appends_to_the_label() {
 fn a_negative_elevation_shows_a_single_minus_sign() {
     // A below-grade area (e.g. a sunken paver patio) reads "-0.5 ft", not the
     // doubled-up "+-0.5 ft" a naive `+{elevation}` format would produce.
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![square(-0.5)] /> });
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(-0.5)] /> });
     assert!(html.contains("12 ft² · -0.5 ft"), "single minus sign");
     assert!(!html.contains("+-"), "never a doubled sign");
 }
@@ -65,13 +65,17 @@ fn a_negative_elevation_shows_a_single_minus_sign() {
 #[test]
 fn renders_one_polygon_per_shape() {
     let html =
-        dokime::render(move || view! { <Shapes t=t() shapes=vec![square(0.0), square(2.0)] /> });
-    assert_eq!(dokime::count(&html, "<polygon"), 2, "one polygon per shape");
+        leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0), square(2.0)] /> });
+    assert_eq!(
+        leptotes::count(&html, "<polygon"),
+        2,
+        "one polygon per shape"
+    );
 }
 
 #[test]
 fn no_shapes_renders_nothing() {
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=Vec::new() /> });
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=Vec::new() /> });
     assert!(!html.contains(r#"class="shapes""#));
 }
 
@@ -81,14 +85,14 @@ fn a_bowed_edge_renders_a_path_with_an_arc_command_not_a_polygon() {
     // a <path> with an `A` arc command, no <polygon>.
     let mut s = square(0.0);
     s.bulges = vec![0.5, 0.0, 0.0, 0.0];
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
     assert!(!html.contains("<polygon"), "an arced boundary is a path");
     assert!(
         html.contains("<path"),
         "the arced boundary renders as a path"
     );
     // The path has exactly one arc command (the one bowed edge).
-    assert_eq!(dokime::count(&html, " A "), 1, "one arc command");
+    assert_eq!(leptotes::count(&html, " A "), 1, "one arc command");
 }
 
 #[test]
@@ -97,7 +101,7 @@ fn a_bowed_edge_changes_the_reported_area() {
     // the area past the straight 12 ft²; the label reflects it.
     let mut s = square(0.0);
     s.bulges = vec![-1.0, 0.0, 0.0, 0.0]; // bottom edge bows out into a semicircle
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
     assert!(
         !html.contains(">12 ft²<"),
         "the area is no longer the straight 12"
@@ -115,11 +119,11 @@ fn a_mulch_bed_renders_in_the_mulch_color() {
     let mut bed = square(0.0);
     bed.material_ref = Some("mulch".to_string());
     let cat = catalog.clone();
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![bed] catalog=cat /> });
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![bed] catalog=cat /> });
     assert!(html.contains(MULCH_FILL), "the mulch bed fills mulch brown");
 
     // An uncategorized area (no material_ref) keeps the neutral default fill.
-    let plain = dokime::render(move || {
+    let plain = leptotes::render(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0)] catalog=catalog /> }
     });
     assert!(
@@ -138,7 +142,7 @@ fn a_paver_area_renders_in_the_paver_color() {
     let mut area = square(0.0);
     area.material_ref = Some("paver".to_string());
     let html =
-        dokime::render(move || view! { <Shapes t=t() shapes=vec![area] catalog=vec![paver] /> });
+        leptotes::render(move || view! { <Shapes t=t() shapes=vec![area] catalog=vec![paver] /> });
     assert!(html.contains(PAVER_FILL), "the paver area fills paver gray");
     assert!(!html.contains(MULCH_FILL), "not the mulch color");
 }
@@ -160,7 +164,7 @@ fn a_material_with_an_image_tiles_the_surface_as_a_pattern() {
     // fill="url(#area-mat-{material id})" — not the flat category color.
     let mut area = square(0.0);
     area.material_ref = Some("paver".to_string());
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Shapes t=t() shapes=vec![area] catalog=vec![textured_paver()] /> }
     });
 
@@ -204,12 +208,12 @@ fn areas_sharing_a_material_share_one_pattern() {
     a.material_ref = Some("paver".to_string());
     let mut b = square(1.0);
     b.material_ref = Some("paver".to_string());
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Shapes t=t() shapes=vec![a, b] catalog=vec![textured_paver()] /> }
     });
-    assert_eq!(dokime::count(&html, "<pattern"), 1, "one shared pattern");
+    assert_eq!(leptotes::count(&html, "<pattern"), 1, "one shared pattern");
     assert_eq!(
-        dokime::count(&html, r#"fill="url(#area-mat-paver)""#),
+        leptotes::count(&html, r#"fill="url(#area-mat-paver)""#),
         2,
         "both areas reference it"
     );
@@ -222,7 +226,7 @@ fn selection_overrides_the_texture() {
     // beneath) while editing.
     let mut area = square(0.0);
     area.material_ref = Some("paver".to_string());
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Shapes t=t() shapes=vec![area] catalog=vec![textured_paver()] selected=Some(0) /> }
     });
     assert!(
@@ -245,9 +249,9 @@ fn a_curved_edge_renders_a_path_with_a_bezier_command() {
         control1: Box::new(Coord::new(1.0, -2.0)),
         control2: Box::new(Coord::new(3.0, -2.0)),
     }];
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
     assert!(!html.contains("<polygon"), "a curved boundary is a path");
-    assert_eq!(dokime::count(&html, " C "), 1, "one cubic-bezier command");
+    assert_eq!(leptotes::count(&html, " C "), 1, "one cubic-bezier command");
     assert!(
         !html.contains(">12 ft²<"),
         "the area accounts for the curve"
@@ -267,11 +271,11 @@ fn skips_a_degenerate_shape_with_too_few_corners() {
         courses: Vec::new(),
         borders: Vec::new(),
     };
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0), degenerate] /> }
     });
     assert_eq!(
-        dokime::count(&html, "<polygon"),
+        leptotes::count(&html, "<polygon"),
         1,
         "a shape with under 3 corners has no area to render"
     );
@@ -279,36 +283,36 @@ fn skips_a_degenerate_shape_with_too_few_corners() {
 
 #[test]
 fn an_unselected_shape_has_plain_corner_markers() {
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
-    assert_eq!(dokime::count(&html, r#"class="shape-corner""#), 4);
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-node""#), 0);
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+    assert_eq!(leptotes::count(&html, r#"class="shape-corner""#), 4);
+    assert_eq!(leptotes::count(&html, r#"data-testid="shape-node""#), 0);
     assert!(!html.contains(r#"class="shape shape--selected""#));
 }
 
 #[test]
 fn a_selected_shape_shows_interactive_node_handles_instead() {
-    let html = dokime::render(
+    let html = leptotes::render(
         move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> },
     );
     assert!(html.contains(r#"class="shape shape--selected""#));
-    assert_eq!(dokime::count(&html, r#"class="shape-corner""#), 0);
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-node""#), 4);
+    assert_eq!(leptotes::count(&html, r#"class="shape-corner""#), 0);
+    assert_eq!(leptotes::count(&html, r#"data-testid="shape-node""#), 4);
 }
 
 #[test]
 fn a_selected_shape_shows_a_bulge_handle_per_edge() {
     // The square has 4 edges, so 4 edge (bulge) handles when selected — none
     // when unselected.
-    let selected = dokime::render(
+    let selected = leptotes::render(
         move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> },
     );
     assert_eq!(
-        dokime::count(&selected, r#"data-testid="shape-edge-handle""#),
+        leptotes::count(&selected, r#"data-testid="shape-edge-handle""#),
         4
     );
-    let plain = dokime::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+    let plain = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
     assert_eq!(
-        dokime::count(&plain, r#"data-testid="shape-edge-handle""#),
+        leptotes::count(&plain, r#"data-testid="shape-edge-handle""#),
         0
     );
 }
@@ -318,14 +322,14 @@ fn a_selected_shape_shows_two_control_handles_per_straight_edge() {
     // A straight square: 4 edges × 2 control handles = 8, plus the 4 apex
     // (bulge) handles. Straight edges draw no guide line (the controls sit on
     // the chord).
-    let html = dokime::render(
+    let html = leptotes::render(
         move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> },
     );
     assert_eq!(
-        dokime::count(&html, r#"data-testid="shape-control-handle""#),
+        leptotes::count(&html, r#"data-testid="shape-control-handle""#),
         8
     );
-    assert_eq!(dokime::count(&html, r#"class="shape-control-guide""#), 0);
+    assert_eq!(leptotes::count(&html, r#"class="shape-control-guide""#), 0);
 }
 
 #[test]
@@ -340,18 +344,18 @@ fn a_bezier_edge_shows_control_handles_with_guides_and_no_apex() {
         control1: Box::new(Coord::new(1.0, -2.0)),
         control2: Box::new(Coord::new(3.0, -2.0)),
     }];
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s] selected=Some(0) /> });
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s] selected=Some(0) /> });
     assert_eq!(
-        dokime::count(&html, r#"data-testid="shape-edge-handle""#),
+        leptotes::count(&html, r#"data-testid="shape-edge-handle""#),
         3,
         "the bezier edge has no apex handle"
     );
     assert_eq!(
-        dokime::count(&html, r#"data-testid="shape-control-handle""#),
+        leptotes::count(&html, r#"data-testid="shape-control-handle""#),
         8
     );
     assert_eq!(
-        dokime::count(&html, r#"class="shape-control-guide""#),
+        leptotes::count(&html, r#"class="shape-control-guide""#),
         2,
         "the bezier edge's two controls each draw a guide line"
     );
@@ -359,17 +363,17 @@ fn a_bezier_edge_shows_control_handles_with_guides_and_no_apex() {
 
 #[test]
 fn only_the_selected_shape_gets_node_handles() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0), square(2.0)] selected=Some(1) /> }
     });
     // One shape (index 0) stays plain; the other (index 1) gets node handles.
-    assert_eq!(dokime::count(&html, r#"class="shape-corner""#), 4);
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-node""#), 4);
+    assert_eq!(leptotes::count(&html, r#"class="shape-corner""#), 4);
+    assert_eq!(leptotes::count(&html, r#"data-testid="shape-node""#), 4);
 }
 
 #[test]
 fn no_popup_with_fewer_than_two_selected_nodes() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) selected_nodes=vec![1] /> }
     });
     assert!(!html.contains("node-insert-popup"));
@@ -377,7 +381,7 @@ fn no_popup_with_fewer_than_two_selected_nodes() {
 
 #[test]
 fn a_pair_of_selected_nodes_shows_the_insert_cancel_popup() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) selected_nodes=vec![0, 1] />
         }
@@ -397,15 +401,15 @@ fn border_rings_render_clipped_ribbons() {
         slp_core::Border::new("cobble".to_string(), 0.5),
         slp_core::Border::new("edging".to_string(), 0.25),
     ];
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
     assert_eq!(
-        dokime::count(&html, r#"data-testid="shape-border""#),
+        leptotes::count(&html, r#"data-testid="shape-border""#),
         2,
         "one ribbon per ring: {html}"
     );
     assert!(html.contains("clipPath"), "the ribbons clip to the area");
     assert_eq!(
-        dokime::count(&html, "stroke-width"),
+        leptotes::count(&html, "stroke-width"),
         1,
         "only the body outline strokes; ribbons are filled"
     );
@@ -413,8 +417,8 @@ fn border_rings_render_clipped_ribbons() {
 
 #[test]
 fn a_borderless_shape_renders_no_ring_strokes() {
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 0);
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 0);
     assert!(!html.contains("clipPath"), "no clip needed without rings");
 }
 
@@ -430,8 +434,8 @@ fn a_span_border_renders_a_one_sided_ribbon() {
     band.start_node = Some(0.0);
     band.end_node = Some(2.0);
     shape.borders = vec![band];
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 1);
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 1);
     let start = html.find(r#"data-testid="shape-border""#).unwrap();
     let frag = &html[start..];
     let d_start = frag.find(" d=\"").unwrap() + 4;
@@ -457,20 +461,26 @@ fn a_degenerate_span_border_draws_nothing() {
     b.start_node = Some(0.0);
     b.end_node = Some(9.0); // out of range
     s.borders = vec![b];
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 0);
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
+    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 0);
 }
 
 #[test]
 fn a_selected_shape_labels_its_node_indices() {
     // The border editor's From/To fields refer to node numbers, so a selected
     // shape shows each handle's index; unselected shapes stay unlabeled.
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> }
     });
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-node-index""#), 4);
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-node-index""#), 0);
+    assert_eq!(
+        leptotes::count(&html, r#"data-testid="shape-node-index""#),
+        4
+    );
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+    assert_eq!(
+        leptotes::count(&html, r#"data-testid="shape-node-index""#),
+        0
+    );
 }
 
 #[test]
@@ -548,16 +558,16 @@ fn spans_meeting_at_a_convex_corner_need_no_junction_patch() {
     east.start_node = Some(1.0);
     east.end_node = Some(2.0);
     shape.borders = vec![south, east];
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 2);
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 2);
     assert!(!html.contains("stroke-linecap"), "plain butt caps");
     assert_eq!(
-        dokime::count(&html, r#"data-testid="shape-border-joint""#),
+        leptotes::count(&html, r#"data-testid="shape-border-joint""#),
         0
     );
     // Ribbons are filled regions, not strokes.
     assert_eq!(
-        dokime::count(&html, "stroke-width"),
+        leptotes::count(&html, "stroke-width"),
         1,
         "only the body outline strokes"
     );
@@ -597,10 +607,10 @@ fn spans_meeting_at_a_reflex_corner_get_a_miter_joint_patch() {
     b.start_node = Some(3.0);
     b.end_node = Some(4.0);
     s.borders = vec![a, b];
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 2);
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
+    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 2);
     assert_eq!(
-        dokime::count(&html, r#"data-testid="shape-border-joint""#),
+        leptotes::count(&html, r#"data-testid="shape-border-joint""#),
         1,
         "one miter patch at the reflex node: {html}"
     );
@@ -731,18 +741,18 @@ fn a_curved_edge_junction_uses_the_curve_tangent_not_its_chord() {
         Box::new(Coord::new(2.5, 2.0)),
         2,
     )];
-    let html = dokime::render({
+    let html = leptotes::render({
         let s = s.clone();
         move || view! { <Shapes t=t() shapes=vec![s.clone()] /> }
     });
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 2);
+    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 2);
     // The corner stays reflex, so the patch remains — but its geometry must
     // follow the curve's END tangent (world (2,1)−(2.5,2), i.e. the band's
     // inner corner at v + inward(tangent)·depth ≈ (22.236, 191.118)), not the
     // horizontal chord (which would put it at (20, 192.5) — the misplaced
     // stub seen in manual testing).
     assert_eq!(
-        dokime::count(&html, r#"data-testid="shape-border-joint""#),
+        leptotes::count(&html, r#"data-testid="shape-border-joint""#),
         1
     );
     assert!(
@@ -768,8 +778,8 @@ fn an_arc_edge_band_hugs_the_real_arc_not_its_mirror() {
     band.start_node = Some(0.0);
     band.end_node = Some(1.0);
     shape.borders = vec![band];
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 1);
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 1);
     let start = html.find(r#"data-testid="shape-border""#).unwrap();
     let frag = &html[start..];
     let d_start = frag.find(" d=\"").unwrap() + 4;
@@ -805,8 +815,8 @@ fn a_mid_edge_span_renders_a_fractional_ribbon() {
     band.start_node = Some(0.5);
     band.end_node = Some(1.5);
     shape.borders = vec![band];
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
-    assert_eq!(dokime::count(&html, r#"data-testid="shape-border""#), 1);
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 1);
     // The ribbon's outer polyline begins at the mid-edge point (20, 200).
     let start = html.find(r#"data-testid="shape-border""#).unwrap();
     let frag = &html[start..];
@@ -825,12 +835,12 @@ fn a_selected_shape_with_a_span_shows_draggable_seam_handles() {
     band.start_node = Some(0.5);
     band.end_node = Some(2.0);
     shape.borders = vec![band];
-    let html = dokime::render({
+    let html = leptotes::render({
         let shape = shape.clone();
         move || view! { <Shapes t=t() shapes=vec![shape.clone()] selected=Some(0) /> }
     });
     assert_eq!(
-        dokime::count(&html, r#"data-testid="shape-seam-handle""#),
+        leptotes::count(&html, r#"data-testid="shape-seam-handle""#),
         2,
         "one handle per span endpoint: {html}"
     );
@@ -871,19 +881,19 @@ fn a_selected_shape_with_a_span_shows_draggable_seam_handles() {
         dots[1]
     );
     // Unselected → no seam handles.
-    let html = dokime::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
     assert_eq!(
-        dokime::count(&html, r#"data-testid="shape-seam-handle""#),
+        leptotes::count(&html, r#"data-testid="shape-seam-handle""#),
         0
     );
     // A full-ring border has no span endpoints to drag.
     let mut ring = square(0.0);
     ring.borders = vec![slp_core::Border::new("edging".to_string(), 0.5)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Shapes t=t() shapes=vec![ring.clone()] selected=Some(0) /> }
     });
     assert_eq!(
-        dokime::count(&html, r#"data-testid="shape-seam-handle""#),
+        leptotes::count(&html, r#"data-testid="shape-seam-handle""#),
         0
     );
 }

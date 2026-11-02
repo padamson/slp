@@ -1,4 +1,4 @@
-//! dokime component tests for `CropEditor`, plus native unit tests for the
+//! leptotes component tests for `CropEditor`, plus native unit tests for the
 //! drag geometry (`drag_box`) — the pointer-to-box math is pure, so it's
 //! verified here without a browser; the e2e covers the adjust→re-crop flow.
 
@@ -69,7 +69,7 @@ fn a_resize_drag_clamps_between_minimum_and_the_image_edge() {
 }
 
 fn render() -> String {
-    dokime::render(|| {
+    leptotes::render(|| {
         view! {
             <CropEditor
                 screenshot="data:image/png;base64,AAA".to_string()

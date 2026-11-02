@@ -29,7 +29,7 @@ buy.
         the shared containment fit-check, flags red when it isn't fully on a
         deck or paver surface — a heavy unit belongs on prepared ground
   - [x] placing/costing/move/delete/select/status are the existing machinery
-  - [x] dokime: a hot tub fills water blue, flags off a surface, quiet on one.
+  - [x] leptotes: a hot tub fills water blue, flags off a surface, quiet on one.
         e2e: place a round hot tub off the deck → water blue + flags
 
 - **D5.1 — concrete pad: schema + take-off (`slp-core`)** ✅
@@ -55,7 +55,7 @@ buy.
         number fields for a hot tub (like a tree's trunk/canopy), editing the
         per-object override; the starter concrete material + the two tub seeds
         carry sensible defaults (a 4-in pad, a 12-in overhang)
-  - [x] dokime: a hot tub renders a gray pad larger than its footprint, a
+  - [x] leptotes: a hot tub renders a gray pad larger than its footprint, a
         per-object overhang override widens it, a non-slab unit pours none; the
         inspector shows the two slab fields for a tub and not for other
         categories. e2e: place a hot tub → a gray pad + a **Concrete** line in

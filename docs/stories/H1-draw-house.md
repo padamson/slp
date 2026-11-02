@@ -44,7 +44,7 @@ sightlines) — for **any** house, since it's drawn and saved, not baked in.
   - [ ] the **visual** grid stays at 1 ft (a 1-inch grid would be unreadably
         dense) — only *snapping* gets finer; the selector changes where nodes
         land, not the drawn gridlines
-  - [ ] dokime: the selector renders its three options with the current one
+  - [ ] leptotes: the selector renders its three options with the current one
         marked; e2e: switching to *off* lets a node land off-grid, *1 in* snaps
         to the nearest inch
 - **H1.4 — house elevation**
@@ -52,7 +52,7 @@ sightlines) — for **any** house, since it's drawn and saved, not baked in.
         editable the same way a deck level's **Elev (ft)** already is
   - [ ] this is what lets [H2.3](H2-draw-deck.md) place steps at a house
         doorway using a real drop instead of an assumed value
-  - [ ] dokime: an inspector/readout shows the house's elevation; e2e: editing
+  - [ ] leptotes: an inspector/readout shows the house's elevation; e2e: editing
         it persists and survives a reload
 
 ## Notes / refs
@@ -75,7 +75,7 @@ sightlines) — for **any** house, since it's drawn and saved, not baked in.
   only the committed plan. This subsumed the earlier ad-hoc draw/place flows.
 - Schema lives in `schema/slp.yaml` (panschema → `slp_core`). `House` is a normal
   plan entity — see the existing/virtual model in `docs/PLAN.md` §4.
-- **Dogfood watch:** H1.0 is static render (dokime). H1.1 introduces *click-to-draw*
-  interaction — if dokime/theoria lack what we need to drive/preview pointer
-  interaction, pull the smallest dokime/theoria slice that unblocks it (per the
+- **Dogfood watch:** H1.0 is static render (leptotes). H1.1 introduces *click-to-draw*
+  interaction — if leptotes/theoria lack what we need to drive/preview pointer
+  interaction, pull the smallest leptotes/theoria slice that unblocks it (per the
   demand-driven rule), don't build it speculatively.

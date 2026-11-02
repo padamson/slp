@@ -8,7 +8,7 @@ split`) once the API stabilizes.
 ## Demand-driven (the governing rule)
 
 theoria capabilities are **pulled by need, not built speculatively**: a theoria
-story/slice is tackled only when an **slp** slice needs it. (In turn, dokime
+story/slice is tackled only when an **slp** slice needs it. (In turn, leptotes
 grows only when slp *or* theoria needs it.) So this backlog is a holding pen;
 items move to "in progress" when slp pulls them.
 
@@ -16,11 +16,11 @@ items move to "in progress" when slp pulls them.
 
 - **Leptos component library, runtime-agnostic** (`csr`/`ssr`/`hydrate`
   passthrough features); the consumer picks the runtime — same reason as
-  `slp-ui` (so `dokime` can render it under `ssr` and apps under `csr`).
+  `slp-ui` (so `leptotes` can render it under `ssr` and apps under `csr`).
 - **Components in `src/components/`**, Storybook-style: `<name>.rs` +
   `<name>.stories.rs` (behind the `stories` feature) + `<name>.tests.rs`
-  (dokime).
-- **TDD / component-driven:** each component is spec'd with dokime; real browser
+  (leptotes).
+- **TDD / component-driven:** each component is spec'd with leptotes; real browser
   behavior is covered by a playwright e2e (`theoria-e2e`) driving a gallery built
   from theoria's *own* components as fixtures — never a `Gallery` inside a
   `Gallery`.
@@ -90,7 +90,7 @@ proc-macro). Prioritize the *value*, accept explicit authoring.
 - **Story groups / nesting** — hierarchical sidebar from title paths. ✅ **Done**
   (T8; pulled forward when slp-ui's story list grew). See
   [`docs/stories/T8-story-groups.md`](stories/T8-story-groups.md).
-- **Interaction tests (play functions)** — largely covered by dokime (Rust
+- **Interaction tests (play functions)** — largely covered by leptotes (Rust
   component tests) + playwright (e2e); don't duplicate.
 
 ### Tier 4 — defer, but promote when rendered fidelity grows

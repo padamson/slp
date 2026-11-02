@@ -1,11 +1,11 @@
 [workspace]
 # Native, fast-to-test library crates. slp-ui/theoria are Leptos libs that don't
-# hard-enable a runtime; dokime renders them under `ssr` for native component
+# hard-enable a runtime; leptotes renders them under `ssr` for native component
 # tests, so the whole member graph resolves Leptos with the ssr backend.
 members = [
     "crates/slp-core",
     "crates/slp-ui",
-    "crates/dokime",
+    "crates/leptotes",
     "crates/theoria",
     "crates/theoria-cli",
     "crates/theoria-macros",
@@ -13,7 +13,7 @@ members = [
 # slp-app is the wasm32 Leptos CSR app (built by Trunk, selects the csr runtime);
 # slp-e2e is its native playwright-rust dogfood test. Both are excluded so
 # workspace-wide cargo commands stay native/fast and no member enables csr
-# (which would conflict with dokime's ssr) — mirrors the playwright-rust
+# (which would conflict with leptotes's ssr) — mirrors the playwright-rust
 # site / site-e2e split. They build on their own (Trunk + a standalone test).
 exclude = ["crates/slp-app", "crates/slp-e2e", "crates/theoria-e2e"]
 resolver = "2"

@@ -1,4 +1,4 @@
-//! dokime component tests for `Yard`.
+//! leptotes component tests for `Yard`.
 
 use leptos::prelude::*;
 use slp_core::{CatalogItem, Coord, DeckLevel, Object, StepRun};
@@ -7,7 +7,7 @@ use super::Yard;
 
 #[test]
 fn renders_the_yard_svg_with_scale_bar() {
-    let html = dokime::render(|| view! { <Yard yard_w=10.0 yard_d=10.0 px_ft=12.0 pad=40.0 /> });
+    let html = leptotes::render(|| view! { <Yard yard_w=10.0 yard_d=10.0 px_ft=12.0 pad=40.0 /> });
     assert!(
         html.contains(r#"data-testid="yard""#),
         "the yard canvas is present"
@@ -26,7 +26,7 @@ fn renders_the_house_outline_when_given_corners() {
         Coord::new(6.0, 5.0),
         Coord::new(2.0, 5.0),
     ];
-    let html = dokime::render(
+    let html = leptotes::render(
         move || view! { <Yard yard_w=10.0 yard_d=10.0 px_ft=12.0 pad=40.0 house=house /> },
     );
     assert!(
@@ -37,7 +37,7 @@ fn renders_the_house_outline_when_given_corners() {
 
 #[test]
 fn renders_no_house_outline_by_default() {
-    let html = dokime::render(|| view! { <Yard yard_w=10.0 yard_d=10.0 px_ft=12.0 pad=40.0 /> });
+    let html = leptotes::render(|| view! { <Yard yard_w=10.0 yard_d=10.0 px_ft=12.0 pad=40.0 /> });
     assert!(
         !html.contains(r#"class="house""#),
         "a yard with no house draws no outline"
@@ -50,7 +50,7 @@ fn renders_placed_furniture_inside_the_stage() {
     chair.width_ft = Some(2.0);
     chair.depth_ft = Some(2.0);
     let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <Yard
                 yard_w=10.0
@@ -86,7 +86,7 @@ fn renders_the_deck_and_a_step_run_inside_the_stage() {
         by: 0.0,
         elevation: 1.5,
     };
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <Yard yard_w=10.0 yard_d=10.0 px_ft=12.0 pad=40.0 deck=vec![level] steps=vec![run] />
         }
@@ -104,7 +104,7 @@ fn renders_the_deck_and_a_step_run_inside_the_stage() {
 
 #[test]
 fn renders_the_placement_overlay_while_placing() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <Yard
                 yard_w=10.0
@@ -124,7 +124,7 @@ fn renders_the_placement_overlay_while_placing() {
 
 #[test]
 fn renders_the_legend_by_default() {
-    let html = dokime::render(|| view! { <Yard yard_w=10.0 yard_d=10.0 px_ft=12.0 pad=40.0 /> });
+    let html = leptotes::render(|| view! { <Yard yard_w=10.0 yard_d=10.0 px_ft=12.0 pad=40.0 /> });
     assert!(
         html.contains(r#"data-testid="legend""#),
         "the legend renders inside the yard stage by default"
@@ -137,7 +137,7 @@ fn renders_the_selected_objects_rotation_handle() {
     chair.width_ft = Some(2.0);
     chair.depth_ft = Some(2.0);
     let objects = vec![Object::new("chair".to_string(), 5.0, 5.0)];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <Yard
                 yard_w=10.0

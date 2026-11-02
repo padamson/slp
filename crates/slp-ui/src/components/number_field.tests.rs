@@ -1,4 +1,4 @@
-//! dokime component test for `NumberField`.
+//! leptotes component test for `NumberField`.
 
 use leptos::prelude::*;
 
@@ -6,7 +6,7 @@ use super::NumberField;
 
 #[test]
 fn renders_a_labeled_number_input() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <NumberField
                 label="Width (ft)"
@@ -24,7 +24,7 @@ fn renders_a_labeled_number_input() {
 
 #[test]
 fn renders_the_step_attribute() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <NumberField
                 label="Width (ft)"
@@ -40,7 +40,7 @@ fn renders_the_step_attribute() {
 
 #[test]
 fn renders_the_min_attribute_when_set() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <NumberField
                 label="Width (ft)"
@@ -57,7 +57,7 @@ fn renders_the_min_attribute_when_set() {
 
 #[test]
 fn omits_the_min_attribute_when_unset() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <NumberField
                 label="Width (ft)"

@@ -1,4 +1,4 @@
-//! dokime component test for `FileInput`. (The file-read itself is browser-only
+//! leptotes component test for `FileInput`. (The file-read itself is browser-only
 //! — csr — so it's exercised in the e2e suite, not here.)
 
 use leptos::prelude::*;
@@ -7,7 +7,7 @@ use super::FileInput;
 
 #[test]
 fn renders_a_file_input_with_accept_and_testid() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <FileInput
                 label="Upload"

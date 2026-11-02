@@ -1,4 +1,4 @@
-//! dokime component tests for `Deck` (multi-level footprints).
+//! leptotes component tests for `Deck` (multi-level footprints).
 
 use leptos::prelude::*;
 use slp_core::{Coord, DeckLevel, StepRun};
@@ -27,11 +27,11 @@ fn square(elevation: f64) -> DeckLevel {
 
 #[test]
 fn renders_a_level_with_markers_and_elevation_label() {
-    let html = dokime::render(move || view! { <Deck t=t() levels=vec![square(1.5)] /> });
+    let html = leptotes::render(move || view! { <Deck t=t() levels=vec![square(1.5)] /> });
     assert!(html.contains(r#"class="deck""#), "tagged for queries");
     assert!(html.contains("<polygon"), "the footprint is a polygon");
     assert_eq!(
-        dokime::count(&html, r#"class="deck-corner""#),
+        leptotes::count(&html, r#"class="deck-corner""#),
         4,
         "a marker per corner"
     );
@@ -42,7 +42,7 @@ fn renders_a_level_with_markers_and_elevation_label() {
 fn a_negative_elevation_shows_a_single_minus_sign() {
     // A below-grade level reads "-0.5 ft", not the doubled-up "+-0.5 ft" a
     // naive `+{elevation}` format would produce.
-    let html = dokime::render(move || view! { <Deck t=t() levels=vec![square(-0.5)] /> });
+    let html = leptotes::render(move || view! { <Deck t=t() levels=vec![square(-0.5)] /> });
     assert!(html.contains("-0.5 ft"), "single minus sign");
     assert!(!html.contains("+-"), "never a doubled sign");
 }
@@ -50,8 +50,12 @@ fn a_negative_elevation_shows_a_single_minus_sign() {
 #[test]
 fn renders_one_polygon_per_level() {
     let html =
-        dokime::render(move || view! { <Deck t=t() levels=vec![square(0.5), square(2.0)] /> });
-    assert_eq!(dokime::count(&html, "<polygon"), 2, "one polygon per level");
+        leptotes::render(move || view! { <Deck t=t() levels=vec![square(0.5), square(2.0)] /> });
+    assert_eq!(
+        leptotes::count(&html, "<polygon"),
+        2,
+        "one polygon per level"
+    );
     assert!(
         html.contains("+0.5 ft") && html.contains("+2.0 ft"),
         "both labels"
@@ -69,10 +73,10 @@ fn composes_step_runs_with_treads() {
         elevation: 2.0,
     };
     let html =
-        dokime::render(move || view! { <Deck t=t() levels=vec![square(2.0)] steps=vec![run] /> });
+        leptotes::render(move || view! { <Deck t=t() levels=vec![square(2.0)] steps=vec![run] /> });
     assert!(html.contains(r#"class="steps""#), "the step run renders");
     assert_eq!(
-        dokime::count(&html, r#"class="step-tread""#),
+        leptotes::count(&html, r#"class="step-tread""#),
         3,
         "steps-1 interior treads"
     );
@@ -80,7 +84,7 @@ fn composes_step_runs_with_treads() {
 
 #[test]
 fn no_levels_renders_nothing() {
-    let html = dokime::render(move || view! { <Deck t=t() levels=Vec::new() /> });
+    let html = leptotes::render(move || view! { <Deck t=t() levels=Vec::new() /> });
     assert!(!html.contains(r#"class="deck""#));
 }
 
@@ -106,7 +110,7 @@ fn paints_lower_elevations_first_so_higher_layers_on_top() {
         ],
         ..DeckLevel::new(2.0)
     };
-    let html = dokime::render(move || view! { <Deck t=t() levels=vec![high, low] /> });
+    let html = leptotes::render(move || view! { <Deck t=t() levels=vec![high, low] /> });
     let low_idx = html.find("0,200").expect("low polygon's SW corner renders");
     let high_idx = html
         .find("90,110")
@@ -121,9 +125,9 @@ fn skips_a_degenerate_level_with_too_few_corners() {
         ..DeckLevel::new(1.0)
     };
     let html =
-        dokime::render(move || view! { <Deck t=t() levels=vec![square(1.0), degenerate] /> });
+        leptotes::render(move || view! { <Deck t=t() levels=vec![square(1.0), degenerate] /> });
     assert_eq!(
-        dokime::count(&html, "<polygon"),
+        leptotes::count(&html, "<polygon"),
         1,
         "the degenerate level is skipped, not just malformed"
     );
@@ -131,19 +135,20 @@ fn skips_a_degenerate_level_with_too_few_corners() {
 
 #[test]
 fn an_unselected_level_has_plain_corner_markers() {
-    let html = dokime::render(move || view! { <Deck t=t() levels=vec![square(1.0)] /> });
-    assert_eq!(dokime::count(&html, r#"class="deck-corner""#), 4);
-    assert_eq!(dokime::count(&html, r#"data-testid="deck-node""#), 0);
+    let html = leptotes::render(move || view! { <Deck t=t() levels=vec![square(1.0)] /> });
+    assert_eq!(leptotes::count(&html, r#"class="deck-corner""#), 4);
+    assert_eq!(leptotes::count(&html, r#"data-testid="deck-node""#), 0);
     assert!(!html.contains("deck-level--selected"));
 }
 
 #[test]
 fn a_selected_level_shows_interactive_node_handles_instead() {
-    let html =
-        dokime::render(move || view! { <Deck t=t() levels=vec![square(1.0)] selected=Some(0) /> });
+    let html = leptotes::render(
+        move || view! { <Deck t=t() levels=vec![square(1.0)] selected=Some(0) /> },
+    );
     assert!(html.contains("deck-level--selected"));
-    assert_eq!(dokime::count(&html, r#"class="deck-corner""#), 0);
-    assert_eq!(dokime::count(&html, r#"data-testid="deck-node""#), 4);
+    assert_eq!(leptotes::count(&html, r#"class="deck-corner""#), 0);
+    assert_eq!(leptotes::count(&html, r#"data-testid="deck-node""#), 4);
 }
 
 #[test]
@@ -153,11 +158,11 @@ fn selection_addresses_the_original_index_not_the_paint_order() {
     // not whichever level paints first after the sort (which would be LOW).
     let high = square(2.0);
     let low = square(0.5);
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Deck t=t() levels=vec![high, low] selected=Some(0) /> }
     });
     assert_eq!(
-        dokime::count(&html, r#"data-testid="deck-node""#),
+        leptotes::count(&html, r#"data-testid="deck-node""#),
         4,
         "exactly one level gets node handles"
     );

@@ -1,4 +1,4 @@
-//! dokime component tests for `MaterialPicker`.
+//! leptotes component tests for `MaterialPicker`.
 
 use leptos::prelude::*;
 use slp_core::{CatalogItem, PriceUnit};
@@ -14,7 +14,7 @@ fn mat(id: &str, name: &str, category: &str) -> CatalogItem {
 }
 
 fn render(materials: Vec<CatalogItem>, armed: Option<String>) -> String {
-    dokime::render(move || {
+    leptotes::render(move || {
         let materials = materials.clone();
         let armed = armed.clone();
         view! {
@@ -56,7 +56,7 @@ fn a_multi_material_category_gets_a_type_dropdown() {
         None,
     );
     assert_eq!(
-        dokime::count(&html, r#"data-testid="area-mat-cat-slab""#),
+        leptotes::count(&html, r#"data-testid="area-mat-cat-slab""#),
         1,
         "one button for the whole category"
     );
@@ -72,7 +72,7 @@ fn a_multi_material_category_gets_a_type_dropdown() {
 fn a_single_material_category_has_no_dropdown() {
     let html = render(vec![mat("paver", "Pavers", "paver")], None);
     assert_eq!(
-        dokime::count(&html, r#"data-testid="area-mat-select-paver""#),
+        leptotes::count(&html, r#"data-testid="area-mat-select-paver""#),
         0,
         "a lone material needs no type dropdown"
     );

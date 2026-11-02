@@ -19,7 +19,7 @@ In scope (`examine_globs` in [`.cargo/mutants.toml`](../.cargo/mutants.toml)):
 | Crate | What's mutated |
 |---|---|
 | `slp-core` | geometry / take-off math, the node-placement engine |
-| `dokime` | render / count test helpers |
+| `leptotes` | render / count test helpers |
 | `theoria-cli` | gallery generation |
 | `theoria-macros` | the `#[story]` proc-macro: type mapping + doc/source extraction |
 
@@ -69,7 +69,7 @@ Every surviving mutant must be resolved one of two ways:
 
 ## Spin-out alignment
 
-`theoria` and `dokime` are incubated here and will be split out (`git subtree
+`theoria` and `leptotes` are incubated here and will be split out (`git subtree
 split`) to their own repos. `.cargo/mutants.toml` lives at the slp root and
 **won't travel**. When a crate spins out, its spin-out unit must carry its own
 `.cargo/mutants.toml` (scope = that unit's logic crates) and a mutation CI job,
@@ -77,7 +77,7 @@ so this policy survives the move. Spin-out units:
 
 - **theoria** → `theoria` + `theoria-cli` + `theoria-macros` + `theoria-e2e`
   (mutate `theoria-cli`, `theoria-macros`).
-- **dokime** → `dokime` (mutate `dokime`).
+- **leptotes** → `leptotes` (mutate `leptotes`).
 
 ## Running locally
 

@@ -1,4 +1,4 @@
-//! dokime component test for `Markdown`.
+//! leptotes component test for `Markdown`.
 
 use leptos::prelude::*;
 
@@ -6,7 +6,7 @@ use super::Markdown;
 
 #[test]
 fn renders_markdown_as_html() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <Markdown text="# Title\n\nSome **bold** text and a list:\n\n- one\n- two" />
         }

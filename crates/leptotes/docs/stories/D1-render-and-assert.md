@@ -17,7 +17,7 @@ or a wasm test runner.
 
 ## Notes / refs
 
-- Tests are plain `#[test]` fns discovered by nextest; dokime adds no attribute
+- Tests are plain `#[test]` fns discovered by nextest; leptotes adds no attribute
   or runner of its own.
 - `count` is substring-based; pull **D4** (selector queries) when that gets
-  brittle. dokime sees SSR/initial render only; interaction is the e2e's job.
+  brittle. leptotes sees SSR/initial render only; interaction is the e2e's job.

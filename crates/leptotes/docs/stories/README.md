@@ -1,4 +1,4 @@
-# dokime user stories
+# leptotes user stories
 
 `docs/PLAN.md` is the overview. **This folder holds one detailed doc per user
 story**, each broken into **vertical slices** — same convention as slp's
@@ -41,7 +41,7 @@ roadmap** in [`../PLAN.md`](../PLAN.md). All items are pulled on demand.
 |---|---|---|
 | D1 | Render a component and assert on its markup natively | [D1](D1-render-and-assert.md) |
 
-**Backlog** (native — dokime's lane; pull when a test needs it)
+**Backlog** (native — leptotes's lane; pull when a test needs it)
 
 | # | Story | Tier |
 |---|---|---|
@@ -51,7 +51,7 @@ roadmap** in [`../PLAN.md`](../PLAN.md). All items are pulled on demand.
 | D6 | Snapshot testing (golden HTML, update flag) | 3 |
 | D5 | Set a signal + re-render + assert (native reactivity, no DOM events) | 3 |
 
-**Out of scope** (browser layer — `slp-e2e` / `theoria-e2e`, not dokime)
+**Out of scope** (browser layer — `slp-e2e` / `theoria-e2e`, not leptotes)
 
 Visibility/layout (`toBeVisible`/`toHaveStyle`), user-event interaction,
 `findBy` async retries, and post-(DOM)-event reactivity — these need a real

@@ -1,6 +1,6 @@
 //! Minimal component testing for Leptos.
 //!
-//! `dokime` (Greek δοκιμή, "a test / proof") renders a Leptos view to an HTML
+//! `leptotes` (Greek δοκιμή, "a test / proof") renders a Leptos view to an HTML
 //! string under a fresh reactive owner so components can be asserted on in fast,
 //! native unit tests — no browser, no `wasm-bindgen-test` runner. It is the
 //! cheap inner-loop complement to the playwright-rust end-to-end gate.
@@ -13,7 +13,7 @@
 //! ```
 //! use leptos::prelude::*;
 //!
-//! let html = dokime::render(|| view! { <p>"hello"</p> });
+//! let html = leptotes::render(|| view! { <p>"hello"</p> });
 //! assert!(html.contains("hello"));
 //! ```
 
@@ -43,7 +43,7 @@ pub fn count(haystack: &str, needle: &str) -> usize {
 
 #[cfg(test)]
 mod tests {
-    //! dokime testing dokime — the tool proves itself.
+    //! leptotes testing leptotes — the tool proves itself.
     use super::*;
 
     #[test]

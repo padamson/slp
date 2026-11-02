@@ -2,12 +2,12 @@
 //!
 //! Runtime-agnostic: this library never enables a Leptos runtime feature. The
 //! consumer chooses — `slp-app` selects `csr` (via the `csr` passthrough
-//! feature) for the browser; `dokime` renders these components under `ssr` for
+//! feature) for the browser; `leptotes` renders these components under `ssr` for
 //! fast native component tests.
 //!
 //! Components live in `src/components/` Storybook-style: `<name>.rs` (component),
 //! `<name>.stories.rs` (theoria stories, behind the `stories` feature), and
-//! `<name>.tests.rs` (dokime tests).
+//! `<name>.tests.rs` (leptotes tests).
 
 // Coordinate math feeds many f64 -> SVG-attribute conversions; allow the
 // pedantic casts crate-wide. `must_use_candidate` is a false positive for

@@ -1,5 +1,5 @@
-//! dokime component tests for `ObjectInspector`. (Clicking the status/virtual/
-//! reset controls is exercised end-to-end in slp-e2e; dokime renders markup.)
+//! leptotes component tests for `ObjectInspector`. (Clicking the status/virtual/
+//! reset controls is exercised end-to-end in slp-e2e; leptotes renders markup.)
 
 use leptos::prelude::*;
 use slp_core::{CatalogItem, Corner, FootprintShape, ItemStatus, Object};
@@ -22,7 +22,7 @@ fn shows_metadata_status_and_reset() {
     let mut obj = Object::new("chair".to_string(), 12.0, 8.0);
     obj.rot = Some(90.0);
     obj.status = ItemStatus::existing;
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <ObjectInspector
                 object=obj
@@ -67,7 +67,7 @@ fn shows_metadata_status_and_reset() {
     );
     // The object's status (existing) is the one marked active.
     assert_eq!(
-        dokime::count(&html, "active"),
+        leptotes::count(&html, "active"),
         1,
         "one active status button"
     );
@@ -76,7 +76,7 @@ fn shows_metadata_status_and_reset() {
 #[test]
 fn falls_back_when_the_catalog_item_is_missing() {
     let obj = Object::new("mystery-id".to_string(), 1.0, 2.0);
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <ObjectInspector
                 object=obj
@@ -108,7 +108,7 @@ fn a_round_item_shows_its_diameter() {
     fire_pit.width_ft = Some(3.0);
     fire_pit.depth_ft = Some(3.0);
     let obj = Object::new("fire-pit".to_string(), 5.0, 5.0);
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <ObjectInspector
                 object=obj
@@ -142,7 +142,7 @@ fn oak() -> CatalogItem {
 #[test]
 fn a_tree_shows_canopy_and_trunk_size_inputs() {
     let obj = Object::new("oak-tree".to_string(), 5.0, 5.0);
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <ObjectInspector
                 object=obj
@@ -173,7 +173,7 @@ fn a_tree_shows_canopy_and_trunk_size_inputs() {
 fn a_non_tree_shows_no_canopy_or_trunk_inputs() {
     let mut obj = Object::new("chair".to_string(), 12.0, 8.0);
     obj.rot = Some(90.0);
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <ObjectInspector
                 object=obj
@@ -198,7 +198,7 @@ fn a_non_tree_shows_no_canopy_or_trunk_inputs() {
 fn a_trees_canopy_override_wins_over_the_catalog_footprint() {
     let mut obj = Object::new("oak-tree".to_string(), 5.0, 5.0);
     obj.canopy_diameter_ft = Some(30.0);
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <ObjectInspector
                 object=obj
@@ -237,7 +237,7 @@ fn hot_tub() -> CatalogItem {
 #[test]
 fn a_hot_tub_shows_slab_thickness_and_overhang_fields() {
     let obj = Object::new("hot-tub".to_string(), 5.0, 5.0);
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <ObjectInspector
                 object=obj
@@ -267,7 +267,7 @@ fn a_hot_tub_shows_slab_thickness_and_overhang_fields() {
 #[test]
 fn a_non_hot_tub_shows_no_slab_fields() {
     let obj = Object::new("chair".to_string(), 5.0, 5.0);
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <ObjectInspector
                 object=obj

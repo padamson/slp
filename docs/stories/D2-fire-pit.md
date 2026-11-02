@@ -29,7 +29,7 @@ safe distance from combustibles before I buy.
         status exactly like furniture — no new machinery
   - [x] the inspector shows a round item's size as a **diameter** (`⌀ N ft`),
         not `W × D`
-  - [x] dokime: a circular item renders a `<circle>`, not a `<rect>` (+ an
+  - [x] leptotes: a circular item renders a `<circle>`, not a `<rect>` (+ an
         existing round item is a double ring); the inspector shows `⌀ N ft`
   - [x] e2e: place the fire pit from the palette → a round footprint renders +
         the estimate updates (landed with F2.0, which drives placement now)
@@ -60,7 +60,7 @@ safe distance from combustibles before I buy.
         intrusion a **darker red** than the object/edge-overlap red — so
         "someone's inside the keep-clear zone" doesn't look identical to "this
         object is off its surface"
-  - [x] dokime: a fire pit fills silver; is fine off a deck but flags on the
+  - [x] leptotes: a fire pit fills silver; is fine off a deck but flags on the
         house; the intruded ring uses the darker-red constant (not
         `OVERFLOW_STROKE`); e2e: a fire pit on the house footprint goes red, on
         the deck it's fine and fills silver

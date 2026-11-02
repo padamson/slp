@@ -106,7 +106,7 @@ the finished space, without it having to be dimensionally exact.
         plan to rasterize rather than silently degrading to a prompt-only render.
   - [x] a portaled result modal (like the crop editor) with a spinner, the image,
         Regenerate, and a failure state naming both the cause and the fix.
-  - [x] dokime component tests (every state, both modes) + e2e against a stubbed
+  - [x] leptotes component tests (every state, both modes) + e2e against a stubbed
         backend: overhead sends a real raster, eye-level sends none, and an
         unreachable backend is reported rather than swallowed.
   - [ ] *deferred:* a config surface. The defaults work against a stock local

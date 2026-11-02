@@ -1,4 +1,4 @@
-//! dokime component tests for `MaterialSwatch`.
+//! leptotes component tests for `MaterialSwatch`.
 
 use leptos::prelude::*;
 
@@ -7,7 +7,7 @@ use crate::style::{MULCH_FILL, PAVER_FILL, SHAPE_FILL};
 
 #[test]
 fn a_material_with_an_image_shows_a_photo_thumbnail() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <MaterialSwatch
                 image=Some("data:image/png;base64,AAAA".to_string())
@@ -29,7 +29,8 @@ fn a_material_with_an_image_shows_a_photo_thumbnail() {
 #[test]
 fn a_material_without_an_image_shows_its_category_color() {
     // Paver → gray, mulch → brown, uncategorized → the neutral default.
-    let paver = dokime::render(|| view! { <MaterialSwatch category=Some("paver".to_string()) /> });
+    let paver =
+        leptotes::render(|| view! { <MaterialSwatch category=Some("paver".to_string()) /> });
     assert!(
         paver.contains(&format!("background-color: {PAVER_FILL}")),
         "paver swatch is gray: {paver}"
@@ -37,13 +38,13 @@ fn a_material_without_an_image_shows_its_category_color() {
     assert!(!paver.contains("<img"), "no photo when there's no image");
 
     let mulch =
-        dokime::render(|| view! { <MaterialSwatch category=Some("mulch-bed".to_string()) /> });
+        leptotes::render(|| view! { <MaterialSwatch category=Some("mulch-bed".to_string()) /> });
     assert!(
         mulch.contains(&format!("background-color: {MULCH_FILL}")),
         "mulch swatch is brown: {mulch}"
     );
 
-    let plain = dokime::render(|| view! { <MaterialSwatch /> });
+    let plain = leptotes::render(|| view! { <MaterialSwatch /> });
     assert!(
         plain.contains(&format!("background-color: {SHAPE_FILL}")),
         "an uncategorized swatch is the neutral default: {plain}"
@@ -54,7 +55,7 @@ fn a_material_without_an_image_shows_its_category_color() {
 fn an_empty_image_string_falls_back_to_the_color() {
     // A material whose image was cleared to "" reads as no-photo, not a broken
     // <img src="">.
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! { <MaterialSwatch image=Some(String::new()) category=Some("paver".to_string()) /> }
     });
     assert!(!html.contains("<img"), "an empty image is not a photo");

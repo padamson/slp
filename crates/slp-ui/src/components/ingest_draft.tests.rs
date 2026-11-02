@@ -1,4 +1,4 @@
-//! dokime component tests for `IngestDraft` (the curation step).
+//! leptotes component tests for `IngestDraft` (the curation step).
 
 use leptos::prelude::*;
 use slp_core::CatalogItem;
@@ -51,7 +51,7 @@ fn sample() -> ExtractedProduct {
 }
 
 fn render(product: ExtractedProduct) -> String {
-    dokime::render(move || {
+    leptotes::render(move || {
         let product = product.clone();
         view! {
             <IngestDraft
@@ -106,7 +106,7 @@ fn a_color_with_a_cropped_swatch_shows_a_thumbnail() {
     assert!(html.contains("data:image/png;base64,SWATCH"));
     // A color without a swatch has no thumbnail.
     assert_eq!(
-        dokime::count(&render(sample()), r#"data-testid="ingest-color-swatch-0""#),
+        leptotes::count(&render(sample()), r#"data-testid="ingest-color-swatch-0""#),
         0,
         "no thumbnail before cropping"
     );
@@ -173,7 +173,7 @@ fn laying_patterns_list_as_ticked_checkboxes_with_diagram_thumbnails() {
     );
     assert!(html.contains("data:image/png;base64,DIAG"));
     assert_eq!(
-        dokime::count(&html, r#"data-testid="ingest-pattern-diagram-1""#),
+        leptotes::count(&html, r#"data-testid="ingest-pattern-diagram-1""#),
         0,
         "no thumbnail without a diagram"
     );
@@ -187,7 +187,10 @@ fn laying_patterns_list_as_ticked_checkboxes_with_diagram_thumbnails() {
 fn a_draft_without_patterns_shows_no_patterns_group() {
     let html = render(sample());
     assert!(!html.contains("Laying patterns"));
-    assert_eq!(dokime::count(&html, r#"data-testid="ingest-pattern-0""#), 0);
+    assert_eq!(
+        leptotes::count(&html, r#"data-testid="ingest-pattern-0""#),
+        0
+    );
 }
 
 #[test]

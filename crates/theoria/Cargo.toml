@@ -18,7 +18,7 @@ theoria-macros = { path = "../theoria-macros" }
 # Render story descriptions (component doc-comments) as Markdown for autodocs.
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 # Only for the gallery's localStorage (persist the selected story across reloads);
-# pulled in by the csr feature, so ssr/dokime builds don't see it.
+# pulled in by the csr feature, so ssr/leptotes builds don't see it.
 web-sys = { version = "0.3", optional = true, features = ["Window", "Storage"] }
 
 [features]
@@ -29,9 +29,9 @@ hydrate = ["leptos/hydrate"]
 # fixtures). Off in production-style builds, on for the demo/gallery.
 stories = []
 
-# theoria's own UI is component-driven and TDD'd with dokime (rendered under ssr).
+# theoria's own UI is component-driven and TDD'd with leptotes (rendered under ssr).
 [dev-dependencies]
-dokime = { path = "../dokime" }
+leptotes = { path = "../leptotes" }
 
 [lints]
 workspace = true

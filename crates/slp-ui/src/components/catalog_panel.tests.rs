@@ -1,4 +1,4 @@
-//! dokime component tests for `CatalogPanel`.
+//! leptotes component tests for `CatalogPanel`.
 
 use leptos::prelude::*;
 use slp_core::{CatalogItem, PriceUnit};
@@ -31,7 +31,7 @@ fn item(id: &str, name: &str, price: f64) -> CatalogItem {
 }
 
 fn panel(catalog: Vec<CatalogItem>, selected: Option<String>) -> String {
-    dokime::render(move || {
+    leptotes::render(move || {
         let catalog = catalog.clone();
         let selected = selected.clone();
         view! {
@@ -68,7 +68,7 @@ fn lists_every_catalog_item_with_its_price() {
     assert!(html.contains(r#"data-testid="catalog-row-chair""#));
     assert!(html.contains(r#"data-testid="catalog-row-table""#));
     // Nothing selected → no editor.
-    assert_eq!(dokime::count(&html, r#"data-testid="catalog-editor""#), 0);
+    assert_eq!(leptotes::count(&html, r#"data-testid="catalog-editor""#), 0);
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn a_bulk_material_offers_an_aggregate_toggle() {
         Some("chair".to_string()),
     );
     assert_eq!(
-        dokime::count(&chair_html, r#"data-testid="catalog-aggregate""#),
+        leptotes::count(&chair_html, r#"data-testid="catalog-aggregate""#),
         0,
         "a per-item object has no aggregate toggle"
     );
@@ -148,7 +148,7 @@ fn the_editor_shows_an_image_field_and_previews_a_set_image() {
     );
     // (Tile W/D are material-only — covered by the material-aware test.)
     assert_eq!(
-        dokime::count(&plain, r#"data-testid="catalog-image-preview""#),
+        leptotes::count(&plain, r#"data-testid="catalog-image-preview""#),
         0,
         "no preview without an image"
     );
@@ -170,7 +170,7 @@ fn the_editor_shows_an_image_field_and_previews_a_set_image() {
 fn panel_ingest(key: &str, shot: &str) -> String {
     let key = key.to_string();
     let shot = shot.to_string();
-    dokime::render(move || {
+    leptotes::render(move || {
         let key = key.clone();
         let shot = shot.clone();
         view! {
@@ -221,7 +221,7 @@ fn the_ingestion_section_gates_on_the_api_key() {
         "not enabled without a key"
     );
     assert_eq!(
-        dokime::count(&off, r#"data-testid="ingest-paste""#),
+        leptotes::count(&off, r#"data-testid="ingest-paste""#),
         0,
         "no paste zone without a key"
     );
@@ -242,7 +242,7 @@ fn the_ingestion_section_gates_on_the_api_key() {
     );
     // Nothing pasted yet → no preview.
     assert_eq!(
-        dokime::count(&on, r#"data-testid="ingest-screenshot""#),
+        leptotes::count(&on, r#"data-testid="ingest-screenshot""#),
         0,
         "no screenshot preview before a paste"
     );
@@ -269,7 +269,7 @@ fn multiple_pasted_screenshots_list_as_thumbnails_with_per_image_remove() {
         "data:image/png;base64,AAA".to_string(),
         "data:image/png;base64,BBB".to_string(),
     ];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         let shots = shots.clone();
         view! {
             <CatalogPanel
@@ -291,7 +291,7 @@ fn multiple_pasted_screenshots_list_as_thumbnails_with_per_image_remove() {
         }
     });
     assert_eq!(
-        dokime::count(&html, r#"data-testid="ingest-screenshot""#),
+        leptotes::count(&html, r#"data-testid="ingest-screenshot""#),
         2,
         "two thumbnails for two pasted screenshots"
     );
@@ -310,7 +310,7 @@ fn multiple_pasted_screenshots_list_as_thumbnails_with_per_image_remove() {
 /// props set (a key is present so the section is enabled).
 fn panel_extract(shot: &str, draft: Option<ExtractedProduct>, error: Option<String>) -> String {
     let shot = shot.to_string();
-    dokime::render(move || {
+    leptotes::render(move || {
         let shot = shot.clone();
         let draft = draft.clone();
         let error = error.clone();
@@ -353,7 +353,7 @@ fn a_pasted_screenshot_offers_model_and_extract() {
     // No screenshot → no extract affordance.
     let empty = panel_extract("", None, None);
     assert_eq!(
-        dokime::count(&empty, r#"data-testid="ingest-extract""#),
+        leptotes::count(&empty, r#"data-testid="ingest-extract""#),
         0,
         "no extraction without a pasted screenshot"
     );
@@ -432,7 +432,7 @@ fn the_editor_is_material_aware_footprint_vs_tile() {
         "an object shows its footprint"
     );
     assert_eq!(
-        dokime::count(&object, r#"data-testid="catalog-tile-width""#),
+        leptotes::count(&object, r#"data-testid="catalog-tile-width""#),
         0,
         "an object has no tile fields"
     );
@@ -442,7 +442,7 @@ fn the_editor_is_material_aware_footprint_vs_tile() {
     paver.price_unit = PriceUnit::per_square_foot;
     let material = panel(vec![paver], Some("paver".to_string()));
     assert_eq!(
-        dokime::count(&material, r#"data-testid="catalog-width""#),
+        leptotes::count(&material, r#"data-testid="catalog-width""#),
         0,
         "a material hides the object footprint"
     );
@@ -483,7 +483,7 @@ fn the_selected_item_offers_delete_when_unreferenced() {
 
 #[test]
 fn a_referenced_item_blocks_delete_with_an_in_use_note() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <CatalogPanel
                 catalog=Signal::derive(|| vec![item("chair", "Lounge chair", 199.0)])

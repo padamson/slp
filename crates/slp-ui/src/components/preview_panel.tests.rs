@@ -1,4 +1,4 @@
-//! dokime component tests for `PreviewPanel`. The parent owns the state, so
+//! leptotes component tests for `PreviewPanel`. The parent owns the state, so
 //! each state renders independently — no model, no network.
 
 use leptos::prelude::*;
@@ -20,7 +20,7 @@ fn render_full(
     gallery: Vec<Shot>,
 ) -> String {
     let photo = photo.map(str::to_string);
-    dokime::render(move || {
+    leptotes::render(move || {
         let photo = photo.clone();
         let gallery = gallery.clone();
         view! {
@@ -68,13 +68,13 @@ fn idle_shows_the_button_and_modes_but_no_modal() {
 fn the_selected_mode_is_marked_active() {
     let overhead = render(PreviewState::Idle, PreviewMode::Overhead);
     assert_eq!(
-        dokime::count(&overhead, "active"),
+        leptotes::count(&overhead, "active"),
         1,
         "exactly one mode reads as selected"
     );
     // Switching the selection moves the marker to the other button.
     let eye = render(PreviewState::Idle, PreviewMode::EyeLevel);
-    assert_eq!(dokime::count(&eye, "active"), 1);
+    assert_eq!(leptotes::count(&eye, "active"), 1);
     assert_ne!(
         overhead.find("active"),
         eye.find("active"),
@@ -247,7 +247,7 @@ fn the_gallery_holds_this_sessions_renders() {
         "the strip"
     );
     assert_eq!(
-        dokime::count(&html, r#"data-testid="preview-thumb""#),
+        leptotes::count(&html, r#"data-testid="preview-thumb""#),
         2,
         "one thumbnail per render"
     );

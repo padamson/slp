@@ -1,7 +1,7 @@
 //! The whole planner UI: header + yard controls + drawing tools + the to-scale
 //! yard canvas, wired to a `slp_core::Plan`. `slp-app` just mounts this — keeping
 //! the root UI here (not in the binary) makes the entire app previewable in
-//! theoria and testable with dokime. The plan is persisted to `localStorage`.
+//! theoria and testable with leptotes. The plan is persisted to `localStorage`.
 //!
 //! Drawing uses one node-placement engine (`slp_core::place`): a tool (house,
 //! door, window) previews the next node as the mouse moves and commits it on

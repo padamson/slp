@@ -40,7 +40,7 @@ sibling repos (`t2t`, `playwright-rust`, `rust-project-template`, `panschema`).
 
 ```
 slp/
-├── Cargo.toml                 # workspace (members: slp-core, slp-ui, dokime, theoria)
+├── Cargo.toml                 # workspace (members: slp-core, slp-ui, leptotes, theoria)
 ├── schema/slp.yaml            # LinkML: shapes, materials, settings, plan file
 ├── materials/
 │   ├── manifest.toml          # COMMITTED: material metadata + provenance only
@@ -50,7 +50,7 @@ slp/
 │   │   └── src/{generated/, geom.rs, takeoff.rs, material.rs}
 │   ├── slp-ui/                # Leptos components, runtime-agnostic (member)
 │   │   └── src/canvas/{grid,scale_bar,yard}.rs   (3D renderer later)
-│   ├── dokime/                # DOGFOOD: component testing for Leptos (member, lib)
+│   ├── leptotes/              # DOGFOOD: component testing for Leptos (member, lib)
 │   ├── theoria/               # DOGFOOD: component explorer UI for Leptos (member)
 │   ├── slp-ingest/            # per-source material adapters -> manifest (later)
 │   ├── slp-app/               # Leptos CSR app (Trunk target; selects csr; excluded)
@@ -65,16 +65,16 @@ consumers) and **headless** so geometry + take-off math get fast native
 unit/mutation tests, independent of the UI — keeping the math decoupled from the
 DOM.
 
-**dokime** and **theoria** are incubated **as crates in this workspace** and
+**leptotes** and **theoria** are incubated **as crates in this workspace** and
 dogfooded against `slp-ui` — the most efficient way to start (one build graph;
 the real consumer drives the API) — then **spun out to their own repos** via
 `git subtree split` once their APIs stabilize. Each is a TDD/component-driven
 sub-project that follows this **same `PLAN.md` + `docs/stories/` convention** in
-its own tree (`crates/<crate>/docs/`). theoria has a UI; dokime is a library.
-dokime tests itself; theoria is tested *by* dokime (never theoria-in-theoria).
+its own tree (`crates/<crate>/docs/`). theoria has a UI; leptotes is a library.
+leptotes tests itself; theoria is tested *by* leptotes (never theoria-in-theoria).
 
-**Demand-driven:** theoria/dokime stories are **pulled by slp's needs** — a
-capability is built only when an slp slice requires it (or dokime when slp *or*
+**Demand-driven:** theoria/leptotes stories are **pulled by slp's needs** — a
+capability is built only when an slp slice requires it (or leptotes when slp *or*
 theoria requires it), never speculatively.
 
 ### 3.1 Frontend: component-driven from the start
@@ -88,7 +88,7 @@ developable and testable in isolation — never one monolith.
   Legend }`.
 - **Isolation tooling (dogfooded, in-repo crates):** **theoria** component
   explorer (preview a component without the whole app — served separately, *not*
-  bundled into the production app), **dokime** for native component tests. dokime
+  bundled into the production app), **leptotes** for native component tests. leptotes
   is in use today; theoria's gallery is served on demand (the Storybook-style
   `theoria serve` CLI is a theoria backlog story; a thin gallery bin is the
   interim stand-in).
@@ -165,7 +165,7 @@ The story catalog (epics → stories) and one detailed, slice-by-slice document 
 story live in **[`docs/stories/`](stories/README.md)** — the single source of
 truth for the backlog. This plan does not repeat it; §6 below only sequences
 *which* stories ship together. The dogfood sub-projects keep their own
-`PLAN.md` + `docs/stories/` at `crates/dokime/docs/` and `crates/theoria/docs/`.
+`PLAN.md` + `docs/stories/` at `crates/leptotes/docs/` and `crates/theoria/docs/`.
 
 ## 6. Delivery order (milestones)
 

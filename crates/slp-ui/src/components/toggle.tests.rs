@@ -1,4 +1,4 @@
-//! dokime component test for `Toggle`.
+//! leptotes component test for `Toggle`.
 
 use leptos::prelude::*;
 
@@ -6,7 +6,7 @@ use super::Toggle;
 
 #[test]
 fn renders_a_labeled_checkbox() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <Toggle
                 label="Snap to grid"

@@ -1,4 +1,4 @@
-//! dokime component tests for `Wall` (composes a wall's doors/windows).
+//! leptotes component tests for `Wall` (composes a wall's doors/windows).
 
 use leptos::prelude::*;
 use slp_core::{Coord, Opening, OpeningKind};
@@ -20,7 +20,7 @@ fn composes_a_door_and_a_window() {
         Opening::new(OpeningKind::door, 1.0, 0, 3.0),
         Opening::new(OpeningKind::window, 6.0, 0, 2.0),
     ];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Wall t=t() start=Coord::new(0.0, 0.0) end=Coord::new(10.0, 0.0) openings=openings /> }
     });
     assert!(html.contains(r#"class="door""#), "the door is composed in");
@@ -32,7 +32,7 @@ fn composes_a_door_and_a_window() {
 
 #[test]
 fn draws_its_edge_even_without_openings() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! { <Wall t=t() start=Coord::new(0.0, 0.0) end=Coord::new(5.0, 0.0) openings=Vec::new() /> }
     });
     assert!(

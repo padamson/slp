@@ -5,10 +5,10 @@
 //! component can be developed and eyeballed in isolation — Storybook for Leptos,
 //! in miniature.
 //!
-//! Built component-driven and TDD'd with dokime. Components live in
+//! Built component-driven and TDD'd with leptotes. Components live in
 //! `src/components/` Storybook-style: `<name>.rs` (component),
 //! `<name>.stories.rs` (theoria stories, behind the `stories` feature), and
-//! `<name>.tests.rs` (dokime tests). theoria's own components double as e2e
+//! `<name>.tests.rs` (leptotes tests). theoria's own components double as e2e
 //! fixtures; we never nest a `Gallery` inside a `Gallery` (the infinite mirror).
 //!
 //! Incubated in the slp workspace; slp-agnostic so it can graduate to its own

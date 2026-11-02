@@ -72,6 +72,6 @@ steps, trees, equipment, furniture — is drawn and saved; nothing is hardcoded 
 a specific property.)
 
 The dogfood sub-projects follow this same convention in their own trees:
-`crates/dokime/docs/{PLAN.md,stories/}` and
+`crates/leptotes/docs/{PLAN.md,stories/}` and
 `crates/theoria/docs/{PLAN.md,stories/}`. Their stories are **pulled by slp's
 needs** (see each crate's PLAN.md), not built speculatively.

@@ -3,7 +3,7 @@
 //! in-place Save, and reopen-the-last-file-on-startup (G1.2/G1.3).
 //!
 //! Everything degrades to `unsupported` / `None` when the shell doesn't provide
-//! `slpFs` — dokime/ssr, a browser without the File System Access API, or a
+//! `slpFs` — leptotes/ssr, a browser without the File System Access API, or a
 //! consumer that didn't include the bridge — so the caller falls back to the
 //! portable download / `<input type="file">` path. `slpFs`'s methods return a
 //! JSON string (or `null`), parsed here into typed results.

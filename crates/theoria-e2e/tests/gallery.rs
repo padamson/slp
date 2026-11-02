@@ -108,7 +108,7 @@ async fn every_story_renders_and_selects() -> Result<()> {
 
 /// The controls panel drives the stage live: editing a knob re-renders the
 /// story view, and the show-code block carries the captured source. This is what
-/// dokime's SSR snapshots can't prove — the interactive re-render.
+/// leptotes's SSR snapshots can't prove — the interactive re-render.
 #[tokio::test]
 async fn controls_drive_the_stage_live() -> Result<()> {
     let dist = dist_dir();

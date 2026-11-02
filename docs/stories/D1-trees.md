@@ -24,7 +24,7 @@ put it somewhere sensible before I buy.
         already groups by `category` (F2.0)
   - [x] the rotation handle no longer shows on a selected **round** item —
         rotating a circle is a visual no-op (rectangular items are unaffected)
-  - [x] dokime: a round item shows no rotate handle when selected; e2e: place a
+  - [x] leptotes: a round item shows no rotate handle when selected; e2e: place a
         tree from the palette → a round footprint renders + the estimate updates
 
 - **D1.1 — canopy + trunk render** ✅ *done*
@@ -35,7 +35,7 @@ put it somewhere sensible before I buy.
   - [x] status/virtual/selection still read through (a virtual tree is a dashed
         ghost, an existing one keeps its treatment) — the trunk/canopy split is
         a *category* look, layered under those independent channels
-  - [x] dokime: a tree renders two circles (canopy + a smaller central trunk);
+  - [x] leptotes: a tree renders two circles (canopy + a smaller central trunk);
         e2e: the placed tree shows a trunk inside its canopy
 
 - **D1.2 — adjustable canopy + trunk size** ✅ *done*
@@ -52,7 +52,7 @@ put it somewhere sensible before I buy.
         a foot, same "point toward the cursor" simplicity as the rotate
         handle); a second, on-canvas way to reach the same adjustment the
         inspector's number inputs give
-  - [x] dokime: the inspector renders the two size inputs for a tree (not for a
+  - [x] leptotes: the inspector renders the two size inputs for a tree (not for a
         rectangular item); a selected tree renders both drag handles (a fire
         pit or furniture gets neither); e2e: bump a tree's canopy diameter via
         the number input, and via dragging each handle

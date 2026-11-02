@@ -13,7 +13,7 @@ house/yard/deck), built to help a DIYer **decide what to buy**. **Read
 crates/slp-core   # headless geometry + take-off math (member, native)
 crates/slp-ui     # Leptos components, runtime-agnostic (member)
                   #   src/components/<name>.{rs, stories.rs, tests.rs}
-crates/dokime     # DOGFOOD: component testing for Leptos (member, lib)
+crates/leptotes   # DOGFOOD: component testing for Leptos (member, lib)
 crates/theoria    # DOGFOOD: component explorer UI for Leptos (member)
 crates/slp-app    # Leptos CSR/WASM app (excluded; built by Trunk; selects csr)
 crates/slp-e2e    # playwright-rust dogfood tests (excluded; standalone)
@@ -25,21 +25,21 @@ docs/notebooks/   # lab notebooks: WHY a design choice was made, with evidence
 
 The wasm app (`slp-app`) and native-test crate (`slp-e2e`) are **excluded from
 the workspace** so `cargo --workspace` stays native and fast, and no member
-enables Leptos `csr` (which would clash with dokime's `ssr`) — mirrors the
+enables Leptos `csr` (which would clash with leptotes's `ssr`) — mirrors the
 playwright-rust site / site-e2e split.
 
 ## Development commands
 
 ```bash
-# All native crates: slp-core + slp-ui + dokime + theoria (fast inner loop)
+# All native crates: slp-core + slp-ui + leptotes + theoria (fast inner loop)
 cargo test --workspace
 cargo nextest run --workspace
 
 # A single crate's tests
 cargo test -p slp-core      # geometry / take-off math
-cargo test -p dokime        # dokime's own self-tests
-cargo test -p slp-ui        # slp-ui components (rendered via dokime)
-cargo test -p theoria       # theoria's Gallery UI (rendered via dokime)
+cargo test -p leptotes      # leptotes's own self-tests
+cargo test -p slp-ui        # slp-ui components (rendered via leptotes)
+cargo test -p theoria       # theoria's Gallery UI (rendered via leptotes)
 
 # Both hot-reload dev servers at once (planner + gallery), auto-picking free
 # ports if 8080/8081 are taken; Ctrl-C stops both:
@@ -69,16 +69,16 @@ cargo fmt
 
 ## Dogfood sub-projects
 
-`crates/dokime` (component testing) and `crates/theoria` (component explorer UI)
+`crates/leptotes` (component testing) and `crates/theoria` (component explorer UI)
 are incubated here and dogfooded against `slp-ui`, to be spun out to their own
 repos later (`git subtree split`). Each is a TDD/component-driven sub-project
 that follows the **same `PLAN.md` + `docs/stories/` convention as slp**:
-`crates/dokime/docs/PLAN.md` and `crates/theoria/docs/PLAN.md` (each with its
+`crates/leptotes/docs/PLAN.md` and `crates/theoria/docs/PLAN.md` (each with its
 own `docs/stories/`).
 
-**Demand-driven rule:** a theoria/dokime story or slice is built **only when an
-slp slice needs it** (or dokime when slp *or* theoria needs it) — never
-speculatively. dokime tests itself; theoria is tested *by* dokime (we never
+**Demand-driven rule:** a theoria/leptotes story or slice is built **only when an
+slp slice needs it** (or leptotes when slp *or* theoria needs it) — never
+speculatively. leptotes tests itself; theoria is tested *by* leptotes (we never
 preview theoria inside theoria).
 
 ### One-time setup
@@ -95,7 +95,7 @@ preview theoria inside theoria).
 2. **Manual / visual:** `trunk serve` and look at `http://localhost:8080`; hot
    reload picks up edits. Use **theoria** (component explorer) to work on a
    single component in isolation as the tree grows.
-3. **Component tests:** **dokime** for Leptos components (added Milestone 1+).
+3. **Component tests:** **leptotes** for Leptos components (added Milestone 1+).
 4. **End-to-end gate:** the `slp-e2e` playwright-rust test drives the built app
    in chromium — it's the "does the WASM actually boot and react" gate.
 

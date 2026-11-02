@@ -1,6 +1,6 @@
 //! A file picker that reads the chosen file to a `data:` URI and hands it back.
 //! Used to attach a material photo in the catalog editor. The read is a browser
-//! (`csr`) concern — `web_sys::FileReader` — so it's gated; under SSR (dokime)
+//! (`csr`) concern — `web_sys::FileReader` — so it's gated; under SSR (leptotes)
 //! the `<input>` still renders, it just doesn't wire the read.
 
 use leptos::prelude::*;

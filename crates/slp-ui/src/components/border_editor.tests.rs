@@ -1,4 +1,4 @@
-//! dokime component tests for `BorderEditor`.
+//! leptotes component tests for `BorderEditor`.
 
 use leptos::prelude::*;
 use slp_core::Border;
@@ -30,7 +30,7 @@ fn editor(borders: Vec<Border>) -> String {
 }
 
 fn editor_with_nodes(borders: Vec<Border>, node_count: usize) -> String {
-    dokime::render(move || {
+    leptotes::render(move || {
         let borders = borders.clone();
         view! {
             <BorderEditor
@@ -53,7 +53,10 @@ fn renders_a_row_per_ring_with_material_width_and_remove() {
         Border::new("edging-stone".to_string(), 0.25),
     ]);
     assert!(html.contains(r#"data-testid="border-editor""#));
-    assert_eq!(dokime::count(&html, r#"data-testid="border-material""#), 2);
+    assert_eq!(
+        leptotes::count(&html, r#"data-testid="border-material""#),
+        2
+    );
     assert!(html.contains(r#"data-testid="border-row-0""#));
     assert!(html.contains(r#"data-testid="border-row-1""#));
     assert!(
@@ -75,7 +78,10 @@ fn renders_a_row_per_ring_with_material_width_and_remove() {
 #[test]
 fn an_empty_list_still_offers_add() {
     let html = editor(vec![]);
-    assert_eq!(dokime::count(&html, r#"data-testid="border-material""#), 0);
+    assert_eq!(
+        leptotes::count(&html, r#"data-testid="border-material""#),
+        0
+    );
     assert!(
         html.contains(r#"data-testid="border-add""#),
         "the + Border button is the entry point"
@@ -90,8 +96,8 @@ fn a_nodal_area_offers_from_to_span_selects() {
     b.start_node = Some(0.0);
     b.end_node = Some(2.0);
     let html = editor_with_nodes(vec![b], 4);
-    assert_eq!(dokime::count(&html, r#"data-testid="border-from""#), 1);
-    assert_eq!(dokime::count(&html, r#"data-testid="border-to""#), 1);
+    assert_eq!(leptotes::count(&html, r#"data-testid="border-from""#), 1);
+    assert_eq!(leptotes::count(&html, r#"data-testid="border-to""#), 1);
     assert!(
         html.contains(r#"<option value="0" selected>"#),
         "from n0: {html}"
@@ -107,6 +113,6 @@ fn a_nodal_area_offers_from_to_span_selects() {
 fn a_circle_hides_the_span_selects() {
     // node_count 0 (a circle): no From/To — circles only ring the perimeter.
     let html = editor_with_nodes(vec![Border::new("cobble".to_string(), 0.5)], 0);
-    assert_eq!(dokime::count(&html, r#"data-testid="border-from""#), 0);
-    assert_eq!(dokime::count(&html, r#"data-testid="border-to""#), 0);
+    assert_eq!(leptotes::count(&html, r#"data-testid="border-from""#), 0);
+    assert_eq!(leptotes::count(&html, r#"data-testid="border-to""#), 0);
 }

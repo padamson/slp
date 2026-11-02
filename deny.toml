@@ -47,7 +47,7 @@ registries = []
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
-# Intra-workspace path deps (e.g. `dokime = { path = "../dokime" }`) have no
+# Intra-workspace path deps (e.g. `leptotes = { path = "../leptotes" }`) have no
 # version requirement and would otherwise read as wildcards; allow those while
 # still denying real `*` versions on registry deps.
 allow-wildcard-paths = true

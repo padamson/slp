@@ -1,4 +1,4 @@
-//! dokime component test for `ToolGroup`.
+//! leptotes component test for `ToolGroup`.
 
 use leptos::prelude::*;
 
@@ -6,7 +6,7 @@ use super::{ToolButton, ToolGroup};
 
 #[test]
 fn renders_a_label_and_its_children() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <ToolGroup label="House">
                 <ToolButton

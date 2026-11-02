@@ -146,7 +146,7 @@ pub fn CropEditor(
     // descendants to such an ancestor's box — an inline modal paints only
     // within the panel in Safari (dimmed strip, dialog clipped away) while
     // Chrome shows it fine. Portaling out escapes that clip. Off the browser
-    // (dokime/SSR) the Portal would render nothing, so emit the markup inline.
+    // (leptotes/SSR) the Portal would render nothing, so emit the markup inline.
     let dialog = move || {
         view! {
         <div

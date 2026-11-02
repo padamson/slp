@@ -1,4 +1,4 @@
-//! dokime component tests for `Controls` (the args/knobs panel).
+//! leptotes component tests for `Controls` (the args/knobs panel).
 
 use leptos::prelude::*;
 
@@ -7,7 +7,7 @@ use crate::ArgControl;
 
 #[test]
 fn renders_a_widget_per_arg() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         let args = vec![
             ("active", ArgControl::Bool(RwSignal::new(true))),
             ("width", ArgControl::Num(RwSignal::new(12.0))),
@@ -17,7 +17,7 @@ fn renders_a_widget_per_arg() {
     });
     assert!(html.contains("theoria-controls"), "the panel renders");
     assert!(html.contains("active") && html.contains("width") && html.contains("label"));
-    assert_eq!(dokime::count(&html, "<input"), 3, "one widget per arg");
+    assert_eq!(leptotes::count(&html, "<input"), 3, "one widget per arg");
     assert!(html.contains("checkbox"), "bool → checkbox");
     assert!(html.contains("number"), "f64 → number input");
     // The argTypes table documents each arg's type.
@@ -28,6 +28,6 @@ fn renders_a_widget_per_arg() {
 
 #[test]
 fn no_args_renders_nothing() {
-    let html = dokime::render(|| view! { <Controls args=Vec::new() /> });
+    let html = leptotes::render(|| view! { <Controls args=Vec::new() /> });
     assert!(!html.contains("theoria-controls"));
 }

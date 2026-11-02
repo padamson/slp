@@ -1,4 +1,4 @@
-//! dokime component tests for `CourseEditor`.
+//! leptotes component tests for `CourseEditor`.
 
 use leptos::prelude::*;
 use slp_core::Course;
@@ -26,7 +26,7 @@ fn options() -> Vec<(String, String)> {
 }
 
 fn editor(courses: Vec<Course>) -> String {
-    dokime::render(move || {
+    leptotes::render(move || {
         let courses = courses.clone();
         view! {
             <CourseEditor
@@ -86,7 +86,7 @@ fn has_an_add_layer_button_and_a_remove_per_row() {
 fn an_empty_course_list_shows_just_the_add_button() {
     let html = editor(vec![]);
     assert_eq!(
-        dokime::count(&html, r#"data-testid="course-row"#),
+        leptotes::count(&html, r#"data-testid="course-row"#),
         0,
         "no rows"
     );

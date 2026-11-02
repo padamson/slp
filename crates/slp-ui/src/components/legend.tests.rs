@@ -1,4 +1,4 @@
-//! dokime component tests for `Legend`.
+//! leptotes component tests for `Legend`.
 
 use leptos::prelude::*;
 
@@ -6,7 +6,7 @@ use super::Legend;
 
 #[test]
 fn renders_one_item_per_visual_convention() {
-    let html = dokime::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
+    let html = leptotes::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
     for testid in [
         "legend-item-house",
         "legend-item-deck",
@@ -32,9 +32,9 @@ fn renders_one_item_per_visual_convention() {
 fn house_and_deck_icons_carry_node_corner_markers() {
     // House/deck are user-drawn outlines: their icon has 4 corner dots. Plus
     // one more `<circle>` for the clearance-ring icon itself.
-    let html = dokime::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
+    let html = leptotes::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
     assert_eq!(
-        dokime::count(&html, "<circle"),
+        leptotes::count(&html, "<circle"),
         9,
         "4 corner dots each for house/deck, + the ring icon"
     );
@@ -42,7 +42,7 @@ fn house_and_deck_icons_carry_node_corner_markers() {
 
 #[test]
 fn the_clearance_entry_is_an_unfilled_dashed_ring() {
-    let html = dokime::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
+    let html = leptotes::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
     assert!(
         html.contains(r#"data-testid="legend-item-clearance""#),
         "the clearance entry renders"
@@ -58,7 +58,7 @@ fn the_clearance_entry_is_an_unfilled_dashed_ring() {
 fn furniture_entries_match_the_shared_canvas_styling() {
     // The legend reads from the same `furniture_style` the canvas uses, so a
     // combination's dash pattern + opacity are identical in both places.
-    let html = dokime::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
+    let html = leptotes::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
     assert!(
         html.contains(r#"stroke-dasharray="none""#),
         "real: solid outline, same as the canvas"
@@ -81,12 +81,12 @@ fn furniture_entries_match_the_shared_canvas_styling() {
 fn existing_entries_carry_a_double_outline() {
     // Existing (double-line) icons get a second, inset stroke rect; planned
     // (single-line) icons don't.
-    let html = dokime::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
+    let html = leptotes::render(move || view! { <Legend start_x=10.0 baseline_y=40.0 /> });
     // House, Deck (2), Planned (1), Existing (2), Planned-virtual (1),
     // Existing-virtual (2), Selected (1), Doesn't-fit (1) = 10 furniture-icon
     // + house/deck rects.
     assert_eq!(
-        dokime::count(&html, "<rect"),
+        leptotes::count(&html, "<rect"),
         10,
         "existing entries render a second inset rect"
     );

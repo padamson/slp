@@ -1,4 +1,4 @@
-//! dokime component tests for `AreaInspector`.
+//! leptotes component tests for `AreaInspector`.
 
 use leptos::prelude::*;
 use slp_core::{Corner, Course, ItemStatus};
@@ -15,7 +15,7 @@ fn noop() -> Callback<()> {
 
 #[test]
 fn shows_a_mulch_bed_with_depth_area_and_cost() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <AreaInspector
                 title="Mulch".to_string()
@@ -49,7 +49,7 @@ fn shows_a_mulch_bed_with_depth_area_and_cost() {
 fn a_per_area_material_hides_the_depth_field() {
     // A paver area (per-ft²) passes no depth — the depth field is absent, but
     // elevation stays editable.
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <AreaInspector
                 title="Pavers".to_string()
@@ -69,7 +69,7 @@ fn a_per_area_material_hides_the_depth_field() {
     assert!(html.contains("Pavers"));
     assert!(html.contains("$640.00"));
     assert_eq!(
-        dokime::count(&html, r#"data-testid="area-inspector-depth""#),
+        leptotes::count(&html, r#"data-testid="area-inspector-depth""#),
         0,
         "no depth field for a per-ft² material"
     );
@@ -78,7 +78,7 @@ fn a_per_area_material_hides_the_depth_field() {
 
 #[test]
 fn an_unpriced_area_shows_a_dash_for_cost() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <AreaInspector
                 title="Area".to_string()
@@ -99,7 +99,7 @@ fn an_unpriced_area_shows_a_dash_for_cost() {
 
 #[test]
 fn a_deck_level_shows_status_and_elevation_but_no_material_or_cost() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <AreaInspector
                 title="Deck".to_string()
@@ -127,7 +127,7 @@ fn a_deck_level_shows_status_and_elevation_but_no_material_or_cost() {
         "deck elevation"
     );
     assert_eq!(
-        dokime::count(&html, r#"data-testid="area-inspector-cost""#),
+        leptotes::count(&html, r#"data-testid="area-inspector-cost""#),
         0,
         "a structure has no cost row"
     );
@@ -141,7 +141,7 @@ fn a_deck_level_shows_status_and_elevation_but_no_material_or_cost() {
 fn a_house_shows_status_but_hides_elevation() {
     // The house sits at grade — its inspector has a status control but no
     // elevation field.
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <AreaInspector
                 title="House".to_string()
@@ -161,7 +161,7 @@ fn a_house_shows_status_but_hides_elevation() {
     assert!(html.contains("1200 ft²"));
     assert!(html.contains(r#"data-testid="area-status""#));
     assert_eq!(
-        dokime::count(&html, r#"data-testid="area-inspector-elevation""#),
+        leptotes::count(&html, r#"data-testid="area-inspector-elevation""#),
         0,
         "the house hides the elevation field"
     );
@@ -169,7 +169,7 @@ fn a_house_shows_status_but_hides_elevation() {
 
 #[test]
 fn a_paver_area_with_courses_shows_the_composition_editor() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <AreaInspector
                 title="Pavers".to_string()
@@ -207,7 +207,7 @@ fn a_paver_area_with_courses_shows_the_composition_editor() {
 #[test]
 fn an_area_without_courses_hides_the_composition_editor() {
     // A mulch bed (no courses) has no composition editor.
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <AreaInspector
                 title="Mulch".to_string()
@@ -222,12 +222,12 @@ fn an_area_without_courses_hides_the_composition_editor() {
             />
         }
     });
-    assert_eq!(dokime::count(&html, r#"data-testid="course-editor""#), 0);
+    assert_eq!(leptotes::count(&html, r#"data-testid="course-editor""#), 0);
 }
 
 #[test]
 fn the_corner_is_exposed_for_positioning() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         view! {
             <AreaInspector
                 title="Mulch".to_string()
@@ -256,7 +256,7 @@ fn a_material_with_laying_patterns_offers_the_pattern_select() {
         ),
         ("Linear".to_string(), None),
     ];
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         let opts = opts.clone();
         view! {
             <AreaInspector
@@ -290,7 +290,7 @@ fn a_material_with_laying_patterns_offers_the_pattern_select() {
     assert!(html.contains("data:image/png;base64,DIAG"));
 
     // No patterns on the material → no Pattern row.
-    let plain = dokime::render(move || {
+    let plain = leptotes::render(move || {
         view! {
             <AreaInspector
                 title="Pavers".to_string()
@@ -305,5 +305,5 @@ fn a_material_with_laying_patterns_offers_the_pattern_select() {
             />
         }
     });
-    assert_eq!(dokime::count(&plain, r#"data-testid="area-pattern""#), 0);
+    assert_eq!(leptotes::count(&plain, r#"data-testid="area-pattern""#), 0);
 }

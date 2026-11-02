@@ -1,7 +1,7 @@
 //! F2.2 e2e: while an item is armed, a shape-aware placement preview (a
 //! translucent outline of the actual footprint — round for a round item)
 //! tracks the pointer. Sanity-checks the ghost appears and follows the mouse;
-//! dokime covers the shape/opacity details.
+//! leptotes covers the shape/opacity details.
 //!
 //! Build the app first, then run:
 //!   (cd crates/slp-app && trunk build)

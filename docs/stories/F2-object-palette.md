@@ -30,7 +30,7 @@ clunky.
         F2.1 modifiers, which add the keydown handler)
   - [x] rename `Tool::Furniture` → `Tool::Object` in `slp-core` (it places any
         category now), updating the placement engine + call sites
-  - [x] dokime: the palette renders a tile per catalog item, grouped, with the
+  - [x] leptotes: the palette renders a tile per catalog item, grouped, with the
         armed tile flagged; e2e: arm a tile → click canvas → the object is
         placed and the estimate updates (folds in D2.0's deferred fire-pit e2e:
         place the fire pit from the palette → a round footprint renders + the
@@ -77,7 +77,7 @@ clunky.
         same way) and a fixed faint group opacity (`PREVIEW_OPACITY` in
         `style.rs`); falls back to the plain center-node marker when no
         catalog item is armed (house/deck/steps drawing is unchanged)
-  - [x] dokime: an armed round item previews a translucent `<circle>`, a
+  - [x] leptotes: an armed round item previews a translucent `<circle>`, a
         rectangular item a `<rect>`, both at the right scale; no shape preview
         without an armed item. e2e: hovering with nothing armed shows no shape
         preview; arming the (round) fire pit shows a circular preview that

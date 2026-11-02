@@ -35,7 +35,7 @@ real curved shape I'm laying out, not just a boxy approximation.
         (unit+mutation tested) — reused as-is, no new core geometry needed
   - [x] dropped nodes snap to the grid (reusing the same snap as every other
         drawing tool)
-  - [x] dokime: `Shapes` renders a polygon + corner markers + an area (and,
+  - [x] leptotes: `Shapes` renders a polygon + corner markers + an area (and,
         when non-zero, elevation) label, skips a degenerate (<3-corner) shape;
         `slp-core`: `Tool::Shape` behaves exactly like `Tool::House`/
         `Tool::Deck` (0 mutants missed on the changed `place.rs` logic); e2e:

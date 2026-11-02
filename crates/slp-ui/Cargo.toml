@@ -12,7 +12,7 @@ publish = false
 [dependencies]
 # A library must NOT hard-enable a Leptos runtime (csr/ssr/hydrate); the final
 # consumer picks one. We expose passthrough features so slp-app can select csr
-# and dokime can render under ssr.
+# and leptotes can render under ssr.
 leptos = { version = "0.8", default-features = false }
 slp-core = { path = "../slp-core" }
 serde = { workspace = true }
@@ -23,7 +23,7 @@ schemars = "1.2"
 # never in the production app build.
 theoria = { path = "../theoria", optional = true }
 # localStorage autosave of the Plan + translating canvas clicks (DomRect) to
-# feet; pulled in by csr, so ssr/dokime builds don't see it.
+# feet; pulled in by csr, so ssr/leptotes builds don't see it.
 web-sys = { version = "0.3", optional = true, features = [
     "Window",
     "Storage",
@@ -66,7 +66,7 @@ wasm-bindgen-futures = { version = "0.4", optional = true }
 send_wrapper = { version = "0.6", optional = true }
 
 [dev-dependencies]
-dokime = { path = "../dokime" }
+leptotes = { path = "../leptotes" }
 
 [features]
 csr = [

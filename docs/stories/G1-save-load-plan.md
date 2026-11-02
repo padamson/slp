@@ -82,7 +82,7 @@ can back it up, share it, or start a fresh what-if copy.
 - **Testability.** The download + `<input type="file">` fallback (G1.0/G1.1) is
   fully Playwright-drivable and is what the round-trip e2e exercises. The File
   System Access API path (G1.2/G1.3) uses native pickers and OS-file writes that
-  Playwright can't drive, so it's covered by feature-detected code + dokime
+  Playwright can't drive, so it's covered by feature-detected code + leptotes
   (control presence), not e2e — noted here so the coverage gap is explicit.
 
 - **No new schema.** The file *is* `Plan` — the same LinkML/panschema-generated

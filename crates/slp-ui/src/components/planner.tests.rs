@@ -1,4 +1,4 @@
-//! dokime component test for `Planner` (the composed root UI). The pure
+//! leptotes component test for `Planner` (the composed root UI). The pure
 //! placement logic is unit-tested in `slp_core::place`.
 
 use leptos::prelude::*;
@@ -7,13 +7,13 @@ use super::Planner;
 
 #[test]
 fn renders_header_controls_tools_and_yard() {
-    let html = dokime::render(|| view! { <Planner /> });
+    let html = leptotes::render(|| view! { <Planner /> });
     assert!(
         html.contains("Simple Landscape Planner"),
         "the header renders"
     );
     assert_eq!(
-        dokime::count(&html, "<input"),
+        leptotes::count(&html, "<input"),
         8,
         "two yard-size inputs + deck elevation + area depth + area elevation \
          + two snap toggles + the hidden plan-file picker"
@@ -24,7 +24,7 @@ fn renders_header_controls_tools_and_yard() {
             && html.contains(r#"data-testid="plan-file-input""#),
         "the File save/open controls render"
     );
-    // Under dokime/ssr the File System Access API is absent, so the toolbar
+    // Under leptotes/ssr the File System Access API is absent, so the toolbar
     // renders its fallback: Save As is disabled with an asterisk footnote (in a
     // Chromium browser both would be live and the note gone).
     assert!(
@@ -59,7 +59,7 @@ fn the_starter_catalog_seeds_on_load_so_the_palette_and_estimate_appear_immediat
     // The starter catalog seeds unconditionally on load (a tree/fire pit
     // doesn't need a deck drawn first) — the palette and estimate panel,
     // both gated on a non-empty catalog, are already up on a fresh plan.
-    let html = dokime::render(|| view! { <Planner /> });
+    let html = leptotes::render(|| view! { <Planner /> });
     assert!(
         html.contains(r#"data-testid="object-palette""#),
         "the object palette appears without drawing anything first"

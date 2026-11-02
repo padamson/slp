@@ -1,4 +1,4 @@
-//! dokime component tests for `Gallery`.
+//! leptotes component tests for `Gallery`.
 
 use leptos::prelude::*;
 
@@ -11,7 +11,7 @@ fn lists_names_and_shows_the_first_story() {
         Story::new("Alpha", || view! { <p>"alpha-body"</p> }),
         Story::new("Beta", || view! { <p>"beta-body"</p> }),
     ];
-    let html = dokime::render(move || view! { <Gallery stories=stories /> });
+    let html = leptotes::render(move || view! { <Gallery stories=stories /> });
     assert!(html.contains("Alpha"));
     assert!(html.contains("Beta"));
     assert!(html.contains("alpha-body"), "first story renders on load");
@@ -19,7 +19,7 @@ fn lists_names_and_shows_the_first_story() {
 
 #[test]
 fn shows_controls_description_and_code_for_a_story_with_args() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         let stories = vec![Story::__from_macro(
             "Gamma",
             || view! { <p>"gamma-body"</p> }.into_any(),
@@ -40,7 +40,7 @@ fn shows_controls_description_and_code_for_a_story_with_args() {
 
 #[test]
 fn only_stories_with_a_description_get_a_nav_docs_badge() {
-    let html = dokime::render(move || {
+    let html = leptotes::render(move || {
         let stories = vec![
             Story::new("Alpha", || view! { <p>"alpha-body"</p> }),
             Story::__from_macro(
@@ -54,7 +54,7 @@ fn only_stories_with_a_description_get_a_nav_docs_badge() {
         view! { <Gallery stories=stories /> }
     });
     assert_eq!(
-        dokime::count(&html, "theoria-docs-badge"),
+        leptotes::count(&html, "theoria-docs-badge"),
         1,
         "only Beta (with a description) gets the nav badge"
     );

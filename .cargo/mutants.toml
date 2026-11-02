@@ -8,14 +8,14 @@
 # crates are deliberately excluded: their behavior is verified at the browser
 # layer (slp-e2e, theoria-e2e via playwright), which mutation testing cannot run,
 # so mutating them yields surviving-mutant NOISE rather than signal. Pure logic
-# lives in slp-core (geometry/take-off), dokime (render/count helpers),
+# lives in slp-core (geometry/take-off), leptotes (render/count helpers),
 # theoria-cli (gallery generation), and theoria-macros (the `#[story]` proc-macro:
 # type mapping + doc/source extraction, covered by native unit + integration
 # tests) — mutate those.
 test_tool = "nextest"
 examine_globs = [
     "crates/slp-core/src/**/*.rs",
-    "crates/dokime/src/**/*.rs",
+    "crates/leptotes/src/**/*.rs",
     "crates/theoria-cli/src/**/*.rs",
     "crates/theoria-macros/src/**/*.rs",
 ]

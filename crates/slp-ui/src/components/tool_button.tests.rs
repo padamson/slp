@@ -1,4 +1,4 @@
-//! dokime component tests for `ToolButton`.
+//! leptotes component tests for `ToolButton`.
 
 use leptos::prelude::*;
 
@@ -6,7 +6,7 @@ use super::ToolButton;
 
 #[test]
 fn renders_label_testid_and_active_class() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <ToolButton
                 label="Draw house"
@@ -23,7 +23,7 @@ fn renders_label_testid_and_active_class() {
 
 #[test]
 fn no_active_class_when_inactive() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <ToolButton
                 label="X"
@@ -38,7 +38,7 @@ fn no_active_class_when_inactive() {
 
 #[test]
 fn renders_disabled_with_a_title() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <ToolButton
                 label="Save As*"
@@ -56,7 +56,7 @@ fn renders_disabled_with_a_title() {
 
 #[test]
 fn is_not_disabled_by_default() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <ToolButton
                 label="X"

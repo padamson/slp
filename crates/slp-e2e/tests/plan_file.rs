@@ -5,7 +5,7 @@
 //! This exercises the universal download + `<input type="file">` path (G1.0/
 //! G1.1). The File System Access API path (G1.2/G1.3 — in-place Save, startup
 //! reopen) uses native pickers Playwright can't drive and is covered by
-//! feature-detected code + dokime, not here.
+//! feature-detected code + leptotes, not here.
 //!
 //! Build the app first, then run:
 //!   (cd crates/slp-app && trunk build)

@@ -110,7 +110,7 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         color's `swatch` + `bbox` live (reactive, so the thumbnail refreshes and
         the approved item carries the new swatch). Vision boxes are usually close
         but not exact, so this lets the user tighten the crop before adding.
-        Component-driven: dokime (the overlay is positioned from the bbox, the
+        Component-driven: leptotes (the overlay is positioned from the bbox, the
         inputs render) + a theoria story + e2e (open → adjust W → "Use crop" →
         the swatch re-crops to a new image). The catalog editor still lets you
         replace an image after the fact.
@@ -129,7 +129,7 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         WebKit clips `position: fixed` descendants to the scrollable fixed
         catalog panel's box, so an inline modal showed only a dimmed strip in
         Safari (fine in Chrome); portaling out escapes the clip. Off-browser
-        (dokime/SSR) it renders inline so markup tests still see it.
+        (leptotes/SSR) it renders inline so markup tests still see it.
   - [x] the crop bridge **trims near-white borders**: product pages wrap color
         chips in white cards and vision boxes include a sliver of that margin,
         which tiled as an area texture rendered as white grid lines between
@@ -150,7 +150,7 @@ so that my estimate reflects things I can actually buy, not placeholder data.
         dropdown, not a dozen buttons). Arm a category, draw an area, and it's
         **priced** (take-off already costs by `material_ref`) and **tiled** (the
         SVG `<pattern>` already tiles the material's image) with no new
-        pricing/tiling code. Component-driven: dokime tests (grouping, the
+        pricing/tiling code. Component-driven: leptotes tests (grouping, the
         dropdown appears only for multi-material categories, the armed category
         is active) + a theoria story + e2e (the existing paver/mulch picks move
         to `area-mat-cat-<category>`; an ingested slab's category becomes

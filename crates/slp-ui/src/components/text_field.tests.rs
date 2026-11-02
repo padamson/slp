@@ -1,4 +1,4 @@
-//! dokime component test for `TextField`.
+//! leptotes component test for `TextField`.
 
 use leptos::prelude::*;
 
@@ -6,7 +6,7 @@ use super::TextField;
 
 #[test]
 fn renders_a_labeled_text_input_with_its_value() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <TextField
                 label="Name"
@@ -24,7 +24,7 @@ fn renders_a_labeled_text_input_with_its_value() {
 
 #[test]
 fn renders_a_placeholder_when_given() {
-    let html = dokime::render(|| {
+    let html = leptotes::render(|| {
         view! {
             <TextField
                 label="Category"
