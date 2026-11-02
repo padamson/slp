@@ -1039,8 +1039,8 @@ fn shape_view(
                     let d = 1e-3;
                     let (nx, ny) = if frac < 1e-9 {
                         let v = floor_index(pos, n);
-                        let n_in = screen_tan((v + n - 1) % n, 1.0 - d, 1.0).map(&inward);
-                        let n_out = screen_tan(v, 0.0, d).map(&inward);
+                        let n_in = screen_tan((v + n - 1) % n, 1.0 - d, 1.0).map(inward);
+                        let n_out = screen_tan(v, 0.0, d).map(inward);
                         match (n_in, n_out) {
                             (Some(a), Some(b)) => {
                                 let (sx, sy) = (a.0 + b.0, a.1 + b.1);
