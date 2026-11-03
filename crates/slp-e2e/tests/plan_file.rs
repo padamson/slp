@@ -11,7 +11,7 @@
 //!   (cd crates/slp-app && trunk build)
 //!   cargo test --manifest-path crates/slp-e2e/Cargo.toml
 //!
-//! Skips gracefully when `crates/slp-app/dist` is absent.
+//! Fails when `crates/slp-app/dist` is absent, so build it first.
 
 mod common;
 
@@ -22,14 +22,7 @@ use playwright_rs::protocol::Playwright;
 
 #[tokio::test]
 async fn saves_the_plan_to_a_file_and_loads_it_back() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -118,14 +111,7 @@ async fn saves_the_plan_to_a_file_and_loads_it_back() -> Result<()> {
 
 #[tokio::test]
 async fn a_malformed_file_shows_an_error_and_keeps_the_current_plan() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -172,14 +158,7 @@ async fn a_malformed_file_shows_an_error_and_keeps_the_current_plan() -> Result<
 
 #[tokio::test]
 async fn save_as_is_disabled_with_a_note_when_the_fs_access_api_is_absent() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;

@@ -6,7 +6,7 @@
 //!   (cd crates/slp-app && trunk build)
 //!   cargo test --manifest-path crates/slp-e2e/Cargo.toml
 //!
-//! Skips gracefully when `crates/slp-app/dist` is absent.
+//! Fails when `crates/slp-app/dist` is absent, so build it first.
 
 mod common;
 
@@ -17,14 +17,7 @@ use playwright_rs::protocol::Playwright;
 
 #[tokio::test]
 async fn a_grill_shows_a_rectangular_keep_clear_zone_that_flags_when_crowded() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -74,14 +67,7 @@ async fn a_grill_shows_a_rectangular_keep_clear_zone_that_flags_when_crowded() -
 
 #[tokio::test]
 async fn a_hot_tub_is_water_blue_and_flags_when_off_a_surface() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -120,14 +106,7 @@ async fn a_hot_tub_is_water_blue_and_flags_when_off_a_surface() -> Result<()> {
 
 #[tokio::test]
 async fn a_hot_tub_pours_a_concrete_pad_costed_and_widened_from_the_inspector() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;

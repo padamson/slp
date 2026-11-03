@@ -214,7 +214,7 @@ Copy `crates/site-e2e/tests/landing_page.rs`: build with `trunk build`, serve
 `dist/` via Axum `ServeDir` on `127.0.0.1:0`, drive with `playwright-rs`
 locators (auto-waiting, no sleeps). Because the app is CSR/WASM, the assertions
 prove the bundle boots and widgets react. Step screenshots + `trace.zip` are
-byproducts; assertions are the gate. Skips gracefully when `dist/` is absent.
+byproducts; assertions are the gate. Fails, rather than skips, when `dist/` is absent.
 CI adds `npx playwright@<ver> install chromium --with-deps`.
 
 ## 8. Key design choices

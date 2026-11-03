@@ -7,7 +7,7 @@
 //!   (cd crates/slp-app && trunk build)
 //!   cargo test --manifest-path crates/slp-e2e/Cargo.toml
 //!
-//! Skips gracefully when `crates/slp-app/dist` is absent.
+//! Fails when `crates/slp-app/dist` is absent, so build it first.
 
 mod common;
 
@@ -66,14 +66,7 @@ async fn paste_screenshot_color(page: &Page, fill: &str) -> Result<()> {
 
 #[tokio::test]
 async fn the_api_key_gates_the_feature_persists_and_stays_out_of_the_plan() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -135,14 +128,7 @@ async fn the_api_key_gates_the_feature_persists_and_stays_out_of_the_plan() -> R
 
 #[tokio::test]
 async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -191,14 +177,7 @@ async fn pasting_a_screenshot_previews_it_and_clear_removes_it() -> Result<()> {
 /// and "Clear all" empties it (M4.6).
 #[tokio::test]
 async fn pasting_multiple_screenshots_lists_them_with_per_image_remove() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -249,14 +228,7 @@ async fn pasting_multiple_screenshots_lists_them_with_per_image_remove() -> Resu
 /// screenshot 1 — not screenshot 0 (M4.6 indexed crops).
 #[tokio::test]
 async fn a_swatch_crop_resolves_against_the_screenshot_its_box_names() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -357,14 +329,7 @@ async fn uris_1(page: &Page) -> Result<String> {
 /// parameterized probe instead of three string-packed `evaluate_value` blocks.
 #[tokio::test]
 async fn the_crop_bridge_trims_white_margins() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -461,14 +426,7 @@ async fn the_crop_bridge_trims_white_margins() -> Result<()> {
 
 #[tokio::test]
 async fn adjusting_a_swatch_crop_re_crops_it() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -576,14 +534,7 @@ async fn adjusting_a_swatch_crop_re_crops_it() -> Result<()> {
 
 #[tokio::test]
 async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -686,14 +637,7 @@ async fn extracting_and_curating_a_screenshot_adds_catalog_items() -> Result<()>
 /// shows the diagram and the estimate line notes the layout.
 #[tokio::test]
 async fn laying_patterns_ride_curation_and_a_drawn_area_picks_one() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;

@@ -15,7 +15,7 @@
 //!   (cd crates/slp-app && trunk build)
 //!   cargo test --manifest-path crates/slp-e2e/Cargo.toml
 //!
-//! Skips gracefully when `crates/slp-app/dist` is absent.
+//! Fails when `crates/slp-app/dist` is absent, so build it first.
 
 mod common;
 
@@ -29,14 +29,7 @@ use playwright_rs::protocol::click::KeyboardModifier;
 
 #[tokio::test]
 async fn shift_click_places_a_row_without_disarming() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -76,14 +69,7 @@ async fn shift_click_places_a_row_without_disarming() -> Result<()> {
 
 #[tokio::test]
 async fn releasing_shift_ends_the_sticky_run() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -118,14 +104,7 @@ async fn releasing_shift_ends_the_sticky_run() -> Result<()> {
 
 #[tokio::test]
 async fn option_click_places_a_virtual_ghost() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -160,14 +139,7 @@ async fn option_click_places_a_virtual_ghost() -> Result<()> {
 
 #[tokio::test]
 async fn shift_option_places_a_row_of_ghosts() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -207,14 +179,7 @@ async fn shift_option_places_a_row_of_ghosts() -> Result<()> {
 
 #[tokio::test]
 async fn escape_cancels_the_armed_tile_without_placing() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;

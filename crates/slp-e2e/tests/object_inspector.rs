@@ -9,7 +9,7 @@
 //!   (cd crates/slp-app && trunk build)
 //!   cargo test --manifest-path crates/slp-e2e/Cargo.toml
 //!
-//! Skips gracefully when `crates/slp-app/dist` is absent.
+//! Fails when `crates/slp-app/dist` is absent, so build it first.
 
 mod common;
 
@@ -30,14 +30,7 @@ async fn assert_corner(page: &playwright_rs::Page, corner: &str) -> Result<()> {
 
 #[tokio::test]
 async fn inspector_floats_in_the_first_empty_corner() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -91,14 +84,7 @@ async fn inspector_floats_in_the_first_empty_corner() -> Result<()> {
 
 #[tokio::test]
 async fn dragging_the_handle_rotates_the_object() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;

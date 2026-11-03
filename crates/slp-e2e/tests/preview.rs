@@ -11,7 +11,7 @@
 //!   (cd crates/slp-app && trunk build)
 //!   cargo test --manifest-path crates/slp-e2e/Cargo.toml
 //!
-//! Skips gracefully when `crates/slp-app/dist` is absent.
+//! Fails when `crates/slp-app/dist` is absent, so build it first.
 
 mod common;
 
@@ -62,14 +62,7 @@ async fn boot(page: &Page, addr: &std::net::SocketAddr, stub: &str) -> Result<()
 
 #[tokio::test]
 async fn overhead_sends_a_plan_raster_and_shows_the_result() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -137,11 +130,7 @@ async fn overhead_sends_a_plan_raster_and_shows_the_result() -> Result<()> {
 
 #[tokio::test]
 async fn eye_level_sends_the_prompt_without_a_raster() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built.", dist.display());
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -182,11 +171,7 @@ async fn eye_level_sends_the_prompt_without_a_raster() -> Result<()> {
 
 #[tokio::test]
 async fn an_unreachable_backend_is_reported_not_swallowed() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built.", dist.display());
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -226,11 +211,7 @@ async fn an_unreachable_backend_is_reported_not_swallowed() -> Result<()> {
 
 #[tokio::test]
 async fn from_photo_conditions_on_the_uploaded_yard_photo() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built.", dist.display());
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -300,11 +281,7 @@ async fn from_photo_conditions_on_the_uploaded_yard_photo() -> Result<()> {
 
 #[tokio::test]
 async fn a_render_can_be_downloaded_and_earlier_ones_stay_in_the_gallery() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built.", dist.display());
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -373,11 +350,7 @@ const MAGENTA_PNG: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAA
 
 #[tokio::test]
 async fn the_raster_carries_material_photos_not_just_flat_color() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!("skipping: {} not built.", dist.display());
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;

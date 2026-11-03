@@ -74,9 +74,19 @@ pub async fn wait_attr_f64(loc: &Locator, attr: &str, pred: impl Fn(f64) -> bool
     latest.context("parsed attribute value")
 }
 
-/// Path to the Trunk-built `slp-app` dist directory.
-pub fn dist_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../slp-app/dist")
+/// Path to the Trunk-built `slp-app` dist directory. Errors when the app has not
+/// been built: a missing build is a failed e2e run, never a skipped one, so a
+/// fresh checkout cannot report green without running anything. (A stale build
+/// still passes this check; Trunk keeps the old `dist/` when a rebuild fails.)
+pub fn dist_dir() -> Result<PathBuf> {
+    let dist = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../slp-app/dist");
+    if !dist.join("index.html").exists() {
+        return Err(anyhow!(
+            "{} not built: run `trunk build` in crates/slp-app first",
+            dist.display()
+        ));
+    }
+    Ok(dist)
 }
 
 /// Serve `dist` on an ephemeral local port; returns the address and the server

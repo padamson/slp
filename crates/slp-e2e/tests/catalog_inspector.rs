@@ -7,7 +7,7 @@
 //!   (cd crates/slp-app && trunk build)
 //!   cargo test --manifest-path crates/slp-e2e/Cargo.toml
 //!
-//! Skips gracefully when `crates/slp-app/dist` is absent.
+//! Fails when `crates/slp-app/dist` is absent, so build it first.
 
 mod common;
 
@@ -35,14 +35,7 @@ async fn wait_text(loc: &Locator, want: &str) -> Result<()> {
 
 #[tokio::test]
 async fn edits_a_catalog_item_and_propagates_to_placed_objects() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -116,14 +109,7 @@ async fn edits_a_catalog_item_and_propagates_to_placed_objects() -> Result<()> {
 async fn sets_a_material_image_that_previews_and_persists() -> Result<()> {
     // M4.4: give a material a photo (a data: URI), see it previewed in the
     // editor, and confirm it survives a reload.
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -188,14 +174,7 @@ async fn sets_a_material_image_that_previews_and_persists() -> Result<()> {
 async fn uploads_a_material_image_from_a_file() -> Result<()> {
     // M4.4: pick an image file → it's read to a data: URI and previewed. Uses an
     // in-memory payload so the test needs no fixture on disk.
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -245,14 +224,7 @@ async fn adds_and_authors_a_material_that_persists() -> Result<()> {
     // B3.0: hand-add a catalog material, set its name/price/price_unit, and
     // confirm it survives a reload — the prerequisite for composing an area from
     // materials you added yourself.
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
@@ -342,14 +314,7 @@ async fn deletes_an_unreferenced_item_and_blocks_a_referenced_one() -> Result<()
     // M4.3b: an unreferenced catalog item deletes outright; one that anything
     // in the plan references (here: the starter paver's base-gravel layer) is
     // blocked with an in-use note — never a dangling ref.
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;

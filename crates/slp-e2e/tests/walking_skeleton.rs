@@ -8,7 +8,7 @@
 //!   (cd crates/slp-app && trunk build)
 //!   cargo test --manifest-path crates/slp-e2e/Cargo.toml
 //!
-//! Skips gracefully when `crates/slp-app/dist` is absent. Requires browsers:
+//! Fails when `crates/slp-app/dist` is absent, so build it first. Requires browsers:
 //!   npx playwright@1.64.1 install chromium
 
 mod common;
@@ -20,14 +20,7 @@ use playwright_rs::protocol::Playwright;
 
 #[tokio::test]
 async fn walking_skeleton_boots_and_renders_yard() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping dogfood test: {} not built. Run `trunk build` in crates/slp-app first.",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
 
     let (addr, _server) = serve(&dist).await?;
 

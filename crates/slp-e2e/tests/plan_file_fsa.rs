@@ -18,7 +18,7 @@
 //!   (cd crates/slp-app && trunk build)
 //!   cargo test --manifest-path crates/slp-e2e/Cargo.toml
 //!
-//! Skips gracefully when `crates/slp-app/dist` is absent.
+//! Fails when `crates/slp-app/dist` is absent, so build it first.
 
 mod common;
 
@@ -44,14 +44,7 @@ async fn boot(page: &Page, addr: &std::net::SocketAddr) -> Result<()> {
 
 #[tokio::test]
 async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -155,14 +148,7 @@ async fn save_as_writes_a_named_file_save_writes_in_place_and_open_loads() -> Re
 
 #[tokio::test]
 async fn reopens_the_last_file_silently_on_startup() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
@@ -215,14 +201,7 @@ async fn reopens_the_last_file_silently_on_startup() -> Result<()> {
 
 #[tokio::test]
 async fn offers_a_one_click_reopen_when_permission_lapsed() -> Result<()> {
-    let dist = dist_dir();
-    if !dist.join("index.html").exists() {
-        eprintln!(
-            "skipping: {} not built (run `trunk build`).",
-            dist.display()
-        );
-        return Ok(());
-    }
+    let dist = dist_dir()?;
     let (addr, _server) = serve(&dist).await?;
     let pw = Playwright::launch().await.context("launch playwright")?;
     let browser = pw.chromium().launch().await.context("launch chromium")?;
