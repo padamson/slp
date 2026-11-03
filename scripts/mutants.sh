@@ -88,7 +88,12 @@ if [[ "$WORKING" -eq 0 ]]; then
   fi
 fi
 
-DIFF="$(mktemp -t mutants.XXXXXX.diff)"
+# A full template under $TMPDIR, not `mktemp -t`: on macOS `-t` ignores
+# $TMPDIR and writes to the per-user /var/folders dir, which a sandboxed
+# session cannot write. The X's come last: BSD mktemp randomizes only a
+# trailing run of them, so `mutants.XXXXXX.diff` would be one fixed path
+# that a concurrent run, or a stale file from a killed run, collides with.
+DIFF="$(mktemp "${TMPDIR:-/tmp}/mutants.XXXXXX")"
 trap 'rm -f "$DIFF"' EXIT
 
 # --working: uncommitted edits to tracked files (`git diff HEAD`), so the
