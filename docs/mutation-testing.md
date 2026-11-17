@@ -19,12 +19,9 @@ In scope (`examine_globs` in [`.cargo/mutants.toml`](../.cargo/mutants.toml)):
 | Crate | What's mutated |
 |---|---|
 | `slp-core` | geometry / take-off math, the node-placement engine |
-| `leptotes` | render / count test helpers |
-| `theoria-cli` | gallery generation |
-| `theoria-macros` | the `#[story]` proc-macro: type mapping + doc/source extraction |
 
-Out of scope, deliberately: `slp-ui`, `slp-app`, `theoria` (Leptos view) and
-`slp-e2e`, `theoria-e2e` (browser e2e). Their correctness is the e2e suites' job.
+Out of scope, deliberately: `slp-ui` and `slp-app` (Leptos view) and `slp-e2e`
+(browser e2e). Their correctness is the e2e suite's job.
 
 ## Target — 0 missed
 
@@ -63,21 +60,15 @@ Every surviving mutant must be resolved one of two ways:
    **Do not reach for `cargo mutants -f <file>`.** With `examine_globs` set in
    `.cargo/mutants.toml`, cargo-mutants (27.1.0) **silently ignores `-f`** and
    sweeps everything in scope — verified: `-f` naming a file that doesn't exist
-   lists the same 1165 mutants as no flag at all. A run you believe is scoped to
-   one file is really the full ~45-minute sweep. `--in-diff` (what
+   lists the same mutants as no flag at all. A run you believe is scoped to one
+   file is really the full in-scope sweep. `--in-diff` (what
    `scripts/mutants.sh` uses) filters correctly.
 
-## Spin-out alignment
+## Spun-out crates
 
-`theoria` and `leptotes` are incubated here and will be split out (`git subtree
-split`) to their own repos. `.cargo/mutants.toml` lives at the slp root and
-**won't travel**. When a crate spins out, its spin-out unit must carry its own
-`.cargo/mutants.toml` (scope = that unit's logic crates) and a mutation CI job,
-so this policy survives the move. Spin-out units:
-
-- **theoria** → `theoria` + `theoria-cli` + `theoria-macros` + `theoria-e2e`
-  (mutate `theoria-cli`, `theoria-macros`).
-- **leptotes** → `leptotes` (mutate `leptotes`).
+`theoria` (with `theoria-cli` and `theoria-macros`) and `leptotes` started here
+and now live in their own repos, each with its own `.cargo/mutants.toml` and
+mutation CI job. Their logic is mutated there, not here.
 
 ## Running locally
 

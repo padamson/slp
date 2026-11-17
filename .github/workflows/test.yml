@@ -51,8 +51,6 @@ jobs:
         run: cargo clippy --manifest-path crates/slp-app/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
       - name: Clippy (slp-e2e)
         run: cargo clippy --manifest-path crates/slp-e2e/Cargo.toml --all-targets -- -D warnings
-      - name: Clippy (theoria-e2e)
-        run: cargo clippy --manifest-path crates/theoria-e2e/Cargo.toml --all-targets -- -D warnings
       - name: Doc-tests
         run: cargo test --doc --workspace
       - name: Generate documentation
@@ -74,7 +72,7 @@ jobs:
         with:
           tool: cargo-nextest
       - name: Run tests
-        run: cargo nextest run --workspace
+        run: cargo nextest run --workspace --locked
 
   e2e:
     name: E2E dogfood gate
@@ -100,10 +98,4 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright@1.64.1 install --with-deps chromium
       - name: Run e2e (drives the real WASM app in chromium)
-        run: cargo test --manifest-path crates/slp-e2e/Cargo.toml
-      # theoria's own dogfood gate: generate+build its gallery (from theoria's
-      # own component fixtures) and drive it in a browser.
-      - name: Build theoria gallery
-        run: cargo run -p theoria-cli -- build --config theoria-e2e.toml
-      - name: Run theoria e2e (drives the gallery in chromium)
-        run: cargo test --manifest-path crates/theoria-e2e/Cargo.toml
+        run: cargo test --locked --manifest-path crates/slp-e2e/Cargo.toml

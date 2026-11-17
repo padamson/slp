@@ -13,8 +13,6 @@ house/yard/deck), built to help a DIYer **decide what to buy**. **Read
 crates/slp-core   # headless geometry + take-off math (member, native)
 crates/slp-ui     # Leptos components, runtime-agnostic (member)
                   #   src/components/<name>.{rs, stories.rs, tests.rs}
-crates/leptotes   # DOGFOOD: component testing for Leptos (member, lib)
-crates/theoria    # DOGFOOD: component explorer UI for Leptos (member)
 crates/slp-app    # Leptos CSR/WASM app (excluded; built by Trunk; selects csr)
 crates/slp-e2e    # playwright-rust dogfood tests (excluded; standalone)
 schema/           # LinkML schema -> panschema-generated serde types (Milestone 1+)
@@ -31,55 +29,42 @@ playwright-rust site / site-e2e split.
 ## Development commands
 
 ```bash
-# All native crates: slp-core + slp-ui + leptotes + theoria (fast inner loop)
+# All native crates: slp-core + slp-ui (fast inner loop)
 cargo test --workspace
 cargo nextest run --workspace
 
 # A single crate's tests
 cargo test -p slp-core      # geometry / take-off math
-cargo test -p leptotes      # leptotes's own self-tests
 cargo test -p slp-ui        # slp-ui components (rendered via leptotes)
-cargo test -p theoria       # theoria's Gallery UI (rendered via leptotes)
 
-# Both hot-reload dev servers at once (planner + gallery), auto-picking free
-# ports if 8080/8081 are taken; Ctrl-C stops both:
+# The planner's hot-reload dev server, auto-picking a free port if 8080 is taken:
 ./scripts/dev.sh                        # or ./scripts/dev.sh 9000 to start higher
 
 # Manual local testing of the PLANNER (hot reload at http://localhost:8080)
 cd crates/slp-app && trunk serve
 cd crates/slp-app && trunk build        # one-off build to dist/
 
-# Manual local testing of COMPONENTS via the theoria gallery (Storybook-style;
-# generated on the fly, served on http://localhost:8081):
-cargo run -p theoria-cli -- serve                            # slp-ui components
-cargo run -p theoria-cli -- serve --config theoria-e2e.toml  # theoria's own components
-# (editing a component currently needs a re-run; trunk watches the generated
-#  gallery crate, not the source crate — a watch-paths enhancement is future work)
-
-# E2E (drives the real WASM in a browser, after building each target)
+# E2E (drives the real WASM in a browser, after building the app)
 cd crates/slp-app && trunk build
-cargo test --manifest-path crates/slp-e2e/Cargo.toml         # the planner
-cargo run -p theoria-cli -- build --config theoria-e2e.toml
-cargo test --manifest-path crates/theoria-e2e/Cargo.toml     # the theoria gallery
+cargo test --manifest-path crates/slp-e2e/Cargo.toml
 
 # Lint / format (clippy pedantic is project policy)
 cargo clippy --all-targets --all-features -- -D warnings
 cargo fmt
 ```
 
-## Dogfood sub-projects
+## Dogfood dependencies
 
-`crates/leptotes` (component testing) and `crates/theoria` (component explorer UI)
-are incubated here and dogfooded against `slp-ui`, to be spun out to their own
-repos later (`git subtree split`). Each is a TDD/component-driven sub-project
-that follows the **same `PLAN.md` + `docs/stories/` convention as slp**:
-`crates/leptotes/docs/PLAN.md` and `crates/theoria/docs/PLAN.md` (each with its
-own `docs/stories/`).
+leptotes (component testing for Leptos) and theoria (a component explorer for
+Leptos) started here as workspace crates and now live in their own repos,
+[padamson/leptotes](https://github.com/padamson/leptotes) and
+[padamson/theoria](https://github.com/padamson/theoria). `slp-ui` takes both
+from git `main`: leptotes as a dev-dependency, theoria behind the `stories`
+feature. A change either one needs is made in its repo, and Dependabot's weekly
+`git-dependencies` group brings it here.
 
-**Demand-driven rule:** a theoria/leptotes story or slice is built **only when an
-slp slice needs it** (or leptotes when slp *or* theoria needs it) — never
-speculatively. leptotes tests itself; theoria is tested *by* leptotes (we never
-preview theoria inside theoria).
+The theoria gallery for `slp-ui` is dormant (`theoria.toml` says why); until it
+builds again, work on components through the planner and leptotes tests.
 
 ### One-time setup
 
@@ -93,9 +78,9 @@ preview theoria inside theoria).
 1. **Component / unit logic:** put math in `slp-core` and unit-test it natively
    (`cargo test -p slp-core`) — instant feedback, no browser.
 2. **Manual / visual:** `trunk serve` and look at `http://localhost:8080`; hot
-   reload picks up edits. Use **theoria** (component explorer) to work on a
-   single component in isolation as the tree grows.
-3. **Component tests:** **leptotes** for Leptos components (added Milestone 1+).
+   reload picks up edits. **theoria** (component explorer) is for working on a
+   single component in isolation, once its gallery builds again (see above).
+3. **Component tests:** **leptotes** for Leptos components.
 4. **End-to-end gate:** the `slp-e2e` playwright-rust test drives the built app
    in chromium — it's the "does the WASM actually boot and react" gate.
 

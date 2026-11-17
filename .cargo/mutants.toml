@@ -4,20 +4,15 @@
 # covered by NATIVE unit tests — `cargo mutants` runs the workspace test suite
 # (`nextest`), so it can only catch mutants that a native test exercises.
 #
-# The Leptos *view* crates (slp-ui, theoria components, slp-app) and the e2e
-# crates are deliberately excluded: their behavior is verified at the browser
-# layer (slp-e2e, theoria-e2e via playwright), which mutation testing cannot run,
-# so mutating them yields surviving-mutant NOISE rather than signal. Pure logic
-# lives in slp-core (geometry/take-off), leptotes (render/count helpers),
-# theoria-cli (gallery generation), and theoria-macros (the `#[story]` proc-macro:
-# type mapping + doc/source extraction, covered by native unit + integration
-# tests) — mutate those.
+# The Leptos *view* crates (slp-ui, slp-app) and the e2e crate are deliberately
+# excluded: their behavior is verified at the browser layer (slp-e2e via
+# playwright), which mutation testing cannot run, so mutating them yields
+# surviving-mutant NOISE rather than signal. slp-core (geometry/take-off) is
+# mutated. slp-ui's non-view modules (vision, plan_file, style, render_config)
+# have native tests but are not yet in scope.
 test_tool = "nextest"
 examine_globs = [
     "crates/slp-core/src/**/*.rs",
-    "crates/leptotes/src/**/*.rs",
-    "crates/theoria-cli/src/**/*.rs",
-    "crates/theoria-macros/src/**/*.rs",
 ]
 # panschema-generated code is excluded: it is codegen output (the LinkML schema is
 # the source of truth, and the generator is tested upstream), not hand-written slp
@@ -30,11 +25,6 @@ exclude_globs = [
 ]
 # Excluded with justification:
 #  - `area` `+=`→`-=`: equivalent — the shoelace sum is negated then `.abs()`d.
-#  - theoria-cli `main`/`trunk`: pure I/O orchestration (parse args, shell out to
-#    `trunk`); exercised end-to-end by theoria-e2e (which builds the gallery via
-#    the CLI), not by the native unit tests cargo-mutants runs.
-#  - theoria-macros `story`: thin proc_macro→proc_macro2 adapter, not callable
-#    outside a proc-macro context; logic lives in (and is covered via) `story_impl`.
 #  - `point_in_polygon` comparison mutants: equivalent or test-an-unspecified
 #    boundary. `<`→`>` is equivalent (a closed ring crosses any ray an even
 #    number of times, so counting the other side preserves parity); `>`→`>=` and
@@ -81,10 +71,6 @@ exclude_globs = [
 #    the coincident-seam tie-break, unspecified at exact equality.
 exclude_re = [
     'replace \+= with -= in area',
-    'replace main -> Result',
-    'replace trunk -> Result',
-    'delete ! in trunk',
-    'replace story -> TokenStream with Default::default\(\)',
     'replace > with >= in point_in_polygon',
     'replace < with > in point_in_polygon',
     'replace < with <= in point_in_polygon',

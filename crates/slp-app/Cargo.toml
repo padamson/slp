@@ -1,6 +1,6 @@
 # Standalone (excluded from the root workspace): a wasm32 Leptos CSR crate built
-# by Trunk. It is the one crate that selects the csr runtime — for slp-ui and
-# theoria (which stay runtime-agnostic) via their `csr` passthrough features.
+# by Trunk. It is the one crate that selects the csr runtime, for slp-ui (which
+# stays runtime-agnostic) through its `csr` passthrough feature.
 [package]
 name = "slp-app"
 description = "Simple Landscape Planner — Leptos client-side (CSR/WASM) app"

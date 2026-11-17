@@ -71,7 +71,6 @@ cross-cutting machinery folded into that point in the sequence.
 steps, trees, equipment, furniture — is drawn and saved; nothing is hardcoded to
 a specific property.)
 
-The dogfood sub-projects follow this same convention in their own trees:
-`crates/leptotes/docs/{PLAN.md,stories/}` and
-`crates/theoria/docs/{PLAN.md,stories/}`. Their stories are **pulled by slp's
-needs** (see each crate's PLAN.md), not built speculatively.
+The dogfood sub-projects, leptotes and theoria, follow this same convention in
+their own repos ([padamson/leptotes](https://github.com/padamson/leptotes),
+[padamson/theoria](https://github.com/padamson/theoria)).

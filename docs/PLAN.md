@@ -40,7 +40,7 @@ sibling repos (`t2t`, `playwright-rust`, `rust-project-template`, `panschema`).
 
 ```
 slp/
-├── Cargo.toml                 # workspace (members: slp-core, slp-ui, leptotes, theoria)
+├── Cargo.toml                 # workspace (members: slp-core, slp-ui)
 ├── schema/slp.yaml            # LinkML: shapes, materials, settings, plan file
 ├── materials/
 │   ├── manifest.toml          # COMMITTED: material metadata + provenance only
@@ -50,11 +50,9 @@ slp/
 │   │   └── src/{generated/, geom.rs, takeoff.rs, material.rs}
 │   ├── slp-ui/                # Leptos components, runtime-agnostic (member)
 │   │   └── src/canvas/{grid,scale_bar,yard}.rs   (3D renderer later)
-│   ├── leptotes/              # DOGFOOD: component testing for Leptos (member, lib)
-│   ├── theoria/               # DOGFOOD: component explorer UI for Leptos (member)
 │   ├── slp-ingest/            # per-source material adapters -> manifest (later)
 │   ├── slp-app/               # Leptos CSR app (Trunk target; selects csr; excluded)
-│   │   └── src/{app.rs, gallery.rs (?gallery → theoria), panels/, io.rs}
+│   │   └── src/{app.rs, panels/, io.rs}
 │   └── slp-e2e/               # playwright-rust tests (excluded; serves dist/)
 ├── docs/PLAN.md               # this overview
 └── docs/stories/              # one detailed doc per user story (slice breakdown)
@@ -65,17 +63,12 @@ consumers) and **headless** so geometry + take-off math get fast native
 unit/mutation tests, independent of the UI — keeping the math decoupled from the
 DOM.
 
-**leptotes** and **theoria** are incubated **as crates in this workspace** and
-dogfooded against `slp-ui` — the most efficient way to start (one build graph;
-the real consumer drives the API) — then **spun out to their own repos** via
-`git subtree split` once their APIs stabilize. Each is a TDD/component-driven
-sub-project that follows this **same `PLAN.md` + `docs/stories/` convention** in
-its own tree (`crates/<crate>/docs/`). theoria has a UI; leptotes is a library.
-leptotes tests itself; theoria is tested *by* leptotes (never theoria-in-theoria).
-
-**Demand-driven:** theoria/leptotes stories are **pulled by slp's needs** — a
-capability is built only when an slp slice requires it (or leptotes when slp *or*
-theoria requires it), never speculatively.
+**leptotes** (component testing) and **theoria** (component explorer) were
+incubated as crates in this workspace and dogfooded against `slp-ui`, which
+gave them one build graph and a real consumer driving the API. They now live in
+their own repos, [padamson/leptotes](https://github.com/padamson/leptotes) and
+[padamson/theoria](https://github.com/padamson/theoria), each with its own
+`PLAN.md` + `docs/stories/`, and `slp-ui` takes both from git `main`.
 
 ### 3.1 Frontend: component-driven from the start
 
@@ -86,12 +79,11 @@ developable and testable in isolation — never one monolith.
   (feet→px) passed as a prop. Grows with `Ground`, `Shape`, `DeckLayer`,
   `SelectionHandles`, then `Toolbar`, `SidePanel → { Estimate, SelectionCard,
   Legend }`.
-- **Isolation tooling (dogfooded, in-repo crates):** **theoria** component
-  explorer (preview a component without the whole app — served separately, *not*
-  bundled into the production app), **leptotes** for native component tests. leptotes
-  is in use today; theoria's gallery is served on demand (the Storybook-style
-  `theoria serve` CLI is a theoria backlog story; a thin gallery bin is the
-  interim stand-in).
+- **Isolation tooling (dogfooded, from git):** **theoria** component explorer
+  (preview a component without the whole app — served separately, *not*
+  bundled into the production app), **leptotes** for native component tests.
+  The gallery for `slp-ui` is configured in `theoria.toml`, and is dormant for
+  now (that file says why).
 - **State:** Leptos signals; the `Plan` (slp-core types) is the single reactive
   source the components render from.
 
@@ -100,8 +92,8 @@ developable and testable in isolation — never one monolith.
 `trunk serve` from `crates/slp-app` gives a hot-reloading dev server at
 `http://localhost:8080` (the planner) — edit a component, the browser refreshes.
 That's the primary manual loop. The **theoria** gallery (for working a single
-component in isolation) is served *separately* on demand, never bundled into the
-app. See `CLAUDE.md` for all commands.
+component in isolation) is served separately, never bundled into the app, and is
+unavailable until it builds again (§3.1). See `CLAUDE.md` for all commands.
 
 ## 4. Domain model (LinkML → panschema)
 
@@ -165,7 +157,7 @@ The story catalog (epics → stories) and one detailed, slice-by-slice document 
 story live in **[`docs/stories/`](stories/README.md)** — the single source of
 truth for the backlog. This plan does not repeat it; §6 below only sequences
 *which* stories ship together. The dogfood sub-projects keep their own
-`PLAN.md` + `docs/stories/` at `crates/leptotes/docs/` and `crates/theoria/docs/`.
+`PLAN.md` + `docs/stories/` in their repos.
 
 ## 6. Delivery order (milestones)
 

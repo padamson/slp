@@ -1,6 +1,10 @@
 # theoria gallery config — `theoria serve` reads this to generate & serve a
 # component explorer for the crate's stories (Storybook-style). The generated
 # harness lives under target/theoria/gallery (gitignored); nothing to commit.
+#
+# Dormant for now: theoria-cli (installed from github.com/padamson/theoria)
+# generates a harness that takes theoria by a path inside the theoria repo, so
+# it cannot build slp-ui's stories until that is fixed there.
 [gallery]
 crate = "slp-ui"                     # package exposing the stories
 path = "crates/slp-ui"               # path to it (relative to this file)

@@ -21,7 +21,7 @@ serde_json = { workspace = true }
 schemars = "1.2"
 # Only pulled in for the colocated `*.stories.rs` files (the `stories` feature),
 # never in the production app build.
-theoria = { path = "../theoria", optional = true }
+theoria = { git = "https://github.com/padamson/theoria", branch = "main", optional = true }
 # localStorage autosave of the Plan + translating canvas clicks (DomRect) to
 # feet; pulled in by csr, so ssr/leptotes builds don't see it.
 web-sys = { version = "0.3", optional = true, features = [
@@ -66,7 +66,7 @@ wasm-bindgen-futures = { version = "0.4", optional = true }
 send_wrapper = { version = "0.6", optional = true }
 
 [dev-dependencies]
-leptotes = { path = "../leptotes" }
+leptotes = { git = "https://github.com/padamson/leptotes", branch = "main" }
 
 [features]
 csr = [
@@ -80,7 +80,8 @@ csr = [
 ssr = ["leptos/ssr"]
 hydrate = ["leptos/hydrate"]
 # Compiles the colocated `*.stories.rs` files (slp-ui components as theoria
-# stories). Enabled by slp-gallery; off in the production slp-app build.
+# stories). Enabled by the gallery build (`theoria.toml`); off in the
+# production slp-app build.
 stories = ["dep:theoria"]
 
 [lints]
