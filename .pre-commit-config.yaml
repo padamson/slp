@@ -41,6 +41,24 @@ repos:
         types: [rust]
         pass_filenames: false
 
+      # slp-app and slp-e2e are outside the workspace, so `--all` above
+      # skips them.
+      - id: cargo-fmt-app
+        name: cargo fmt (slp-app)
+        description: Auto-format the excluded app crate
+        entry: cargo fmt --manifest-path crates/slp-app/Cargo.toml
+        language: system
+        files: ^crates/slp-app/.*\.rs$
+        pass_filenames: false
+
+      - id: cargo-fmt-e2e
+        name: cargo fmt (slp-e2e)
+        description: Auto-format the excluded e2e crate
+        entry: cargo fmt --manifest-path crates/slp-e2e/Cargo.toml
+        language: system
+        files: ^crates/slp-e2e/.*\.rs$
+        pass_filenames: false
+
       - id: cargo-clippy
         name: cargo clippy
         description: Run clippy linter

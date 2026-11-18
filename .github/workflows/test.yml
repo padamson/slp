@@ -43,6 +43,12 @@ jobs:
           shared-key: lint
       - name: Check formatting
         run: cargo fmt --all -- --check
+      # slp-app and slp-e2e are outside the workspace, so `--all` above
+      # formats neither.
+      - name: Check formatting (slp-app)
+        run: cargo fmt --manifest-path crates/slp-app/Cargo.toml -- --check
+      - name: Check formatting (slp-e2e)
+        run: cargo fmt --manifest-path crates/slp-e2e/Cargo.toml -- --check
       # The wasm app and native e2e crate are excluded from the workspace, so
       # lint each explicitly in addition to the workspace (slp-core).
       - name: Clippy (workspace / slp-core)
@@ -95,7 +101,10 @@ jobs:
       # correctly; the Pages deploy rebuilds with the project-page base path.
       - name: Build app (root path)
         run: cd crates/slp-app && trunk build
-      - name: Install Playwright browsers
-        run: npx playwright@1.64.1 install --with-deps chromium
+      # The browser revision follows playwright-rs through Cargo.lock
+      # (crates/slp-e2e/examples/install-browsers.rs says why). `--with-deps`
+      # adds the system libraries a fresh runner lacks.
+      - name: Install Chromium for the bundled Playwright driver
+        run: cargo run --locked --manifest-path crates/slp-e2e/Cargo.toml --example install-browsers -- --with-deps
       - name: Run e2e (drives the real WASM app in chromium)
         run: cargo test --locked --manifest-path crates/slp-e2e/Cargo.toml

@@ -207,7 +207,8 @@ Copy `crates/site-e2e/tests/landing_page.rs`: build with `trunk build`, serve
 locators (auto-waiting, no sleeps). Because the app is CSR/WASM, the assertions
 prove the bundle boots and widgets react. Step screenshots + `trace.zip` are
 byproducts; assertions are the gate. Fails, rather than skips, when `dist/` is absent.
-CI adds `npx playwright@<ver> install chromium --with-deps`.
+CI installs chromium with the crate's `install-browsers` example (`-- --with-deps`),
+so the browser revision follows the locked playwright-rs.
 
 ## 8. Key design choices
 

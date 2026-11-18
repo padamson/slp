@@ -50,7 +50,9 @@ cargo test --manifest-path crates/slp-e2e/Cargo.toml
 
 # Lint / format (clippy pedantic is project policy)
 cargo clippy --all-targets --all-features -- -D warnings
-cargo fmt
+cargo fmt --all
+cargo fmt --manifest-path crates/slp-app/Cargo.toml   # excluded crates: `--all` skips them
+cargo fmt --manifest-path crates/slp-e2e/Cargo.toml
 ```
 
 ## Dogfood dependencies
@@ -70,7 +72,8 @@ builds again, work on components through the planner and leptotes tests.
 
 - `rustup target add wasm32-unknown-unknown`
 - `cargo install trunk`
-- E2E browsers: `npx playwright@1.64.1 install chromium`
+- E2E browser: `cargo run --manifest-path crates/slp-e2e/Cargo.toml --example install-browsers`
+  (installs the chromium revision the locked playwright-rs expects)
 - Pre-commit hooks: `cargo install prek && prek install`
 
 ## How to test as you develop

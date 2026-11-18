@@ -8,8 +8,9 @@
 //!   (cd crates/slp-app && trunk build)
 //!   cargo test --manifest-path crates/slp-e2e/Cargo.toml
 //!
-//! Fails when `crates/slp-app/dist` is absent, so build it first. Requires browsers:
-//!   npx playwright@1.64.1 install chromium
+//! Fails when `crates/slp-app/dist` is absent, so build it first. Requires the
+//! browser the locked playwright-rs expects:
+//!   cargo run --manifest-path crates/slp-e2e/Cargo.toml --example install-browsers
 
 mod common;
 
