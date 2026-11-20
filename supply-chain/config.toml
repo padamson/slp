@@ -29,11 +29,11 @@ version = "0.1.89"
 criteria = "safe-to-deploy"
 
 [[exemptions.attribute-derive]]
-version = "0.10.5"
+version = "0.11.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.attribute-derive-macro]]
-version = "0.10.5"
+version = "0.11.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.base16]]
@@ -125,7 +125,7 @@ version = "0.1.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.derive-where]]
-version = "1.6.1"
+version = "1.7.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.digest]]
@@ -241,7 +241,7 @@ version = "1.4.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.hydration_context]]
-version = "0.3.1"
+version = "0.3.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.icu_collections]]
@@ -313,7 +313,7 @@ version = "0.2.19"
 criteria = "safe-to-deploy"
 
 [[exemptions.leptos]]
-version = "0.8.20"
+version = "0.8.23"
 criteria = "safe-to-deploy"
 
 [[exemptions.leptos_config]]
@@ -325,15 +325,15 @@ version = "0.8.8"
 criteria = "safe-to-deploy"
 
 [[exemptions.leptos_hot_reload]]
-version = "0.8.6"
+version = "0.8.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.leptos_macro]]
-version = "0.8.17"
+version = "0.8.20"
 criteria = "safe-to-deploy"
 
 [[exemptions.leptos_server]]
-version = "0.8.7"
+version = "0.8.8"
 criteria = "safe-to-deploy"
 
 [[exemptions.libc]]
@@ -345,11 +345,11 @@ version = "0.8.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.manyhow]]
-version = "0.11.4"
+version = "0.14.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.manyhow-macros]]
-version = "0.11.4"
+version = "0.14.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.memchr]]
@@ -405,15 +405,7 @@ version = "0.1.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.prettyplease]]
-version = "0.2.37"
-criteria = "safe-to-deploy"
-
-[[exemptions.proc-macro-error-attr2]]
-version = "2.0.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.proc-macro-error2]]
-version = "2.0.1"
+version = "0.3.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.proc-macro-utils]]
@@ -425,7 +417,7 @@ version = "1.0.107"
 criteria = "safe-to-deploy"
 
 [[exemptions.proc-macro2-diagnostics]]
-version = "0.10.1"
+version = "0.11.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.pulldown-cmark]]
@@ -441,11 +433,11 @@ version = "1.0.47"
 criteria = "safe-to-deploy"
 
 [[exemptions.quote-use]]
-version = "0.8.4"
+version = "0.9.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.quote-use-macros]]
-version = "0.8.4"
+version = "0.9.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.r-efi]]
@@ -453,15 +445,15 @@ version = "6.0.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.reactive_graph]]
-version = "0.2.14"
+version = "0.2.16"
 criteria = "safe-to-deploy"
 
 [[exemptions.reactive_stores]]
-version = "0.4.3"
+version = "0.4.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.reactive_stores_macro]]
-version = "0.4.2"
+version = "0.4.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.ref-cast]]
@@ -485,7 +477,7 @@ version = "0.8.11"
 criteria = "safe-to-deploy"
 
 [[exemptions.rstml]]
-version = "0.12.1"
+version = "0.13.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.rustc-hash]]
@@ -553,11 +545,11 @@ version = "0.8.13"
 criteria = "safe-to-deploy"
 
 [[exemptions.server_fn_macro]]
-version = "0.8.10"
+version = "0.8.12"
 criteria = "safe-to-deploy"
 
 [[exemptions.server_fn_macro_default]]
-version = "0.8.5"
+version = "0.8.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.sha2]]
@@ -588,16 +580,12 @@ criteria = "safe-to-deploy"
 version = "3.0.6"
 criteria = "safe-to-deploy"
 
-[[exemptions.syn_derive]]
-version = "0.2.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.synstructure]]
 version = "0.13.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.tachys]]
-version = "0.2.18"
+version = "0.2.19"
 criteria = "safe-to-deploy"
 
 [[exemptions.thiserror]]
@@ -746,10 +734,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.xxhash-rust]]
 version = "0.8.19"
-criteria = "safe-to-deploy"
-
-[[exemptions.yansi]]
-version = "1.0.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.yoke]]
