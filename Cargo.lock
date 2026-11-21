@@ -1534,7 +1534,7 @@ dependencies = [
 [[package]]
 name = "theoria"
 version = "0.1.0"
-source = "git+https://github.com/padamson/theoria?branch=main#02ccf83293b2346ef332685c1752bf937d5f1e97"
+source = "git+https://github.com/padamson/theoria?branch=main#aa1d4df26b66651955bf867e1b6b449dcad2e5d3"
 dependencies = [
  "leptos",
  "pulldown-cmark",
@@ -1544,7 +1544,7 @@ dependencies = [
 [[package]]
 name = "theoria-macros"
 version = "0.1.0"
-source = "git+https://github.com/padamson/theoria?branch=main#02ccf83293b2346ef332685c1752bf937d5f1e97"
+source = "git+https://github.com/padamson/theoria?branch=main#aa1d4df26b66651955bf867e1b6b449dcad2e5d3"
 dependencies = [
  "proc-macro2",
  "quote",
