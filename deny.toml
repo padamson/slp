@@ -10,9 +10,9 @@ no-default-features = false
 feature-depth = 1
 
 [advisories]
-# Source of truth for ignored RUSTSEC advisories. `cargo audit` has no
-# project-level config, so mirror this list as inline `--ignore` flags
-# in `.github/workflows/security.yml` and `.pre-commit-config.yaml`.
+# Source of truth for ignored RUSTSEC advisories. CI's cargo-lockpatrol
+# reads this list directly. `cargo audit` has no project-level config, so
+# the prek hook in `.pre-commit-config.yaml` mirrors it as `--ignore` flags.
 ignore = [
     # Unmaintained crates pulled transitively by Leptos (view! macro + reactive
     # graph). Not vulnerabilities; no safe upgrades; the fix is upstream in
@@ -64,8 +64,10 @@ unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # leptotes and theoria were incubated here and now live in their own repos;
-# slp tracks their `main` until they publish.
+# slp tracks their `main` until they publish. slp-e2e dogfoods
+# playwright-rust's `main`.
 allow-git = [
     "https://github.com/padamson/leptotes",
+    "https://github.com/padamson/playwright-rust",
     "https://github.com/padamson/theoria",
 ]

@@ -41,14 +41,15 @@ Every surviving mutant must be resolved one of two ways:
 
 ## Three enforcement points
 
-1. **Per-push diff gate** (`mutation-testing-diff` in
-   [`security.yml`](../.github/workflows/security.yml)) — runs
-   [`scripts/mutants.sh`](../scripts/mutants.sh) with `--in-diff` over the lines
-   a push/PR touched. Fast; blocks *new* escapes. **Blind to unchanged code.**
-2. **Weekly full sweep** (`mutation-testing`, `schedule` + `workflow_dispatch`)
-   — runs the whole in-scope config to 0. This is the backstop the diff gate
-   can't be: it catches latent survivors in code no recent PR touched, which is
-   how backlog silently accumulates. Bounded by `examine_globs`, so it runs
+1. **Per-push diff gate** (`mutation / Mutation Testing (diff)`, from the
+   `mutation` call in [`security.yml`](../.github/workflows/security.yml) to
+   the shared `rust-ci-workflows` workflow) — runs `cargo mutants --in-diff`
+   over the lines a push/PR touched, and skips when no `.rs` file changed.
+   Fast; blocks *new* escapes. **Blind to unchanged code.**
+2. **Weekly full sweep** (`mutation / Mutation Testing (full)`, `schedule` +
+   `workflow_dispatch`) — runs the whole in-scope config to 0. This is the
+   backstop the diff gate can't be: it catches latent survivors in code no
+   recent PR touched, which is how backlog silently accumulates. Bounded by `examine_globs`, so it runs
    within the CI per-job timeout.
 3. **Local pre-push** — before pushing changes to an in-scope crate, run
    `./scripts/mutants.sh <base>` (diff-scoped, seconds-to-minutes). If your
@@ -74,7 +75,7 @@ mutation CI job. Their logic is mutated there, not here.
 
 ```bash
 cargo mutants                              # full in-scope sweep (slow; matches weekly CI)
-./scripts/mutants.sh main                  # only what changed vs. main (diff; matches per-push CI)
+./scripts/mutants.sh main                  # only what changed vs. main (diff; what a PR's CI run mutates)
 ./scripts/mutants.sh --working             # only uncommitted changes (diff, before you commit)
 ```
 

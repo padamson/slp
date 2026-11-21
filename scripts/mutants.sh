@@ -81,7 +81,7 @@ if [[ "$WORKING" -eq 0 ]]; then
 
   # The base ref may not resolve — most commonly on the repo's very first
   # (root) commit, where HEAD~1 has no parent. Skip rather than error (git would
-  # exit 128), so CI's per-diff mutation job is a no-op on the initial commit.
+  # exit 128).
   if ! git rev-parse --verify --quiet "${BASE}^{commit}" >/dev/null; then
     echo "base ref '${BASE}' does not resolve (e.g. root commit has no parent) — skipping mutation testing."
     exit 0

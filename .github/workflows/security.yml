@@ -1,193 +1,41 @@
 name: Security & Quality
 
+# The supply-chain gates and mutation testing come from rust-ci-workflows,
+# pinned by SHA so Dependabot's github-actions entry moves them. Each called
+# job reports as `<caller job> / <job name>`, so the required checks are
+# `supply-chain / License & Dependency Check` and
+# `supply-chain / Supply Chain Review`. The local half (deny.toml,
+# supply-chain/, .cargo/mutants.toml, the prek hooks) stays in this repo.
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
   schedule:
-    # Weekly Saturday 5am ET
+    # Weekly Saturday 5am ET; also runs the full mutation sweep.
     - cron: '0 9 * * 6'
   workflow_dispatch:
-
-env:
-  CARGO_TERM_COLOR: always
 
 permissions:
   contents: read
 
 jobs:
-  audit:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-
-      # `cargo audit` only reads ~/.cargo/audit.toml — there is no
-      # project-level config. For unfixable transitive advisories, list
-      # them in `deny.toml`'s `[advisories] ignore` (the source of truth)
-      # and mirror them here as inline flags, e.g.:
-      #   run: cargo audit --ignore RUSTSEC-2024-XXXX --ignore RUSTSEC-2025-YYYY
-      - name: Run cargo audit
-        # Mirrors deny.toml [advisories] ignore (cargo audit has no project config).
-        run: cargo audit --ignore RUSTSEC-2026-0173 --ignore RUSTSEC-2024-0436
-
-  deny:
-    name: License & Dependency Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-deny
-        run: cargo install cargo-deny
-
-      - name: Run cargo deny
-        run: cargo deny check
-
+  # cargo deny (bans, licenses, sources), cargo-lockpatrol's advisory check
+  # over every tracked Cargo.lock against deny.toml's ignore list, and
+  # cargo vet. slp-app and slp-e2e are excluded from the workspace and keep
+  # their own lockfiles, so deny checks them separately; vet covers the
+  # workspace only.
   supply-chain:
-    name: Supply Chain Review
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
+    uses: padamson/rust-ci-workflows/.github/workflows/supply-chain.yml@07d9be408f21f565a66488d6931b1a39b3f872e0 # v0.2.0
+    with:
+      deny-manifests: |
+        crates/slp-app
+        crates/slp-e2e
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-vet
-        run: cargo install cargo-vet
-
-      - name: Run cargo vet
-        run: |
-          if [ -f supply-chain/audits.toml ]; then
-            cargo vet
-          else
-            echo "supply-chain/ not initialized; skipping. Run 'cargo vet init' to enable."
-          fi
-
-  semver-checks:
-    name: Semver Compatibility
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-semver-checks
-        run: cargo install cargo-semver-checks
-
-      - name: Check semver compatibility
-        run: cargo semver-checks check-release
-
-  mutation-testing:
-    name: Mutation Testing (full)
-    runs-on: ubuntu-latest
-    # Weekly full sweep of the in-scope logic crates; backstop for the per-push
-    # diff job, which can't see unchanged code. See docs/mutation-testing.md.
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: mutants
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
-
-      # Use prebuilt binary via taiki-e/install-action. `cargo install
-      # cargo-mutants` fails when the cargo cache restores a previously
-      # installed binary into `~/.cargo/bin/` (cargo install refuses to
-      # overwrite without --force); the action handles the
-      # already-installed case correctly and is ~10x faster anyway.
-      - name: Install cargo-mutants
-        uses: taiki-e/install-action@v2.90.4
-        with:
-          tool: cargo-mutants
-
-      # Scope + exclusions: .cargo/mutants.toml. Non-zero exit on a miss = fail.
-      - name: Run mutation testing
-        run: cargo mutants
-
-      - name: Upload mutation report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mutation-report
-          path: mutants.out/
-
-  mutation-testing-diff:
-    name: Mutation Testing (diff)
-    runs-on: ubuntu-latest
-    # Fast per-push variant: scopes to the lines touched in this push or
-    # pull request via `cargo mutants --in-diff`. Typical runtime is
-    # seconds-to-minutes rather than the full-codebase job's hours.
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          # Need history beyond HEAD so `git diff` can reach the base
-          # commit (push: `before` SHA; PR: merge base of base ref).
-          fetch-depth: 0
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: mutants-diff
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
-
-      # Use prebuilt binary via taiki-e/install-action. `cargo install
-      # cargo-mutants` fails when the cargo cache restores a previously
-      # installed binary into `~/.cargo/bin/` (cargo install refuses to
-      # overwrite without --force); the action handles the
-      # already-installed case correctly and is ~10x faster anyway.
-      - name: Install cargo-mutants
-        uses: taiki-e/install-action@v2.90.4
-        with:
-          tool: cargo-mutants
-
-      # Compute the right diff base for this trigger.
-      # - pull_request: merge base against the PR target branch
-      # - push: the `before` SHA of the push (the parent of `after`).
-      #   First push to a branch has `before = 000...0`; fall back to
-      #   HEAD~1 in that case.
-      - name: Compute diff base
-        id: base
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "ref=origin/${{ github.base_ref }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-            echo "ref=HEAD~1" >> $GITHUB_OUTPUT
-          else
-            echo "ref=${{ github.event.before }}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Run mutation testing on diff
-        run: ./scripts/mutants.sh ${{ steps.base.outputs.ref }}
-
-      - name: Upload mutation report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mutation-report-diff
-          path: mutants.out/
+  # The per-diff run on push and pull request, the full sweep on schedule
+  # and dispatch. Scope and exclusions: .cargo/mutants.toml; policy:
+  # docs/mutation-testing.md. No crate publishes, so there is no semver
+  # preview.
+  mutation:
+    uses: padamson/rust-ci-workflows/.github/workflows/mutation.yml@07d9be408f21f565a66488d6931b1a39b3f872e0 # v0.2.0
