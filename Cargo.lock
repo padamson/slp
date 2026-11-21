@@ -1534,17 +1534,18 @@ dependencies = [
 [[package]]
 name = "theoria"
 version = "0.1.0"
-source = "git+https://github.com/padamson/theoria?branch=main#aa1d4df26b66651955bf867e1b6b449dcad2e5d3"
+source = "git+https://github.com/padamson/theoria?branch=main#131a44c10fe8dfa36fe97fdf5f6da4fe55868624"
 dependencies = [
  "leptos",
  "pulldown-cmark",
  "theoria-macros",
+ "web-sys",
 ]
 
 [[package]]
 name = "theoria-macros"
 version = "0.1.0"
-source = "git+https://github.com/padamson/theoria?branch=main#aa1d4df26b66651955bf867e1b6b449dcad2e5d3"
+source = "git+https://github.com/padamson/theoria?branch=main#131a44c10fe8dfa36fe97fdf5f6da4fe55868624"
 dependencies = [
  "proc-macro2",
  "quote",

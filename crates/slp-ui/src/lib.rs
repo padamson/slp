@@ -35,3 +35,10 @@ pub use components::{Grid, Planner, ScaleBar, Transform, Yard, YardControls};
 /// All slp-ui components as theoria stories (aggregated for the gallery build).
 #[cfg(feature = "stories")]
 pub use components::stories as all_stories;
+
+// Stands in for the gallery build, which CI doesn't run: the app `theoria
+// serve` generates calls exactly this, so if `csr` stops forwarding
+// `theoria?/csr` or `all_stories` stops returning `theoria::Stories`, the
+// workspace's `--all-features` clippy fails with "no method named `mount`".
+#[cfg(all(test, feature = "stories", feature = "csr"))]
+const _: fn() = || all_stories().mount();

@@ -82,8 +82,7 @@ developable and testable in isolation — never one monolith.
 - **Isolation tooling (dogfooded, from git):** **theoria** component explorer
   (preview a component without the whole app — served separately, *not*
   bundled into the production app), **leptotes** for native component tests.
-  The gallery for `slp-ui` is configured in `theoria.toml`, and is dormant for
-  now (that file says why).
+  The gallery for `slp-ui` is configured in `theoria.toml`.
 - **State:** Leptos signals; the `Plan` (slp-core types) is the single reactive
   source the components render from.
 
@@ -92,8 +91,8 @@ developable and testable in isolation — never one monolith.
 `trunk serve` from `crates/slp-app` gives a hot-reloading dev server at
 `http://localhost:8080` (the planner) — edit a component, the browser refreshes.
 That's the primary manual loop. The **theoria** gallery (for working a single
-component in isolation) is served separately, never bundled into the app, and is
-unavailable until it builds again (§3.1). See `CLAUDE.md` for all commands.
+component in isolation) is served separately and never bundled into the app;
+`./scripts/dev.sh` runs it next to the planner. See `CLAUDE.md` for all commands.
 
 ## 4. Domain model (LinkML → panschema)
 

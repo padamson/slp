@@ -37,8 +37,13 @@ cargo nextest run --workspace
 cargo test -p slp-core      # geometry / take-off math
 cargo test -p slp-ui        # slp-ui components (rendered via leptotes)
 
-# The planner's hot-reload dev server, auto-picking a free port if 8080 is taken:
+# Both hot-reload dev servers, the planner (8080) and the theoria gallery
+# (8081), each auto-picking the next free port if its default is taken:
 ./scripts/dev.sh                        # or ./scripts/dev.sh 9000 to start higher
+
+# The gallery alone, or a one-off build of it (from the repo root: reads ./theoria.toml)
+theoria serve
+theoria build
 
 # Manual local testing of the PLANNER (hot reload at http://localhost:8080)
 cd crates/slp-app && trunk serve
@@ -65,13 +70,23 @@ from git `main`: leptotes as a dev-dependency, theoria behind the `stories`
 feature. A change either one needs is made in its repo, and Dependabot's weekly
 `git-dependencies` group brings it here.
 
-The theoria gallery for `slp-ui` is dormant (`theoria.toml` says why); until it
-builds again, work on components through the planner and leptotes tests.
+The gallery app that `theoria serve` generates mounts through theoria's
+csr-only `Stories::mount`, so `slp-ui`'s `csr` feature forwards `theoria?/csr`
+and `all_stories` returns `theoria::Stories`. Miss either and the gallery build
+fails with ``no method named `mount` ``.
+
+When theoria's `main` changes what a stories crate provides, move three things
+together: the CLI (reinstall it, below), the root lockfile (`cargo update -p
+theoria -p theoria-macros`, which the workspace's own builds of `stories` use),
+and the gallery harness's lockfile, which the harness keeps in its own
+workspace under `target/theoria/` (`rm -rf target/theoria` makes the next
+`theoria serve` resolve afresh).
 
 ### One-time setup
 
 - `rustup target add wasm32-unknown-unknown`
 - `cargo install trunk`
+- Gallery CLI: `cargo install --locked --git https://github.com/padamson/theoria theoria-cli`
 - E2E browser: `cargo run --manifest-path crates/slp-e2e/Cargo.toml --example install-browsers`
   (installs the chromium revision the locked playwright-rs expects)
 - Pre-commit hooks: `cargo install prek && prek install`
@@ -82,7 +97,8 @@ builds again, work on components through the planner and leptotes tests.
    (`cargo test -p slp-core`) — instant feedback, no browser.
 2. **Manual / visual:** `trunk serve` and look at `http://localhost:8080`; hot
    reload picks up edits. **theoria** (component explorer) is for working on a
-   single component in isolation, once its gallery builds again (see above).
+   single component in isolation; `./scripts/dev.sh` serves it next to the
+   planner.
 3. **Component tests:** **leptotes** for Leptos components.
 4. **End-to-end gate:** the `slp-e2e` playwright-rust test drives the built app
    in chromium — it's the "does the WASM actually boot and react" gate.

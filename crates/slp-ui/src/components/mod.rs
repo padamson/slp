@@ -310,8 +310,8 @@ mod yard_stories;
 
 /// All slp-ui stories, in display order.
 #[cfg(feature = "stories")]
-pub fn stories() -> Vec<theoria::Story> {
-    let mut s = Vec::new();
+pub fn stories() -> theoria::Stories {
+    let mut s = theoria::Stories::default();
     s.extend(planner_stories::stories());
     s.extend(yard_stories::stories());
     s.extend(placement_stories::stories());

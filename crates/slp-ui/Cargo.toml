@@ -76,6 +76,12 @@ csr = [
     "dep:js-sys",
     "dep:wasm-bindgen-futures",
     "dep:send_wrapper",
+    # The gallery app mounts through theoria's csr-only `Stories::mount`, and
+    # cargo gives that app no way to enable a feature of a transitive
+    # dependency, so the stories crate forwards it. `?` keeps theoria out of
+    # the planner's csr build, where `stories` is off, though cargo still
+    # records it in slp-app's lockfile.
+    "theoria?/csr",
 ]
 ssr = ["leptos/ssr"]
 hydrate = ["leptos/hydrate"]
