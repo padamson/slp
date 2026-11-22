@@ -71,3 +71,23 @@ updates:
       actions:
         patterns:
           - "*"
+
+  # Hook revs in .pre-commit-config.yaml, cargo-lockpatrol's among them.
+  # cargo-lockpatrol's hook rev moves here, its monitor pin in the actions
+  # PR above, and the CI gate's with the rust-ci-workflows pin, so they can
+  # sit a release apart for a while.
+  # Only default-days, as for github-actions.
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+      time: "04:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+    groups:
+      hooks:
+        patterns:
+          - "*"

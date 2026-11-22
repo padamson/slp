@@ -1,5 +1,8 @@
 # cargo-deny configuration
-# Run: cargo deny check
+# Run: cargo deny --workspace check bans licenses sources   (root workspace)
+#      cargo lockpatrol check                               (advisories, every tracked Cargo.lock)
+# A plain `cargo deny check` reads one tree's lockfile, so its advisory result
+# differs from the gate's, and it fails on the ignore entries other trees use.
 # Docs: https://embarkstudios.github.io/cargo-deny/
 
 [graph]
@@ -10,14 +13,13 @@ no-default-features = false
 feature-depth = 1
 
 [advisories]
-# Source of truth for ignored RUSTSEC advisories. CI's cargo-lockpatrol
-# reads this list directly. `cargo audit` has no project-level config, so
-# the prek hook in `.pre-commit-config.yaml` mirrors it as `--ignore` flags.
+# The one list of ignored RUSTSEC advisories. cargo-lockpatrol (the CI gate,
+# the advisory monitor, and the prek hook) checks every tracked Cargo.lock
+# against it, and fails on an entry that no lockfile reaches any more.
+unused-ignored-advisory = "deny"
 ignore = [
-    # Unmaintained crates pulled transitively by Leptos (view! macro + reactive
-    # graph). Not vulnerabilities; no safe upgrades; the fix is upstream in
-    # Leptos. Revisit when Leptos drops them.
-    "RUSTSEC-2026-0173", # proc-macro-error2 (via leptos_macro)
+    # Unmaintained, pulled transitively by Leptos. Not a vulnerability; no
+    # safe upgrade; the fix is upstream in Leptos. Revisit when Leptos drops it.
     "RUSTSEC-2024-0436", # paste (via leptos / tachys)
 ]
 

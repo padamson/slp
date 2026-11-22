@@ -89,7 +89,9 @@ workspace under `target/theoria/` (`rm -rf target/theoria` makes the next
 - Gallery CLI: `cargo install --locked --git https://github.com/padamson/theoria theoria-cli`
 - E2E browser: `cargo run --manifest-path crates/slp-e2e/Cargo.toml --example install-browsers`
   (installs the chromium revision the locked playwright-rs expects)
-- Pre-commit hooks: `cargo install prek && prek install`
+- Pre-commit hooks: `cargo install prek && prek install`. The hooks call
+  `cargo-deny` and `cargo-vet` from `PATH` (`cargo install --locked cargo-deny
+  cargo-vet`); prek builds the cargo-lockpatrol hook itself at its pinned rev.
 
 ## How to test as you develop
 

@@ -1,0 +1,63 @@
+name: Security Advisory Monitor
+
+# Daily check for newly published RustSec advisories, decoupled from push
+# cadence. Advisories are published by the world, not by a commit: the
+# Security & Quality gate would go red on the next push or on Saturday's
+# schedule, and this turns the same finding into an issue you can triage
+# first (bump the dep, or accept + ignore in deny.toml with rationale). It
+# runs cargo-lockpatrol, the same checker as the gate and the prek hook, so
+# it reads the same lockfiles and the same ignore list. On a hit a single
+# tracking issue is opened and kept current; when the tree is clean again it
+# is closed.
+
+on:
+  schedule:
+    # Daily at 07:00 UTC.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+# One run at a time: two overlapping runs would each see no open issue
+# and each open one.
+concurrency:
+  group: advisory-monitor
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  advisories:
+    name: Check for new advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write # open, update and close the tracking issue
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+
+      # `fallback: none`: the default, `cargo-binstall`, checks no checksum,
+      # and it quietly installs a tool missing from the action's manifest
+      # instead of failing.
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-deny
+          fallback: none
+
+      # Opens or updates one tracking issue on a finding, closes it when
+      # every tree is clean, and fails the job on a broken check. Triage
+      # goes in comments: the action rewrites the body.
+      - name: Check advisories and keep the tracking issue current
+        uses: padamson/cargo-lockpatrol@e791845e4a03af540c2348755c3695041cdd54fd # v0.2.0
+        with:
+          issue: "true"
+          issue-title: "Security: new dependency advisory detected"
+          issue-label: security-advisory
