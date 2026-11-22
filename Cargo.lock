@@ -854,7 +854,7 @@ dependencies = [
 [[package]]
 name = "leptotes"
 version = "0.1.0"
-source = "git+https://github.com/padamson/leptotes?branch=main#f1f20bdf74e4142c61a96b09008cba33cb653042"
+source = "git+https://github.com/padamson/leptotes?branch=main#c7fbfb4bc80f826e277e16411c8ba93fd78c37fa"
 dependencies = [
  "leptos",
 ]
