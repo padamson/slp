@@ -103,6 +103,56 @@ workspace under `target/theoria/` (`rm -rf target/theoria` makes the next
 4. **End-to-end gate:** the `slp-e2e` playwright-rust test drives the built app
    in chromium — it's the "does the WASM actually boot and react" gate.
 
+## Manual checks
+
+What a session cannot check, and the person reviewing the work can. Name
+each one that applies in the hand-off before a commit, as its command and
+what a pass looks like; CI is the backstop, not the plan.
+
+**From a plain terminal** (the sandbox blocks these):
+
+- Any change to `slp-app`, `slp-ui`, or a PAD/viewBox/Transform/CSS-sizing
+  value: `cd crates/slp-app && trunk build`, then `cargo test --manifest-path
+  crates/slp-e2e/Cargo.toml`. Chromium cannot launch in the sandbox. A pass
+  is every test green. Stop `./scripts/dev.sh` first: its `trunk serve`
+  rewrites `crates/slp-app/dist` under the test, and the stale WASM looks
+  like an app bug.
+- Installing or refreshing a managed skill: `npx skills add` ("Agent skills"
+  below).
+
+**Not from a session at all:** GitHub settings, branch protection's required
+checks, and secrets (the merge App's among them), changed on github.com.
+
+**By eye**, with `./scripts/dev.sh` running:
+
+- a planner change: the planner at `http://localhost:8080`, drawing and
+  editing the shape the change touches;
+- a `slp-ui` component change: its stories in the theoria gallery (the next
+  free port after the planner's, printed at startup), before each commit;
+- prose a reader will act on: `docs/PLAN.md`, a story doc, this file.
+
+## Agent skills
+
+slp consumes the skills of three dogfood dependencies: `leptotes`,
+`theoria-usage`, and `playwright-rs-usage`. They are managed installs, not
+vendored. `skills-lock.json` (tracked) records each source and a content
+hash, and `npx skills add` fetches the content into `.agents/` and links it
+from `.claude/skills/`. Both paths are gitignored. Run the installs once per
+clone, from a plain terminal (the sandbox denies writes under
+`.claude/skills/`):
+
+```bash
+npx skills add padamson/leptotes -a claude-code -y
+npx skills add padamson/theoria -a claude-code -y
+npx skills add padamson/playwright-rust -a claude-code -y
+```
+
+Verify with `ls -l .claude/skills/`: one entry per installed skill. Refresh
+with `npx skills update -p` (its prompt defaults to Global scope; `-p`
+answers Project). It rewrites the files under `.agents/` and leaves the
+links alone, so it runs inside a session too. Confirm by reading
+`metadata.version` out of the installed `SKILL.md`, not by its summary line.
+
 ## Conventions
 
 - **Component-driven UI:** small single-purpose `#[component]`s; never one

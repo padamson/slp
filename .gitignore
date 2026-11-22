@@ -25,5 +25,11 @@ Thumbs.db
 *.swo
 *~
 
+# Managed agent-skill installs: `npx skills add` writes the files under
+# .agents/skills/ and links them from .claude/skills/. skills-lock.json is
+# tracked. See "Agent skills" in CLAUDE.md.
+/.agents/skills/
+/.claude/skills/
+
 # Local-only working directory; never committed.
 /spike/
