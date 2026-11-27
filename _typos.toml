@@ -1,0 +1,5 @@
+# typos (the prek hook) rewrites what it flags. supply-chain/ holds crate
+# names, not prose, and one of them (`writeable`) reads as a misspelling, so
+# a fix there breaks cargo vet.
+[files]
+extend-exclude = ["supply-chain/"]

@@ -37,7 +37,7 @@ exclude_globs = [
 #  - `segments_cross` `>`→`>=`: equivalent. The straddle test only affects the
 #    result of `dist_segment_to_segment` when the segments *properly* cross
 #    (interior X): there every orientation is strictly non-zero, so `> 0` and
-#    `>= 0` agree. When an orientation is exactly 0 (a touch / colinear overlap),
+#    `>= 0` agree. When an orientation is exactly 0 (a touch / collinear overlap),
 #    an endpoint of one segment lies on the other, so the endpoint-distance
 #    fallback returns 0 regardless of what `segments_cross` decides — the flipped
 #    comparison changes no observable output. (`>`→`==` *is* killed, by the

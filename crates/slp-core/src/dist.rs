@@ -23,16 +23,16 @@ pub fn dist_point_to_segment(p: Point, a: Point, b: Point) -> f64 {
 }
 
 /// The signed area of triangle `a`,`b`,`c` × 2 — positive when `c` is left of
-/// the directed line `a`→`b`, zero when the three are colinear.
+/// the directed line `a`→`b`, zero when the three are collinear.
 fn orient(a: Point, b: Point, c: Point) -> f64 {
     (b.x - a.x).mul_add(c.y - a.y, -((b.y - a.y) * (c.x - a.x)))
 }
 
 /// Whether segments `p1`–`p2` and `q1`–`q2` cross at an interior point (each
-/// segment straddles the other's line). A touch at an endpoint or a colinear
+/// segment straddles the other's line). A touch at an endpoint or a collinear
 /// overlap is deliberately *not* reported here: in that case an endpoint of one
 /// segment lies on the other, so [`dist_segment_to_segment`]'s endpoint-distance
-/// fallback already yields `0` without a separate colinear test — keeping this
+/// fallback already yields `0` without a separate collinear test — keeping this
 /// to a single straddle check.
 fn segments_cross(p1: Point, p2: Point, q1: Point, q2: Point) -> bool {
     let d1 = orient(q1, q2, p1);
