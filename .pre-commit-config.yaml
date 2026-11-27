@@ -105,13 +105,16 @@ repos:
         pass_filenames: false
         files: (Cargo\.toml|Cargo\.lock|deny\.toml)$
 
+      # The `files` regex must match paths *under* `supply-chain/`; an
+      # end-anchored `supply-chain/$` matches nothing, and the hook then
+      # never fires on the audit files vet exists to review.
       - id: cargo-vet
         name: cargo vet
         description: Verify dependency supply chain audits
         entry: cargo vet
         language: system
         pass_filenames: false
-        files: (Cargo\.toml|Cargo\.lock|supply-chain/)$
+        files: (Cargo\.toml$|Cargo\.lock$|^supply-chain/)
 
   # Builds the binary at the pinned rev (prek runs `cargo install`). Keep
   # it at the release the monitor and the CI gate run. Needs cargo-deny on
