@@ -1825,7 +1825,7 @@ dependencies = [
 [[package]]
 name = "theoria"
 version = "0.1.0"
-source = "git+https://github.com/padamson/theoria?branch=main#6f459efd0726b697e893278e30df935f3fdbb376"
+source = "git+https://github.com/padamson/theoria?branch=main#13f7f0fc7b1ec679602431160a39daf162613920"
 dependencies = [
  "form_urlencoded",
  "js-sys",
@@ -1838,7 +1838,7 @@ dependencies = [
 [[package]]
 name = "theoria-macros"
 version = "0.1.0"
-source = "git+https://github.com/padamson/theoria?branch=main#6f459efd0726b697e893278e30df935f3fdbb376"
+source = "git+https://github.com/padamson/theoria?branch=main#13f7f0fc7b1ec679602431160a39daf162613920"
 dependencies = [
  "proc-macro2",
  "quote",
