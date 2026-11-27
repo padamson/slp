@@ -22,6 +22,13 @@ user-id = 3618
 user-login = "dtolnay"
 user-name = "David Tolnay"
 
+[[publisher.form_urlencoded]]
+version = "1.2.3"
+when = "2026-11-20"
+user-id = 1139
+user-login = "Manishearth"
+user-name = "Manish Goregaokar"
+
 [[publisher.inventory]]
 version = "0.3.24"
 when = "2026-03-30"
@@ -114,8 +121,8 @@ user-login = "dtolnay"
 user-name = "David Tolnay"
 
 [[publisher.serde_json]]
-version = "1.0.151"
-when = "2026-07-20"
+version = "1.0.154"
+when = "2026-10-11"
 user-id = 3618
 user-login = "dtolnay"
 user-name = "David Tolnay"
@@ -168,6 +175,13 @@ when = "2026-02-16"
 user-id = 3618
 user-login = "dtolnay"
 user-name = "David Tolnay"
+
+[[publisher.url]]
+version = "2.5.9"
+when = "2026-11-20"
+user-id = 1139
+user-login = "Manishearth"
+user-name = "Manish Goregaokar"
 
 [[publisher.zmij]]
 version = "1.0.21"

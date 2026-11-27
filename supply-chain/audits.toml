@@ -31,6 +31,12 @@ user-id = 3618 # David Tolnay (dtolnay)
 start = "2019-12-23"
 end = "2027-11-21"
 
+[[trusted.form_urlencoded]]
+criteria = "safe-to-deploy"
+user-id = 1139 # Manish Goregaokar (Manishearth)
+start = "2021-02-19"
+end = "2027-11-27"
+
 [[trusted.inventory]]
 criteria = "safe-to-deploy"
 user-id = 3618 # David Tolnay (dtolnay)
@@ -138,6 +144,12 @@ criteria = "safe-to-deploy"
 user-id = 3618 # David Tolnay (dtolnay)
 start = "2021-10-02"
 end = "2027-11-21"
+
+[[trusted.url]]
+criteria = "safe-to-deploy"
+user-id = 1139 # Manish Goregaokar (Manishearth)
+start = "2021-02-18"
+end = "2027-11-27"
 
 [[trusted.zmij]]
 criteria = "safe-to-deploy"
