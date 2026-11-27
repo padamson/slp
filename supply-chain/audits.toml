@@ -25,11 +25,23 @@ user-id = 3618 # David Tolnay (dtolnay)
 start = "2019-07-23"
 end = "2027-11-21"
 
+[[trusted.dtoa]]
+criteria = "safe-to-run"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2019-05-02"
+end = "2027-11-27"
+
 [[trusted.dyn-clone]]
 criteria = "safe-to-deploy"
 user-id = 3618 # David Tolnay (dtolnay)
 start = "2019-12-23"
 end = "2027-11-21"
+
+[[trusted.fastrand]]
+criteria = "safe-to-run"
+user-id = 33035 # Taiki Endo (taiki-e)
+start = "2021-04-24"
+end = "2027-11-27"
 
 [[trusted.form_urlencoded]]
 criteria = "safe-to-deploy"
@@ -49,11 +61,65 @@ user-id = 3618 # David Tolnay (dtolnay)
 start = "2019-05-02"
 end = "2027-11-21"
 
+[[trusted.lock_api]]
+criteria = "safe-to-run"
+user-id = 2915 # Amanieu d'Antras (Amanieu)
+start = "2019-05-04"
+end = "2027-11-27"
+
+[[trusted.new_debug_unreachable]]
+criteria = "safe-to-run"
+user-id = 2017 # Matt Brubeck (mbrubeck)
+start = "2019-02-26"
+end = "2027-11-27"
+
+[[trusted.parking_lot]]
+criteria = "safe-to-run"
+user-id = 2915 # Amanieu d'Antras (Amanieu)
+start = "2019-05-04"
+end = "2027-11-27"
+
+[[trusted.parking_lot_core]]
+criteria = "safe-to-run"
+user-id = 2915 # Amanieu d'Antras (Amanieu)
+start = "2019-05-04"
+end = "2027-11-27"
+
 [[trusted.paste]]
 criteria = "safe-to-deploy"
 user-id = 3618 # David Tolnay (dtolnay)
 start = "2019-03-19"
 end = "2027-11-21"
+
+[[trusted.phf]]
+criteria = "safe-to-run"
+user-id = 51017 # Yuki Okushi (JohnTitor)
+start = "2021-06-17"
+end = "2027-11-27"
+
+[[trusted.phf_codegen]]
+criteria = "safe-to-run"
+user-id = 51017 # Yuki Okushi (JohnTitor)
+start = "2021-06-17"
+end = "2027-11-27"
+
+[[trusted.phf_generator]]
+criteria = "safe-to-run"
+user-id = 51017 # Yuki Okushi (JohnTitor)
+start = "2021-06-17"
+end = "2027-11-27"
+
+[[trusted.phf_macros]]
+criteria = "safe-to-run"
+user-id = 51017 # Yuki Okushi (JohnTitor)
+start = "2021-06-17"
+end = "2027-11-27"
+
+[[trusted.phf_shared]]
+criteria = "safe-to-run"
+user-id = 51017 # Yuki Okushi (JohnTitor)
+start = "2021-06-17"
+end = "2027-11-27"
 
 [[trusted.prettyplease]]
 criteria = "safe-to-deploy"
