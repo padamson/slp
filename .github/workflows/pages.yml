@@ -19,25 +19,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Build & deploy to Pages
+  # Build and deploy are separate jobs, as in GitHub's Pages starters other
+  # than the static one: deploy-pages looks the artifact up by name, and the
+  # listing it reads can lag a just-finalized upload by seconds
+  # (actions/deploy-pages#451), so a lookup in the same job finds nothing.
+  build:
+    name: Build for Pages
     # Gate: only deploy when the triggering Test run passed on a push to main
-    # (or on a manual dispatch from main). `branches: [main]` matches a head branch by
-    # name, so a pull request from a fork's `main` would match it too; the
-    # event check keeps that run from deploying.
+    # (or on a manual dispatch from main). `branches: [main]` matches a head
+    # branch by name, so a pull request from a fork's `main` would match it
+    # too; the event check keeps that run from deploying.
     if: >-
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions:
-      contents: read
-      pages: write # publish the site
-      id-token: write # deploy-pages proves the run's identity with OIDC
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       # The commit the Test run passed, not main's tip, which may have moved
       # on to a commit still under test.
@@ -67,6 +64,29 @@ jobs:
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: crates/slp-app/dist
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      pages: write # publish the site
+      id-token: write # deploy-pages proves the run's identity with OIDC
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url || steps.retry.outputs.page_url }}
+    steps:
+      # The job boundary is usually enough delay, but the lag has been seen
+      # at tens of seconds, so a miss gets one retry a minute later.
       - name: Deploy to GitHub Pages
         id: deploy
+        continue-on-error: true
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
+      - name: Wait before retrying
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 60
+      - name: Retry the deploy
+        id: retry
+        if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
