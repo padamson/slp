@@ -13,119 +13,123 @@ fn t() -> Transform {
     }
 }
 
+fn footprint(w_ft: f64, d_ft: f64, circle: bool) -> Footprint {
+    Footprint {
+        w_ft,
+        d_ft,
+        circle,
+        clearance_ft: None,
+        category: None,
+        trunk_ft: None,
+        slab_overhang_ft: None,
+    }
+}
+
+fn armed(fp: Footprint) -> leptotes::Dom {
+    leptotes::dom(move || {
+        view! {
+            <Placement
+                t=t()
+                placed=Vec::new()
+                preview=Some(Coord::new(4.0, 3.0))
+                object_footprint=Some(fp)
+            />
+        }
+    })
+}
+
 #[test]
 fn nothing_placed_and_no_preview_renders_nothing() {
-    let html = leptotes::render(move || view! { <Placement t=t() placed=Vec::new() /> });
-    assert!(!html.contains(r#"class="placement""#));
+    let dom = leptotes::dom(move || view! { <Placement t=t() placed=Vec::new() /> });
+
+    assert_eq!(dom.count("*"), 0, "{dom}");
 }
 
 #[test]
 fn shows_nodes_a_chain_and_a_rubber_band_to_the_preview() {
     let placed = vec![Coord::new(0.0, 0.0), Coord::new(4.0, 0.0)];
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Placement t=t() placed=placed preview=Some(Coord::new(4.0, 3.0)) /> }
     });
+
+    let overlay = dom.find("g.placement");
+
     assert_eq!(
-        leptotes::count(&html, r#"class="placement-node""#),
-        2,
-        "a marker per node"
-    );
-    assert!(html.contains("<polyline"), "the chain through placed nodes");
-    assert!(
-        html.contains(r#"class="placement-band""#),
-        "the rubber-band to the previewed node"
+        (
+            overlay.count("circle.placement-node"),
+            overlay.count("polyline"),
+            overlay.count("line.placement-band"),
+        ),
+        (2, 1, 1),
+        "{dom}"
     );
 }
 
 #[test]
 fn one_placed_node_shows_the_marker_and_band_but_no_chain() {
     let placed = vec![Coord::new(0.0, 0.0)];
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Placement t=t() placed=placed preview=Some(Coord::new(4.0, 3.0)) /> }
     });
+
     assert_eq!(
-        leptotes::count(&html, r#"class="placement-node""#),
-        1,
-        "a marker for the one placed node"
-    );
-    assert!(
-        html.contains(r#"class="placement-band""#),
-        "the rubber-band to the previewed node"
-    );
-    assert!(
-        !html.contains("<polyline"),
-        "no chain with fewer than 2 placed nodes"
+        (
+            dom.count("circle.placement-node"),
+            dom.count("line.placement-band"),
+            dom.count("polyline"),
+        ),
+        (1, 1, 0),
+        "{dom}"
     );
 }
 
 #[test]
 fn no_object_footprint_shows_the_plain_hollow_node_marker() {
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Placement t=t() placed=Vec::new() preview=Some(Coord::new(4.0, 3.0)) /> }
     });
-    assert!(
-        !html.contains(r#"class="placement-object-preview""#),
-        "no shape preview without an armed item"
+
+    let preview = dom.find("g.placement-preview");
+
+    assert_eq!(
+        (
+            preview.count(".placement-object-preview"),
+            preview.find("circle").attr("fill")
+        ),
+        (0, Some("none")),
+        "{dom}"
     );
-    // The plain marker is a hollow (fill="none") circle.
-    assert!(html.contains(r#"fill="none""#), "the plain hollow marker");
 }
 
 #[test]
 fn an_armed_round_item_previews_a_translucent_circle() {
-    // A ⌀4 ft fire pit: 10 px/ft → radius 20 px.
-    let fp = Footprint {
-        w_ft: 4.0,
-        d_ft: 4.0,
-        circle: true,
-        clearance_ft: None,
-        category: None,
-        trunk_ft: None,
-        slab_overhang_ft: None,
-    };
-    let html = leptotes::render(move || {
-        view! {
-            <Placement
-                t=t()
-                placed=Vec::new()
-                preview=Some(Coord::new(4.0, 3.0))
-                object_footprint=Some(fp)
-            />
-        }
-    });
-    assert!(
-        html.contains(r#"class="placement-object-preview""#),
-        "the shape-aware preview wrapper"
+    // A ⌀4 ft fire pit: 10 px/ft → radius 20 px, at a faint (~50%) opacity.
+    let dom = armed(footprint(4.0, 4.0, true));
+
+    let preview = dom.find("g.placement-object-preview");
+
+    assert_eq!(
+        (preview.attr("opacity"), preview.find("circle").attr("r")),
+        (Some("0.5"), Some("20")),
+        "{dom}"
     );
-    assert!(html.contains("<circle"), "a round item previews a circle");
-    assert!(html.contains(r#"r="20""#), "4 ft diameter → 20 px radius");
-    assert!(html.contains(r#"opacity="0.5""#), "faint (~50%) preview");
 }
 
 #[test]
 fn an_armed_rect_item_previews_a_translucent_rect() {
-    // A 3×1.5 ft chair: 10 px/ft → 30 × 15 px.
-    let fp = Footprint {
-        w_ft: 3.0,
-        d_ft: 1.5,
-        circle: false,
-        clearance_ft: None,
-        category: None,
-        trunk_ft: None,
-        slab_overhang_ft: None,
-    };
-    let html = leptotes::render(move || {
-        view! {
-            <Placement
-                t=t()
-                placed=Vec::new()
-                preview=Some(Coord::new(4.0, 3.0))
-                object_footprint=Some(fp)
-            />
-        }
-    });
-    assert!(html.contains("<rect"), "a rectangular item previews a rect");
-    assert!(html.contains(r#"width="30""#), "3 ft → 30 px wide");
-    assert!(html.contains(r#"height="15""#), "1.5 ft → 15 px deep");
-    assert!(html.contains(r#"opacity="0.5""#), "faint (~50%) preview");
+    // A 3×1.5 ft chair: 10 px/ft → 30 × 15 px, at a faint (~50%) opacity.
+    let dom = armed(footprint(3.0, 1.5, false));
+
+    let preview = dom.find("g.placement-object-preview");
+    let rect = preview.find("rect");
+
+    assert_eq!(
+        (
+            preview.attr("opacity"),
+            rect.attr("width"),
+            rect.attr("height")
+        ),
+        (Some("0.5"), Some("30"), Some("15")),
+        "{dom}"
+    );
 }

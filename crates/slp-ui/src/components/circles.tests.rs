@@ -27,81 +27,101 @@ fn circle(elevation: f64) -> Circle {
     }
 }
 
+/// An area's filled disk: the circle in its group that is neither a border
+/// ring nor the resize handle, both of which carry a test id.
+const DISK: &str = "g.circle-area > circle:not([data-testid])";
+const BORDER: &str = r#"circle[data-testid="circle-border"]"#;
+const HANDLE: &str = r#"circle[data-testid="circle-resize-handle"]"#;
+
+fn label(dom: &leptotes::Dom) -> String {
+    dom.find("text.circle-label").text()
+}
+
 #[test]
 fn renders_a_circle_with_area_diameter_and_no_elevation_suffix() {
-    let html = leptotes::render(move || view! { <Circles t=t() circles=vec![circle(0.0)] /> });
-    assert!(html.contains(r#"class="circles""#), "tagged for queries");
-    assert!(html.contains("<circle"), "the area is a circle");
+    let dom = leptotes::dom(move || view! { <Circles t=t() circles=vec![circle(0.0)] /> });
+
     // radius 2 ft -> area = π·4 ≈ 13 ft², diameter 4 ft.
-    assert!(
-        html.contains("13 ft² · ⌀4 ft"),
-        "area + diameter, no suffix"
+    assert_eq!(
+        (dom.count("g.circles > g.circle-area > circle"), label(&dom)),
+        (1, "13 ft² · ⌀4 ft".to_string()),
+        "{dom}"
     );
-    assert!(!html.contains("ft · +"), "no elevation suffix at grade");
 }
 
 #[test]
 fn a_nonzero_elevation_appends_to_the_label() {
-    let html = leptotes::render(move || view! { <Circles t=t() circles=vec![circle(1.5)] /> });
-    assert!(html.contains("13 ft² · ⌀4 ft · +1.5 ft"));
+    let dom = leptotes::dom(move || view! { <Circles t=t() circles=vec![circle(1.5)] /> });
+
+    assert_eq!(label(&dom), "13 ft² · ⌀4 ft · +1.5 ft", "{dom}");
 }
 
 #[test]
 fn a_negative_elevation_shows_a_single_minus_sign() {
-    let html = leptotes::render(move || view! { <Circles t=t() circles=vec![circle(-0.5)] /> });
-    assert!(
-        html.contains("13 ft² · ⌀4 ft · -0.5 ft"),
-        "single minus sign"
-    );
-    assert!(!html.contains("+-"), "never a doubled sign");
+    let dom = leptotes::dom(move || view! { <Circles t=t() circles=vec![circle(-0.5)] /> });
+
+    assert_eq!(label(&dom), "13 ft² · ⌀4 ft · -0.5 ft", "{dom}");
 }
 
 #[test]
 fn renders_one_circle_per_entry() {
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Circles t=t() circles=vec![circle(0.0), circle(2.0)] /> }
     });
-    // 2 filled circles + no handles (unselected) = 2 <circle> elements.
-    assert_eq!(leptotes::count(&html, "<circle"), 2);
+
+    // Unselected, so each area is its disk alone, with no handle.
+    assert_eq!(
+        (dom.count("g.circle-area"), dom.count("circle")),
+        (2, 2),
+        "{dom}"
+    );
 }
 
 #[test]
 fn no_circles_renders_nothing() {
-    let html = leptotes::render(move || view! { <Circles t=t() circles=Vec::new() /> });
-    assert!(!html.contains(r#"class="circles""#));
+    let dom = leptotes::dom(move || view! { <Circles t=t() circles=Vec::new() /> });
+
+    assert_eq!(dom.count("*"), 0, "{dom}");
 }
 
 #[test]
 fn an_unselected_circle_has_no_resize_handle() {
-    let html = leptotes::render(move || view! { <Circles t=t() circles=vec![circle(0.0)] /> });
+    let dom = leptotes::dom(move || view! { <Circles t=t() circles=vec![circle(0.0)] /> });
+
     assert_eq!(
-        leptotes::count(&html, r#"data-testid="circle-resize-handle""#),
-        0
+        (dom.count(HANDLE), dom.count(".circle-area--selected")),
+        (0, 0),
+        "{dom}"
     );
-    assert!(!html.contains("circle-area--selected"));
 }
 
 #[test]
 fn a_selected_circle_shows_a_resize_handle() {
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Circles t=t() circles=vec![circle(0.0)] selected=Some(0) /> }
     });
-    assert!(html.contains("circle-area--selected"));
+
     assert_eq!(
-        leptotes::count(&html, r#"data-testid="circle-resize-handle""#),
-        1
+        dom.find("g.circle-area.circle-area--selected")
+            .count(HANDLE),
+        1,
+        "{dom}"
     );
 }
 
 #[test]
 fn only_the_selected_circle_gets_a_handle() {
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Circles t=t() circles=vec![circle(0.0), circle(0.0)] selected=Some(1) /> }
     });
-    assert_eq!(
-        leptotes::count(&html, r#"data-testid="circle-resize-handle""#),
-        1
-    );
+
+    let handles: Vec<usize> = dom
+        .find_all("g.circle-area")
+        .iter()
+        .map(|area| area.count(HANDLE))
+        .collect();
+
+    assert_eq!(handles, [0, 1], "{dom}");
 }
 
 /// A paver material carrying a small photo, for the tiling tests.
@@ -114,29 +134,42 @@ fn textured_paver() -> CatalogItem {
     paver
 }
 
-#[test]
-fn a_material_with_an_image_tiles_the_disk_as_a_pattern() {
-    // Like the polygon areas, a round area whose material carries a photo fills
-    // with an SVG <pattern> at real-world scale and references it by
-    // url(#circle-mat-{material id}), not the flat category color.
+fn textured_circle() -> Circle {
     let mut c = circle(0.0);
     c.material_ref = Some("paver".to_string());
-    let html = leptotes::render(move || {
-        view! { <Circles t=t() circles=vec![c] catalog=vec![textured_paver()] /> }
+    c
+}
+
+// Like `Shapes`, a bare `<g>` root, so leptotes parses the fragment as SVG and
+// the `<image>` and `patternUnits` survive.
+#[test]
+fn a_material_with_an_image_emits_a_user_space_pattern_of_its_photo() {
+    let dom = leptotes::dom(move || {
+        view! { <Circles t=t() circles=vec![textured_circle()] catalog=vec![textured_paver()] /> }
     });
 
-    assert!(html.contains("<pattern"), "emits an SVG pattern: {html}");
-    assert!(
-        html.contains(r#"patternUnits="userSpaceOnUse""#),
-        "the pattern tiles in user (scaled) space"
+    let pattern = dom.find("g.circles > defs > pattern#circle-mat-paver");
+
+    assert_eq!(
+        (
+            pattern.attr("patternUnits"),
+            pattern.find("image").attr("href")
+        ),
+        (Some("userSpaceOnUse"), Some("data:image/png;base64,AAAA")),
+        "{dom}"
     );
-    assert!(
-        html.contains("data:image/png;base64,AAAA"),
-        "the pattern references the material image"
-    );
-    assert!(
-        html.contains(r#"fill="url(#circle-mat-paver)""#),
-        "the disk is filled by its material's pattern: {html}"
+}
+
+#[test]
+fn a_textured_disk_is_filled_by_its_material_s_pattern() {
+    let dom = leptotes::dom(move || {
+        view! { <Circles t=t() circles=vec![textured_circle()] catalog=vec![textured_paver()] /> }
+    });
+
+    assert_eq!(
+        dom.find(DISK).attr("fill"),
+        Some("url(#circle-mat-paver)"),
+        "{dom}"
     );
 }
 
@@ -144,19 +177,13 @@ fn a_material_with_an_image_tiles_the_disk_as_a_pattern() {
 fn selection_overrides_the_texture() {
     // A selected textured circle shows the translucent selection tint, not the
     // photo — same precedence as the polygon areas.
-    let mut c = circle(0.0);
-    c.material_ref = Some("paver".to_string());
-    let html = leptotes::render(move || {
-        view! { <Circles t=t() circles=vec![c] catalog=vec![textured_paver()] selected=Some(0) /> }
+    let dom = leptotes::dom(move || {
+        view! {
+            <Circles t=t() circles=vec![textured_circle()] catalog=vec![textured_paver()] selected=Some(0) />
+        }
     });
-    assert!(
-        html.contains(SELECTED_FILL),
-        "the selection tint wins: {html}"
-    );
-    assert!(
-        !html.contains(r#"fill="url("#),
-        "no pattern fill while selected"
-    );
+
+    assert_eq!(dom.find(DISK).attr("fill"), Some(SELECTED_FILL), "{dom}");
 }
 
 #[test]
@@ -165,14 +192,15 @@ fn a_circle_border_renders_an_exact_annulus_stroke() {
     // 2 − 0.25 = 1.75 ft → r=17.5 px, stroke-width 5 px.
     let mut c = circle(0.0);
     c.borders = vec![slp_core::Border::new("cobble".to_string(), 0.5)];
-    let html = leptotes::render(move || view! { <Circles t=t() circles=vec![c.clone()] /> });
+    let dom = leptotes::dom(move || view! { <Circles t=t() circles=vec![c.clone()] /> });
+
+    let ring = dom.find(BORDER);
+
     assert_eq!(
-        leptotes::count(&html, r#"data-testid="circle-border""#),
-        1,
-        "{html}"
+        (ring.attr("r"), ring.attr("stroke-width")),
+        (Some("17.5"), Some("5")),
+        "{dom}"
     );
-    assert!(html.contains(r#"r="17.5""#), "centerline radius: {html}");
-    assert!(html.contains(r#"stroke-width="5""#), "ring width: {html}");
 }
 
 #[test]
@@ -180,6 +208,7 @@ fn an_oversized_circle_border_is_skipped() {
     // A ring wider than the radius has no positive centerline — nothing draws.
     let mut c = circle(0.0);
     c.borders = vec![slp_core::Border::new("cobble".to_string(), 5.0)];
-    let html = leptotes::render(move || view! { <Circles t=t() circles=vec![c.clone()] /> });
-    assert_eq!(leptotes::count(&html, r#"data-testid="circle-border""#), 0);
+    let dom = leptotes::dom(move || view! { <Circles t=t() circles=vec![c.clone()] /> });
+
+    assert_eq!(dom.count(BORDER), 0, "{dom}");
 }
