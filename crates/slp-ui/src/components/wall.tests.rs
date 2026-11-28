@@ -20,27 +20,30 @@ fn composes_a_door_and_a_window() {
         Opening::new(OpeningKind::door, 1.0, 0, 3.0),
         Opening::new(OpeningKind::window, 6.0, 0, 2.0),
     ];
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Wall t=t() start=Coord::new(0.0, 0.0) end=Coord::new(10.0, 0.0) openings=openings /> }
     });
-    assert!(html.contains(r#"class="door""#), "the door is composed in");
-    assert!(
-        html.contains(r#"class="window""#),
-        "the window is composed in"
+
+    let wall = dom.find("g.wall");
+
+    assert_eq!(
+        (wall.count("g.door"), wall.count("g.window")),
+        (1, 1),
+        "{dom}"
     );
 }
 
 #[test]
 fn draws_its_edge_even_without_openings() {
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Wall t=t() start=Coord::new(0.0, 0.0) end=Coord::new(5.0, 0.0) openings=Vec::new() /> }
     });
-    assert!(
-        html.contains(r#"class="wall-edge""#),
-        "a wall draws its own edge line (self-contained)"
-    );
-    assert!(
-        !html.contains(r#"class="door""#) && !html.contains(r#"class="window""#),
-        "but no openings are drawn"
+
+    let wall = dom.find("g.wall");
+
+    assert_eq!(
+        (wall.count("line.wall-edge"), wall.count("g.door, g.window")),
+        (1, 0),
+        "{dom}"
     );
 }

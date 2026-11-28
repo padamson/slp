@@ -33,66 +33,105 @@ fn square(elevation: f64) -> Shape {
     }
 }
 
+/// An area's filled body: the polygon (or, once an edge curves, the path)
+/// directly under its group. A border's ribbons and joints sit there too, and
+/// its clip path holds a second copy of the boundary one level down.
+const BODY: &str = r#"g.shape > polygon:not([data-testid="shape-border-joint"]), g.shape > path:not([data-testid="shape-border"])"#;
+const RIBBON: &str = r#"path[data-testid="shape-border"]"#;
+const JOINT: &str = r#"polygon[data-testid="shape-border-joint"]"#;
+
+fn label(dom: &leptotes::Dom) -> String {
+    dom.find("text.shape-label").text()
+}
+
+/// The area (ft²) a label reports, the number before its unit.
+fn labelled_area(dom: &leptotes::Dom) -> f64 {
+    let label = label(dom);
+    label
+        .split_whitespace()
+        .next()
+        .and_then(|n| n.parse().ok())
+        .unwrap_or_else(|| panic!("no area in label {label:?}"))
+}
+
+/// The coordinates of the one border ribbon's path, flattened.
+fn ribbon_coords(dom: &leptotes::Dom) -> Vec<f64> {
+    dom.find(RIBBON)
+        .attr("d")
+        .unwrap_or_default()
+        .split_whitespace()
+        .filter_map(|tok| tok.parse().ok())
+        .collect()
+}
+
 #[test]
 fn renders_a_shape_with_markers_and_area_label() {
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
-    assert!(html.contains(r#"class="shapes""#), "tagged for queries");
-    assert!(html.contains("<polygon"), "the area is a polygon");
-    assert_eq!(
-        leptotes::count(&html, r#"class="shape-corner""#),
-        4,
-        "a marker per corner"
-    );
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+
     // 4 ft x 3 ft = 12 ft², elevation 0 -> no elevation suffix.
-    assert!(html.contains(">12 ft²<"), "the bare area label, no suffix");
+    assert_eq!(
+        (
+            dom.count("g.shapes > g.shape > polygon"),
+            dom.count("circle.shape-corner"),
+            label(&dom)
+        ),
+        (1, 4, "12 ft²".to_string()),
+        "{dom}"
+    );
 }
 
 #[test]
 fn a_nonzero_elevation_appends_to_the_label() {
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(1.5)] /> });
-    assert!(html.contains("12 ft² · +1.5 ft"), "area + elevation label");
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square(1.5)] /> });
+
+    assert_eq!(label(&dom), "12 ft² · +1.5 ft", "{dom}");
 }
 
 #[test]
 fn a_negative_elevation_shows_a_single_minus_sign() {
     // A below-grade area (e.g. a sunken paver patio) reads "-0.5 ft", not the
     // doubled-up "+-0.5 ft" a naive `+{elevation}` format would produce.
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(-0.5)] /> });
-    assert!(html.contains("12 ft² · -0.5 ft"), "single minus sign");
-    assert!(!html.contains("+-"), "never a doubled sign");
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square(-0.5)] /> });
+
+    assert_eq!(label(&dom), "12 ft² · -0.5 ft", "{dom}");
 }
 
 #[test]
 fn renders_one_polygon_per_shape() {
-    let html =
-        leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0), square(2.0)] /> });
-    assert_eq!(
-        leptotes::count(&html, "<polygon"),
-        2,
-        "one polygon per shape"
-    );
+    let dom =
+        leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square(0.0), square(2.0)] /> });
+
+    assert_eq!(dom.count("g.shape > polygon"), 2, "{dom}");
 }
 
 #[test]
 fn no_shapes_renders_nothing() {
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=Vec::new() /> });
-    assert!(!html.contains(r#"class="shapes""#));
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=Vec::new() /> });
+
+    assert_eq!(dom.count("*"), 0, "{dom}");
 }
 
 #[test]
 fn a_bowed_edge_renders_a_path_with_an_arc_command_not_a_polygon() {
     // Bow the first edge (0,0)->(4,0) into an arc — the whole boundary becomes
-    // a <path> with an `A` arc command, no <polygon>.
+    // a <path> with one `A` arc command (the one bowed edge), no <polygon>.
     let mut s = square(0.0);
     s.bulges = vec![0.5, 0.0, 0.0, 0.0];
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
-    assert!(!html.contains("<polygon"), "an arced boundary is a path");
-    assert!(
-        html.contains("<path"),
-        "the arced boundary renders as a path"
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![s] /> });
+
+    let body = dom.find(BODY);
+    let arcs = body
+        .attr("d")
+        .unwrap_or_default()
+        .split_whitespace()
+        .filter(|tok| *tok == "A")
+        .count();
+
+    assert_eq!(
+        (body.to_string().starts_with("<path"), arcs),
+        (true, 1),
+        "{dom}"
     );
-    // The path has exactly one arc command (the one bowed edge).
-    assert_eq!(leptotes::count(&html, " A "), 1, "one arc command");
 }
 
 #[test]
@@ -101,50 +140,51 @@ fn a_bowed_edge_changes_the_reported_area() {
     // the area past the straight 12 ft²; the label reflects it.
     let mut s = square(0.0);
     s.bulges = vec![-1.0, 0.0, 0.0, 0.0]; // bottom edge bows out into a semicircle
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![s] /> });
+
+    let area = labelled_area(&dom);
+
     assert!(
-        !html.contains(">12 ft²<"),
-        "the area is no longer the straight 12"
+        area > 12.0,
+        "an outward bow grows the area; got {area} in\n{dom}"
     );
 }
 
 #[test]
 fn a_mulch_bed_renders_in_the_mulch_color() {
     // A shape whose material resolves (through the catalog) to a "mulch-bed"
-    // category fills mulch brown; an uncategorized area fills the default.
+    // category fills mulch brown.
     let mut mulch = CatalogItem::new("mulch".to_string());
     mulch.category = Some("mulch-bed".to_string());
-    let catalog = vec![mulch];
-
     let mut bed = square(0.0);
     bed.material_ref = Some("mulch".to_string());
-    let cat = catalog.clone();
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![bed] catalog=cat /> });
-    assert!(html.contains(MULCH_FILL), "the mulch bed fills mulch brown");
+    let dom =
+        leptotes::dom(move || view! { <Shapes t=t() shapes=vec![bed] catalog=vec![mulch] /> });
 
-    // An uncategorized area (no material_ref) keeps the neutral default fill.
-    let plain = leptotes::render(move || {
-        view! { <Shapes t=t() shapes=vec![square(0.0)] catalog=catalog /> }
+    assert_eq!(dom.find(BODY).attr("fill"), Some(MULCH_FILL), "{dom}");
+}
+
+#[test]
+fn an_uncategorized_area_keeps_the_neutral_fill() {
+    let mut mulch = CatalogItem::new("mulch".to_string());
+    mulch.category = Some("mulch-bed".to_string());
+    let dom = leptotes::dom(move || {
+        view! { <Shapes t=t() shapes=vec![square(0.0)] catalog=vec![mulch] /> }
     });
-    assert!(
-        plain.contains(SHAPE_FILL),
-        "an uncategorized area is neutral"
-    );
+
+    assert_eq!(dom.find(BODY).attr("fill"), Some(SHAPE_FILL), "{dom}");
 }
 
 #[test]
 fn a_paver_area_renders_in_the_paver_color() {
-    // A shape whose material resolves to a "paver" category fills paver gray,
-    // distinct from mulch's brown.
     let mut paver = CatalogItem::new("paver".to_string());
     paver.category = Some("paver".to_string());
-
     let mut area = square(0.0);
     area.material_ref = Some("paver".to_string());
-    let html =
-        leptotes::render(move || view! { <Shapes t=t() shapes=vec![area] catalog=vec![paver] /> });
-    assert!(html.contains(PAVER_FILL), "the paver area fills paver gray");
-    assert!(!html.contains(MULCH_FILL), "not the mulch color");
+    let dom =
+        leptotes::dom(move || view! { <Shapes t=t() shapes=vec![area] catalog=vec![paver] /> });
+
+    assert_eq!(dom.find(BODY).attr("fill"), Some(PAVER_FILL), "{dom}");
 }
 
 /// A paver material carrying a small photo, for the tiling tests.
@@ -157,46 +197,59 @@ fn textured_paver() -> CatalogItem {
     paver
 }
 
-#[test]
-fn a_material_with_an_image_tiles_the_surface_as_a_pattern() {
-    // A material carrying a photo fills its area with an SVG <pattern> tiled at
-    // real-world scale (tile-size-ft × px_ft), and the polygon references it via
-    // fill="url(#area-mat-{material id})" — not the flat category color.
+fn textured_area() -> Shape {
     let mut area = square(0.0);
     area.material_ref = Some("paver".to_string());
-    let html = leptotes::render(move || {
-        view! { <Shapes t=t() shapes=vec![area] catalog=vec![textured_paver()] /> }
+    area
+}
+
+// The `<pattern>`'s `patternUnits` and the `<image>` inside it are what an
+// HTML parse would have changed (to `patternunits` and `<img>`): `Shapes`
+// renders a bare `<g>`, so these queries rely on leptotes parsing it as SVG.
+#[test]
+fn a_material_with_an_image_tiles_the_surface_as_a_pattern() {
+    let dom = leptotes::dom(move || {
+        view! { <Shapes t=t() shapes=vec![textured_area()] catalog=vec![textured_paver()] /> }
     });
 
-    assert!(html.contains("<pattern"), "emits an SVG pattern: {html}");
-    assert!(
-        html.contains(r#"patternUnits="userSpaceOnUse""#),
-        "the pattern tiles in user (scaled) space"
+    let pattern = dom.find("g.shapes > defs > pattern#area-mat-paver");
+    let image = pattern.find("image");
+
+    // A 2 ft × 3 ft tile at 10 px/ft is 20 × 30 px, anchored at the world
+    // origin (sx(0)=pad=0, sy(0)=pad+yard_d·px_ft=200) so the tile grid stays
+    // glued to world coordinates as the yard resizes.
+    assert_eq!(
+        (
+            pattern.attr("patternUnits"),
+            [pattern.attr("x"), pattern.attr("y")],
+            [pattern.attr("width"), pattern.attr("height")],
+            image.attr("href"),
+            [image.attr("width"), image.attr("height")],
+            image.attr("preserveAspectRatio"),
+        ),
+        (
+            Some("userSpaceOnUse"),
+            [Some("0"), Some("200")],
+            [Some("20"), Some("30")],
+            Some("data:image/png;base64,AAAA"),
+            [Some("20"), Some("30")],
+            Some("none"),
+        ),
+        "{dom}"
     );
-    assert!(
-        html.contains("data:image/png;base64,AAAA"),
-        "the pattern references the material image"
-    );
-    assert!(
-        html.contains(r#"fill="url(#area-mat-paver)""#),
-        "the polygon is filled by its material's pattern: {html}"
-    );
-    // 2 ft wide × 10 px/ft = 20 px tile; 3 ft deep × 10 = 30 px.
-    assert!(
-        html.contains(r#"width="20""#),
-        "tile width is real-world scaled"
-    );
-    assert!(
-        html.contains(r#"height="30""#),
-        "tile depth is real-world scaled"
-    );
-    // Anchored at the world origin — sx(0)=pad=0, sy(0)=pad+yard_d·px_ft=200 —
-    // so the tile grid stays glued to world coordinates as the yard resizes.
-    assert!(html.contains(r#"x="0""#), "anchored at world-origin x");
-    assert!(html.contains(r#"y="200""#), "anchored at world-origin y");
-    assert!(
-        !html.contains(PAVER_FILL),
-        "the flat paver color is replaced by the texture"
+}
+
+#[test]
+fn a_textured_area_is_filled_by_its_material_s_pattern() {
+    // The pattern, not the flat paver color.
+    let dom = leptotes::dom(move || {
+        view! { <Shapes t=t() shapes=vec![textured_area()] catalog=vec![textured_paver()] /> }
+    });
+
+    assert_eq!(
+        dom.find(BODY).attr("fill"),
+        Some("url(#area-mat-paver)"),
+        "{dom}"
     );
 }
 
@@ -204,18 +257,16 @@ fn a_material_with_an_image_tiles_the_surface_as_a_pattern() {
 fn areas_sharing_a_material_share_one_pattern() {
     // Two paver areas → a single <pattern> (per material, not per area), so a
     // photo's data-URI is embedded once no matter how many areas tile it.
-    let mut a = square(0.0);
-    a.material_ref = Some("paver".to_string());
-    let mut b = square(1.0);
-    b.material_ref = Some("paver".to_string());
-    let html = leptotes::render(move || {
-        view! { <Shapes t=t() shapes=vec![a, b] catalog=vec![textured_paver()] /> }
+    let dom = leptotes::dom(move || {
+        view! {
+            <Shapes t=t() shapes=vec![textured_area(), textured_area()] catalog=vec![textured_paver()] />
+        }
     });
-    assert_eq!(leptotes::count(&html, "<pattern"), 1, "one shared pattern");
+
     assert_eq!(
-        leptotes::count(&html, r#"fill="url(#area-mat-paver)""#),
-        2,
-        "both areas reference it"
+        (dom.count("pattern"), dom.attrs(BODY, "fill")),
+        (1, vec!["url(#area-mat-paver)"; 2]),
+        "{dom}"
     );
 }
 
@@ -224,37 +275,55 @@ fn selection_overrides_the_texture() {
     // A selected textured area shows the translucent selection tint, not the
     // photo — the user needs selection feedback (and to see the grid/deck
     // beneath) while editing.
-    let mut area = square(0.0);
-    area.material_ref = Some("paver".to_string());
-    let html = leptotes::render(move || {
-        view! { <Shapes t=t() shapes=vec![area] catalog=vec![textured_paver()] selected=Some(0) /> }
+    let dom = leptotes::dom(move || {
+        view! {
+            <Shapes t=t() shapes=vec![textured_area()] catalog=vec![textured_paver()] selected=Some(0) />
+        }
     });
-    assert!(
-        html.contains(SELECTED_FILL),
-        "the selection tint wins: {html}"
-    );
-    assert!(
-        !html.contains(r#"fill="url("#),
-        "no pattern fill while selected"
-    );
+
+    assert_eq!(dom.find(BODY).attr("fill"), Some(SELECTED_FILL), "{dom}");
 }
 
-#[test]
-fn a_curved_edge_renders_a_path_with_a_bezier_command() {
-    // Give edge 0 a cubic bezier — the boundary becomes a <path> with a `C`
-    // command, no <polygon>, and the reported area shifts off the straight 12.
+fn bezier_square() -> Shape {
     let mut s = square(0.0);
     s.curves = vec![CurveEdge {
         edge: 0,
         control1: Box::new(Coord::new(1.0, -2.0)),
         control2: Box::new(Coord::new(3.0, -2.0)),
     }];
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s] /> });
-    assert!(!html.contains("<polygon"), "a curved boundary is a path");
-    assert_eq!(leptotes::count(&html, " C "), 1, "one cubic-bezier command");
+    s
+}
+
+#[test]
+fn a_curved_edge_renders_a_path_with_a_bezier_command() {
+    // Give edge 0 a cubic bezier — the boundary becomes a <path> with a `C`
+    // command, no <polygon>.
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![bezier_square()] /> });
+
+    let body = dom.find(BODY);
+    let beziers = body
+        .attr("d")
+        .unwrap_or_default()
+        .split_whitespace()
+        .filter(|tok| *tok == "C")
+        .count();
+
+    assert_eq!(
+        (body.to_string().starts_with("<path"), beziers),
+        (true, 1),
+        "{dom}"
+    );
+}
+
+#[test]
+fn a_curved_edge_changes_the_reported_area() {
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![bezier_square()] /> });
+
+    let area = labelled_area(&dom);
+
     assert!(
-        !html.contains(">12 ft²<"),
-        "the area accounts for the curve"
+        (area - 12.0).abs() > 0.1,
+        "the area accounts for the curve; got {area} in\n{dom}"
     );
 }
 
@@ -262,164 +331,190 @@ fn a_curved_edge_renders_a_path_with_a_bezier_command() {
 fn skips_a_degenerate_shape_with_too_few_corners() {
     let degenerate = Shape {
         corners: vec![Coord::new(5.0, 5.0), Coord::new(6.0, 5.0)],
-        elevation: 0.0,
-        bulges: Vec::new(),
-        curves: Vec::new(),
-        material_ref: None,
-        depth_in: None,
-        pattern: None,
-        courses: Vec::new(),
-        borders: Vec::new(),
+        ..square(0.0)
     };
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0), degenerate] /> }
     });
-    assert_eq!(
-        leptotes::count(&html, "<polygon"),
-        1,
-        "a shape with under 3 corners has no area to render"
-    );
+
+    // A shape with under 3 corners has no area to render.
+    assert_eq!(dom.count("g.shape"), 1, "{dom}");
 }
 
 #[test]
 fn an_unselected_shape_has_plain_corner_markers() {
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
-    assert_eq!(leptotes::count(&html, r#"class="shape-corner""#), 4);
-    assert_eq!(leptotes::count(&html, r#"data-testid="shape-node""#), 0);
-    assert!(!html.contains(r#"class="shape shape--selected""#));
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+
+    assert_eq!(
+        (
+            dom.count("circle.shape-corner"),
+            dom.count(r#"[data-testid="shape-node"]"#),
+            dom.count(".shape--selected"),
+        ),
+        (4, 0, 0),
+        "{dom}"
+    );
 }
 
 #[test]
 fn a_selected_shape_shows_interactive_node_handles_instead() {
-    let html = leptotes::render(
-        move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> },
+    let dom =
+        leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> });
+
+    assert_eq!(
+        (
+            dom.count("g.shape.shape--selected"),
+            dom.count("circle.shape-corner"),
+            dom.count(r#"circle[data-testid="shape-node"]"#),
+        ),
+        (1, 0, 4),
+        "{dom}"
     );
-    assert!(html.contains(r#"class="shape shape--selected""#));
-    assert_eq!(leptotes::count(&html, r#"class="shape-corner""#), 0);
-    assert_eq!(leptotes::count(&html, r#"data-testid="shape-node""#), 4);
 }
 
 #[test]
 fn a_selected_shape_shows_a_bulge_handle_per_edge() {
-    // The square has 4 edges, so 4 edge (bulge) handles when selected — none
-    // when unselected.
-    let selected = leptotes::render(
-        move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> },
-    );
+    // The square has 4 edges, so 4 edge (bulge) handles when selected.
+    let dom =
+        leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> });
+
     assert_eq!(
-        leptotes::count(&selected, r#"data-testid="shape-edge-handle""#),
-        4
+        dom.count(r#"[data-testid="shape-edge-handle"]"#),
+        4,
+        "{dom}"
     );
-    let plain = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+}
+
+#[test]
+fn an_unselected_shape_shows_no_bulge_handles() {
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+
     assert_eq!(
-        leptotes::count(&plain, r#"data-testid="shape-edge-handle""#),
-        0
+        dom.count(r#"[data-testid="shape-edge-handle"]"#),
+        0,
+        "{dom}"
     );
 }
 
 #[test]
 fn a_selected_shape_shows_two_control_handles_per_straight_edge() {
-    // A straight square: 4 edges × 2 control handles = 8, plus the 4 apex
-    // (bulge) handles. Straight edges draw no guide line (the controls sit on
-    // the chord).
-    let html = leptotes::render(
-        move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> },
-    );
+    // A straight square: 4 edges × 2 control handles = 8. Straight edges draw
+    // no guide line (the controls sit on the chord).
+    let dom =
+        leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> });
+
     assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-control-handle""#),
-        8
+        (
+            dom.count(r#"[data-testid="shape-control-handle"]"#),
+            dom.count("line.shape-control-guide"),
+        ),
+        (8, 0),
+        "{dom}"
     );
-    assert_eq!(leptotes::count(&html, r#"class="shape-control-guide""#), 0);
 }
 
 #[test]
 fn a_bezier_edge_shows_control_handles_with_guides_and_no_apex() {
-    // Make edge 0 a bezier. That edge shows 2 control handles + 2 guide lines
-    // and NO apex handle; the other 3 straight edges keep their apex + 2
-    // controls each. So: apex handles 3, control handles 2 (bezier) + 6
-    // (straight) = 8, guide lines 2.
-    let mut s = square(0.0);
-    s.curves = vec![CurveEdge {
-        edge: 0,
-        control1: Box::new(Coord::new(1.0, -2.0)),
-        control2: Box::new(Coord::new(3.0, -2.0)),
-    }];
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s] selected=Some(0) /> });
-    assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-edge-handle""#),
-        3,
-        "the bezier edge has no apex handle"
+    // The bezier edge shows 2 control handles + 2 guide lines and NO apex
+    // handle; the other 3 straight edges keep their apex + 2 controls each.
+    // So: apex handles 3, control handles 2 + 6 = 8, guide lines 2.
+    let dom = leptotes::dom(
+        move || view! { <Shapes t=t() shapes=vec![bezier_square()] selected=Some(0) /> },
     );
+
     assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-control-handle""#),
-        8
-    );
-    assert_eq!(
-        leptotes::count(&html, r#"class="shape-control-guide""#),
-        2,
-        "the bezier edge's two controls each draw a guide line"
+        (
+            dom.count(r#"[data-testid="shape-edge-handle"]"#),
+            dom.count(r#"[data-testid="shape-control-handle"]"#),
+            dom.count("line.shape-control-guide"),
+        ),
+        (3, 8, 2),
+        "{dom}"
     );
 }
 
 #[test]
 fn only_the_selected_shape_gets_node_handles() {
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0), square(2.0)] selected=Some(1) /> }
     });
-    // One shape (index 0) stays plain; the other (index 1) gets node handles.
-    assert_eq!(leptotes::count(&html, r#"class="shape-corner""#), 4);
-    assert_eq!(leptotes::count(&html, r#"data-testid="shape-node""#), 4);
+
+    let shapes = dom.find_all("g.shape");
+
+    assert_eq!(
+        [
+            (
+                shapes[0].count("circle.shape-corner"),
+                shapes[0].count(r#"[data-testid="shape-node"]"#)
+            ),
+            (
+                shapes[1].count("circle.shape-corner"),
+                shapes[1].count(r#"[data-testid="shape-node"]"#)
+            ),
+        ],
+        [(4, 0), (0, 4)],
+        "{dom}"
+    );
 }
 
 #[test]
 fn no_popup_with_fewer_than_two_selected_nodes() {
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) selected_nodes=vec![1] /> }
     });
-    assert!(!html.contains("node-insert-popup"));
+
+    assert_eq!(dom.count(".node-insert-popup"), 0, "{dom}");
 }
 
 #[test]
 fn a_pair_of_selected_nodes_shows_the_insert_cancel_popup() {
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! {
             <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) selected_nodes=vec![0, 1] />
         }
     });
-    assert!(html.contains("node-insert-popup"));
-    assert!(html.contains(r#"data-testid="insert-node""#));
-    assert!(html.contains(r#"data-testid="cancel-node-select""#));
+
+    let popup = dom.find("g.node-insert-popup");
+
+    assert_eq!(
+        (
+            popup.count(r#"[data-testid="insert-node"]"#),
+            popup.count(r#"[data-testid="cancel-node-select"]"#),
+        ),
+        (1, 1),
+        "{dom}"
+    );
 }
 
 #[test]
 fn border_rings_render_clipped_ribbons() {
     // A 4×3 area (10 px/ft) with two full rings — outer 0.5 ft, inner
-    // 0.25 ft: each renders as its own closed annulus ribbon (two opposite-
-    // wound subpaths), filled with the band paint and clipped to the area.
+    // 0.25 ft: each renders as its own closed annulus ribbon, filled with the
+    // band paint and clipped to the area. Only the body outline strokes.
     let mut s = square(0.0);
     s.borders = vec![
         slp_core::Border::new("cobble".to_string(), 0.5),
         slp_core::Border::new("edging".to_string(), 0.25),
     ];
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
+
+    let clip = dom
+        .find("g.shape > clipPath")
+        .attr("id")
+        .unwrap_or_default();
+
     assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-border""#),
-        2,
-        "one ribbon per ring: {html}"
-    );
-    assert!(html.contains("clipPath"), "the ribbons clip to the area");
-    assert_eq!(
-        leptotes::count(&html, "stroke-width"),
-        1,
-        "only the body outline strokes; ribbons are filled"
+        (dom.attrs(RIBBON, "clip-path"), dom.count("[stroke-width]"),),
+        (vec![format!("url(#{clip})").as_str(); 2], 1),
+        "{dom}"
     );
 }
 
 #[test]
 fn a_borderless_shape_renders_no_ring_strokes() {
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
-    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 0);
-    assert!(!html.contains("clipPath"), "no clip needed without rings");
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+
+    assert_eq!((dom.count(RIBBON), dom.count("clipPath")), (0, 0), "{dom}");
 }
 
 #[test]
@@ -434,24 +529,17 @@ fn a_span_border_renders_a_one_sided_ribbon() {
     band.start_node = Some(0.0);
     band.end_node = Some(2.0);
     shape.borders = vec![band];
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
-    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 1);
-    let start = html.find(r#"data-testid="shape-border""#).unwrap();
-    let frag = &html[start..];
-    let d_start = frag.find(" d=\"").unwrap() + 4;
-    let path_d = &frag[d_start..d_start + frag[d_start..].find('\"').unwrap()];
-    let coords: Vec<f64> = path_d
-        .split_whitespace()
-        .filter_map(|tok| tok.parse().ok())
-        .collect();
-    assert!(coords.len() >= 8, "the ribbon has real geometry: {path_d}");
-    for pair in coords.chunks(2) {
-        let (px, py) = (pair[0], pair[1]);
-        assert!(
-            px <= 40.0 + 1e-6 && py <= 200.0 + 1e-6,
-            "ribbon stays on the interior side: ({px}, {py}) in {path_d}"
-        );
-    }
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+
+    let coords = ribbon_coords(&dom);
+
+    assert!(
+        coords.len() >= 8
+            && coords
+                .chunks(2)
+                .all(|p| p[0] <= 40.0 + 1e-6 && p[1] <= 200.0 + 1e-6),
+        "the ribbon has real geometry, all on the interior side: {coords:?}"
+    );
 }
 
 #[test]
@@ -461,26 +549,31 @@ fn a_degenerate_span_border_draws_nothing() {
     b.start_node = Some(0.0);
     b.end_node = Some(9.0); // out of range
     s.borders = vec![b];
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
-    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 0);
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
+
+    assert_eq!(dom.count(RIBBON), 0, "{dom}");
 }
 
 #[test]
 fn a_selected_shape_labels_its_node_indices() {
     // The border editor's From/To fields refer to node numbers, so a selected
-    // shape shows each handle's index; unselected shapes stay unlabeled.
-    let html = leptotes::render(move || {
+    // shape shows each handle's index.
+    let dom = leptotes::dom(move || {
         view! { <Shapes t=t() shapes=vec![square(0.0)] selected=Some(0) /> }
     });
+
     assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-node-index""#),
-        4
+        dom.texts(r#"text[data-testid="shape-node-index"]"#),
+        ["0", "1", "2", "3"],
+        "{dom}"
     );
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
-    assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-node-index""#),
-        0
-    );
+}
+
+#[test]
+fn an_unselected_shape_leaves_its_nodes_unlabeled() {
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square(0.0)] /> });
+
+    assert_eq!(dom.count(r#"[data-testid="shape-node-index"]"#), 0, "{dom}");
 }
 
 #[test]
@@ -550,6 +643,7 @@ fn spans_meeting_at_a_convex_corner_need_no_junction_patch() {
     // Two spans meeting at node 1 of the plain rectangle: a convex corner —
     // butt-ended bands overlap naturally, so no joint patch is emitted (a
     // square cap here would have overshot; the strokes are plain butt).
+    // Ribbons are filled regions, so only the body outline strokes.
     let mut shape = square(0.0);
     let mut south = slp_core::Border::new("edging".to_string(), 0.5);
     south.start_node = Some(0.0);
@@ -558,18 +652,17 @@ fn spans_meeting_at_a_convex_corner_need_no_junction_patch() {
     east.start_node = Some(1.0);
     east.end_node = Some(2.0);
     shape.borders = vec![south, east];
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
-    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 2);
-    assert!(!html.contains("stroke-linecap"), "plain butt caps");
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+
     assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-border-joint""#),
-        0
-    );
-    // Ribbons are filled regions, not strokes.
-    assert_eq!(
-        leptotes::count(&html, "stroke-width"),
-        1,
-        "only the body outline strokes"
+        (
+            dom.count(RIBBON),
+            dom.count("[stroke-linecap]"),
+            dom.count(JOINT),
+            dom.count("[stroke-width]"),
+        ),
+        (2, 0, 0, 1),
+        "{dom}"
     );
 }
 
@@ -584,36 +677,32 @@ fn ell(elevation: f64) -> Shape {
             Coord::new(2.0, 3.0),
             Coord::new(0.0, 3.0),
         ],
-        elevation,
-        bulges: Vec::new(),
-        curves: Vec::new(),
-        material_ref: None,
-        depth_in: None,
-        pattern: None,
-        courses: Vec::new(),
-        borders: Vec::new(),
+        ..square(elevation)
     }
+}
+
+/// Two bands of `width` on the L's edges 2→3 and 3→4, which meet at its
+/// reflex corner.
+fn ell_with_notch_bands(width: f64) -> Shape {
+    let mut s = ell(0.0);
+    let mut a = slp_core::Border::new("edging".to_string(), width);
+    a.start_node = Some(2.0);
+    a.end_node = Some(3.0);
+    let mut b = slp_core::Border::new("edging".to_string(), width);
+    b.start_node = Some(3.0);
+    b.end_node = Some(4.0);
+    s.borders = vec![a, b];
+    s
 }
 
 #[test]
 fn spans_meeting_at_a_reflex_corner_get_a_miter_joint_patch() {
-    // Bands on edges 2→3 and 3→4 meet at the L's reflex corner: butt caps
-    // leave a pie gap there, filled by exactly one junction quad.
-    let mut s = ell(0.0);
-    let mut a = slp_core::Border::new("edging".to_string(), 0.5);
-    a.start_node = Some(2.0);
-    a.end_node = Some(3.0);
-    let mut b = slp_core::Border::new("edging".to_string(), 0.5);
-    b.start_node = Some(3.0);
-    b.end_node = Some(4.0);
-    s.borders = vec![a, b];
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
-    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 2);
-    assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-border-joint""#),
-        1,
-        "one miter patch at the reflex node: {html}"
-    );
+    // Butt caps leave a pie gap at the reflex corner, filled by exactly one
+    // junction quad.
+    let s = ell_with_notch_bands(0.5);
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
+
+    assert_eq!((dom.count(RIBBON), dom.count(JOINT)), (2, 1), "{dom}");
 }
 
 #[test]
@@ -723,45 +812,43 @@ fn edge_end_tangents_follow_the_edge_kind() {
 fn a_curved_edge_junction_uses_the_curve_tangent_not_its_chord() {
     // The manual-testing bug: curve the L's notch edge (2→3, sagging into the
     // strip) and the junction patch at node 3 must follow the curve's END
-    // tangent. With the sagging curve the corner becomes effectively convex
-    // at the tangent level — the patch disappears instead of rendering as a
-    // rotated stub.
-    let mut s = ell(0.0);
-    let mut a = slp_core::Border::new("edging".to_string(), 0.25);
-    a.start_node = Some(2.0);
-    a.end_node = Some(3.0);
-    let mut b = slp_core::Border::new("edging".to_string(), 0.25);
-    b.start_node = Some(3.0);
-    b.end_node = Some(4.0);
-    s.borders = vec![a, b];
-    // Edge 2 runs (4,1) → (2,1); controls pulled up to y=2 sag it into the
-    // interior of the notch strip above.
+    // tangent. Edge 2 runs (4,1) → (2,1); controls pulled up to y=2 sag it
+    // into the interior of the notch strip above.
+    let mut s = ell_with_notch_bands(0.25);
     s.curves = vec![CurveEdge::new(
         Box::new(Coord::new(3.5, 2.0)),
         Box::new(Coord::new(2.5, 2.0)),
         2,
     )];
-    let html = leptotes::render({
-        let s = s.clone();
-        move || view! { <Shapes t=t() shapes=vec![s.clone()] /> }
-    });
-    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 2);
-    // The corner stays reflex, so the patch remains — but its geometry must
-    // follow the curve's END tangent (world (2,1)−(2.5,2), i.e. the band's
-    // inner corner at v + inward(tangent)·depth ≈ (22.236, 191.118)), not the
-    // horizontal chord (which would put it at (20, 192.5) — the misplaced
-    // stub seen in manual testing).
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![s.clone()] /> });
+
+    let vertices: Vec<(f64, f64)> = dom
+        .find(JOINT)
+        .attr("points")
+        .unwrap_or_default()
+        .split_whitespace()
+        .filter_map(|p| {
+            let (x, y) = p.split_once(',')?;
+            Some((x.parse().ok()?, y.parse().ok()?))
+        })
+        .collect();
+    let has = |(ex, ey): (f64, f64)| {
+        vertices
+            .iter()
+            .any(|&(x, y)| (x - ex).abs() < 1e-6 && (y - ey).abs() < 1e-6)
+    };
+
+    // The corner stays reflex, so the patch remains, but at the band's inner
+    // corner v + inward(tangent)·depth ≈ (22.236, 191.118), not the chord's
+    // (20, 192.5), the misplaced stub seen in manual testing.
     assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-border-joint""#),
-        1
-    );
-    assert!(
-        html.contains("22.23606797749979,191.1180339887499"),
-        "tangent-based inner corner: {html}"
-    );
-    assert!(
-        !html.contains("points=\"20,190 20,192.5"),
-        "no chord-based stub"
+        (
+            dom.count(RIBBON),
+            has((22.236_067_977_499_79, 191.118_033_988_749_9)),
+            has((20.0, 192.5)),
+        ),
+        (2, true, false),
+        "{vertices:?} in\n{dom}"
     );
 }
 
@@ -770,37 +857,24 @@ fn an_arc_edge_band_hugs_the_real_arc_not_its_mirror() {
     // Edge 0 of the square bulges into the interior as a semicircle (bulge 1,
     // apex world (2,2) → screen (20,180)). The band's ribbon must trace that
     // arc — every coordinate stays at or above the square's base (screen
-    // y ≤ 200); the mirrored sweep seen in manual testing put the arc at
-    // world (2,−2) → screen y ≈ 220, sashing outside/below.
+    // y ≤ 200) and reaches the apex; the mirrored sweep seen in manual testing
+    // put the arc at world (2,−2) → screen y ≈ 220, sashing outside/below.
     let mut shape = square(0.0);
     shape.bulges = vec![1.0];
     let mut band = slp_core::Border::new("edging".to_string(), 0.5);
     band.start_node = Some(0.0);
     band.end_node = Some(1.0);
     shape.borders = vec![band];
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
-    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 1);
-    let start = html.find(r#"data-testid="shape-border""#).unwrap();
-    let frag = &html[start..];
-    let d_start = frag.find(" d=\"").unwrap() + 4;
-    let path_d = &frag[d_start..d_start + frag[d_start..].find('\"').unwrap()];
-    let coords: Vec<f64> = path_d
-        .split_whitespace()
-        .filter_map(|tok| tok.parse().ok())
-        .collect();
-    let mut min_y = f64::MAX;
-    for pair in coords.chunks(2) {
-        assert!(
-            pair[1] <= 200.5,
-            "the ribbon never dips below the base: ({}, {}) in {path_d}",
-            pair[0],
-            pair[1]
-        );
-        min_y = min_y.min(pair[1]);
-    }
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+
+    let ys: Vec<f64> = ribbon_coords(&dom).chunks(2).map(|p| p[1]).collect();
+    let (min_y, max_y) = ys
+        .iter()
+        .fold((f64::MAX, f64::MIN), |(lo, hi), &y| (lo.min(y), hi.max(y)));
+
     assert!(
-        min_y < 182.0,
-        "the ribbon reaches the true apex (screen y ≈ 180): min y {min_y}"
+        max_y <= 200.5 && min_y < 182.0,
+        "the ribbon spans the true arc, base to apex; got y in [{min_y}, {max_y}]"
     );
 }
 
@@ -815,85 +889,83 @@ fn a_mid_edge_span_renders_a_fractional_ribbon() {
     band.start_node = Some(0.5);
     band.end_node = Some(1.5);
     shape.borders = vec![band];
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
-    assert_eq!(leptotes::count(&html, r#"data-testid="shape-border""#), 1);
-    // The ribbon's outer polyline begins at the mid-edge point (20, 200).
-    let start = html.find(r#"data-testid="shape-border""#).unwrap();
-    let frag = &html[start..];
-    let d0 = frag.find(" d=\"M ").unwrap() + 6;
-    let m = &frag[d0..d0 + 20];
-    assert!(m.starts_with("20 200"), "starts at edge-0 midpoint: {m}");
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+
+    let d = dom.find(RIBBON).attr("d").unwrap_or_default();
+
+    assert!(
+        d.starts_with("M 20 200 "),
+        "starts at the edge-0 midpoint: {d}"
+    );
 }
 
-#[test]
-fn a_selected_shape_with_a_span_shows_draggable_seam_handles() {
-    // A span from mid-edge 0 (0.5) to node 2 on a selected square shows two seam
-    // handles (its start and end); an unselected shape shows none, and a
-    // full-ring border (no span) shows none.
+/// A square with a band from mid-edge 0 (0.5) to node 2.
+fn square_with_span() -> Shape {
     let mut shape = square(0.0);
     let mut band = slp_core::Border::new("edging".to_string(), 0.5);
     band.start_node = Some(0.5);
     band.end_node = Some(2.0);
     shape.borders = vec![band];
-    let html = leptotes::render({
-        let shape = shape.clone();
-        move || view! { <Shapes t=t() shapes=vec![shape.clone()] selected=Some(0) /> }
+    shape
+}
+
+#[test]
+fn a_selected_shape_with_a_span_shows_draggable_seam_handles() {
+    let dom = leptotes::dom(move || {
+        view! { <Shapes t=t() shapes=vec![square_with_span()] selected=Some(0) /> }
     });
-    assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-seam-handle""#),
-        2,
-        "one handle per span endpoint: {html}"
-    );
-    // Parse every seam dot's (cx, cy) center.
-    let centers = |html: &str| -> Vec<(f64, f64)> {
-        let attr = |s: &str, k: &str| -> f64 {
-            let i = s.find(k).unwrap() + k.len();
-            s[i..]
-                .trim_start_matches(['"', '\''])
-                .split(['"', '\''])
-                .next()
-                .unwrap()
-                .parse()
-                .unwrap()
-        };
-        html.match_indices(r#"data-testid="shape-seam-handle""#)
-            .map(|(i, _)| {
-                let s = &html[i..];
-                (attr(s, " cx="), attr(s, " cy="))
-            })
-            .collect()
-    };
-    let dots = centers(&html);
-    // A **mid-edge** start (0.5 along edge 0, boundary screen (20, 200)) insets
-    // straight inward (up) by the 0.5 ft band × 10 px/ft = 5 px → (20, 195).
-    assert!(
-        (dots[0].0 - 20.0).abs() < 1e-6 && (dots[0].1 - 195.0).abs() < 1e-6,
-        "mid-edge start dot on the band's inner edge: {:?}",
-        dots[0]
-    );
-    // A **corner** end (node 2, screen (40, 170)) insets along the corner's
-    // interior bisector — diagonally into the shape (−x, +y here), 5/√2 each —
-    // not along one edge's normal (which would land it on the adjacent edge).
+
+    let dots: Vec<(f64, f64)> = dom
+        .find_all(r#"circle[data-testid="shape-seam-handle"]"#)
+        .iter()
+        .map(|dot| {
+            let at = |name| {
+                dot.attr(name)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(f64::NAN)
+            };
+            (at("cx"), at("cy"))
+        })
+        .collect();
+    let near =
+        |(x, y): (f64, f64), (ex, ey): (f64, f64)| (x - ex).abs() < 1e-6 && (y - ey).abs() < 1e-6;
     let d = 5.0 / 2.0_f64.sqrt();
+
+    // One handle per span endpoint. A mid-edge start (0.5 along edge 0,
+    // boundary screen (20, 200)) insets straight inward (up) by the 0.5 ft
+    // band × 10 px/ft = 5 px → (20, 195). A corner end (node 2, screen
+    // (40, 170)) insets along the corner's interior bisector, diagonally into
+    // the shape by 5/√2 each way, not along one edge's normal (which would
+    // land it on the adjacent edge).
     assert!(
-        (dots[1].0 - (40.0 - d)).abs() < 1e-6 && (dots[1].1 - (170.0 + d)).abs() < 1e-6,
-        "corner end dot on the bisector, diagonally inside: {:?}",
-        dots[1]
+        dots.len() == 2 && near(dots[0], (20.0, 195.0)) && near(dots[1], (40.0 - d, 170.0 + d)),
+        "seam dots on the band's inner edge: {dots:?}"
     );
-    // Unselected → no seam handles.
-    let html = leptotes::render(move || view! { <Shapes t=t() shapes=vec![shape.clone()] /> });
+}
+
+#[test]
+fn an_unselected_shape_shows_no_seam_handles() {
+    let dom = leptotes::dom(move || view! { <Shapes t=t() shapes=vec![square_with_span()] /> });
+
     assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-seam-handle""#),
-        0
+        dom.count(r#"[data-testid="shape-seam-handle"]"#),
+        0,
+        "{dom}"
     );
-    // A full-ring border has no span endpoints to drag.
+}
+
+#[test]
+fn a_full_ring_border_has_no_seam_handles() {
+    // A full ring has no span endpoints to drag.
     let mut ring = square(0.0);
     ring.borders = vec![slp_core::Border::new("edging".to_string(), 0.5)];
-    let html = leptotes::render(move || {
+    let dom = leptotes::dom(move || {
         view! { <Shapes t=t() shapes=vec![ring.clone()] selected=Some(0) /> }
     });
+
     assert_eq!(
-        leptotes::count(&html, r#"data-testid="shape-seam-handle""#),
-        0
+        dom.count(r#"[data-testid="shape-seam-handle"]"#),
+        0,
+        "{dom}"
     );
 }

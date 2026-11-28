@@ -4,30 +4,36 @@ use leptos::prelude::*;
 
 use super::{ScaleBar, Transform};
 
-#[test]
-fn renders_label_and_one_line() {
-    let t = Transform {
+fn t() -> Transform {
+    Transform {
         px_ft: 12.0,
         pad: 40.0,
         yard_d: 30.0,
-    };
-    let html = leptotes::render(move || view! { <ScaleBar t=t baseline_y=400.0 /> });
-    assert!(html.contains("10 ft"), "scale bar shows its length label");
-    assert_eq!(leptotes::count(&html, "<line"), 1, "exactly one bar line");
+    }
 }
 
 #[test]
-fn scales_label_and_line_to_a_non_default_length() {
-    let t = Transform {
-        px_ft: 12.0,
-        pad: 40.0,
-        yard_d: 30.0,
-    };
-    let html = leptotes::render(move || view! { <ScaleBar t=t baseline_y=400.0 length_ft=20.0 /> });
-    assert!(html.contains("20 ft"), "label reflects the explicit length");
-    // x0 = sx(0) = pad = 40; x2 = x0 + 20 ft * 12 px/ft = 280.
-    assert!(
-        html.contains(r#"x2="280""#),
-        "line end scales with length_ft"
+fn renders_label_and_one_line() {
+    let dom = leptotes::dom(move || view! { <ScaleBar t=t() baseline_y=400.0 /> });
+
+    assert_eq!(
+        (dom.count("line"), dom.find("text").text()),
+        (1, "10 ft".to_string()),
+        "{dom}"
     );
+}
+
+#[test]
+fn labels_a_non_default_length() {
+    let dom = leptotes::dom(move || view! { <ScaleBar t=t() baseline_y=400.0 length_ft=20.0 /> });
+
+    assert_eq!(dom.find("text").text(), "20 ft", "{dom}");
+}
+
+#[test]
+fn scales_the_line_to_a_non_default_length() {
+    let dom = leptotes::dom(move || view! { <ScaleBar t=t() baseline_y=400.0 length_ft=20.0 /> });
+
+    // x0 = sx(0) = pad = 40; x2 = x0 + 20 ft * 12 px/ft = 280.
+    assert_eq!(dom.find("line").attr("x2"), Some("280"), "{dom}");
 }
