@@ -67,6 +67,27 @@ repos:
         types: [rust]
         pass_filenames: false
 
+      # The excluded crates, as CI lints them, but --locked: an unlocked run
+      # re-resolves a stale excluded lockfile mid-commit, which prek reports
+      # as "files were modified", where a locked one fails with cargo's own
+      # message. CI stays unlocked so Dependabot's lockfile PRs stay green.
+      # slp-app builds slp-ui and slp-core through path dependencies.
+      - id: cargo-clippy-app
+        name: cargo clippy (slp-app)
+        description: Lint the excluded wasm app crate
+        entry: cargo clippy --locked --manifest-path crates/slp-app/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
+        language: system
+        files: ^crates/slp-app/|^crates/slp-(ui|core)/(src/|Cargo\.toml$)
+        pass_filenames: false
+
+      - id: cargo-clippy-e2e
+        name: cargo clippy (slp-e2e)
+        description: Lint the excluded e2e crate
+        entry: cargo clippy --locked --manifest-path crates/slp-e2e/Cargo.toml --all-targets -- -D warnings
+        language: system
+        files: ^crates/slp-e2e/
+        pass_filenames: false
+
       - id: cargo-check
         name: cargo check
         description: Check Rust code compiles
@@ -104,6 +125,26 @@ repos:
         language: system
         pass_filenames: false
         files: (Cargo\.toml|Cargo\.lock|deny\.toml)$
+
+      # The trees security.yml passes to the deny gate as deny-manifests,
+      # checked against the root deny.toml. Without these, a git source or a
+      # disallowed license added to an excluded crate commits cleanly and
+      # fails only in CI.
+      - id: cargo-deny-app
+        name: cargo deny (slp-app)
+        description: Check the excluded app crate's licenses, bans, and sources
+        entry: cargo deny --locked --workspace --config deny.toml --manifest-path crates/slp-app/Cargo.toml check bans licenses sources
+        language: system
+        pass_filenames: false
+        files: ^crates/slp-app/Cargo\.(toml|lock)$|^crates/slp-(ui|core)/Cargo\.toml$|^deny\.toml$
+
+      - id: cargo-deny-e2e
+        name: cargo deny (slp-e2e)
+        description: Check the excluded e2e crate's licenses, bans, and sources
+        entry: cargo deny --locked --workspace --config deny.toml --manifest-path crates/slp-e2e/Cargo.toml check bans licenses sources
+        language: system
+        pass_filenames: false
+        files: ^crates/slp-e2e/Cargo\.(toml|lock)$|^deny\.toml$
 
       # The `files` regex must match paths *under* `supply-chain/`; an
       # end-anchored `supply-chain/$` matches nothing, and the hook then
